@@ -3663,6 +3663,20 @@ return true;
   })();
   if (typeof window !== 'undefined') window.__PET_TOWN_PERF = PERF_TRACKER;
 
+  // v2026-10-10: "집에서 나오자마자 너무 오래 기다렸어요" 버그 수정용 -- 손님이 생성될 때 미리 얹어주는
+  // "집→상점 걸어오는 시간" 인내심 보너스가 직선 거리(까마귀가 나는 거리)로 계산되어 있었음. 실제로는
+  // 길을 따라 돌아가야 해서, 집이 멀리 돌아가야 하는 위치면 보너스가 실제 걸리는 시간보다 훨씬 적게
+  // 책정되어 도착하기도 전에 인내심이 바닥남. 실제 길찾기 경로 길이를 반환해서 그 값으로 보너스를 주도록 함.
+  // 길을 못 찾으면(아직 도로가 안 이어진 집 등) 직선 거리로 안전하게 대체.
+  function pathDist(x0, y0, x1, y1) {
+    const p = findPath(x0, y0, x1, y1, false);
+    if (!p || !p.length) return Math.hypot(x1 - x0, y1 - y0);
+    let d = Math.hypot(p[0].x - x0, p[0].y - y0);
+    for (let i = 1; i < p.length; i++) d += Math.hypot(p[i].x - p[i - 1].x, p[i].y - p[i - 1].y);
+    d += Math.hypot(x1 - p[p.length - 1].x, y1 - p[p.length - 1].y);
+    return d;
+  }
+
   return { originFor, itemAt, rotate, goDrop, nearStore, goStore, init, reset, walkNear, goTo, walk, strayPos, screenOf, petActor, markSold, markLeft, goCounter, trick, setPartners, joy, cam, center, farmAction, focusCafe, focusFarm, focusTrain, focusZoo,
-    toGrid, broom: sec => { if (me) me.broomUntil = T + (sec || 1.1); }, get me() { return me; }, set editSel(v) { editSel = v; }, set cafeSel(v) { cafeSel = v; }, set hospSel(v) { hospSel = v; }, get hospSel() { return hospSel; }, hospItemById, focusHosp, hospPerf, get cafeSel() { return cafeSel; }, cafeItemById, get editSel() { return editSel; }, toScreen, actors, buildOccNow: () => { occKey = ''; buildOcc(); } };
+    toGrid, broom: sec => { if (me) me.broomUntil = T + (sec || 1.1); }, get me() { return me; }, set editSel(v) { editSel = v; }, set cafeSel(v) { cafeSel = v; }, set hospSel(v) { hospSel = v; }, get hospSel() { return hospSel; }, hospItemById, focusHosp, hospPerf, get cafeSel() { return cafeSel; }, cafeItemById, get editSel() { return editSel; }, toScreen, actors, buildOccNow: () => { occKey = ''; buildOcc(); }, pathDist };
 })();
