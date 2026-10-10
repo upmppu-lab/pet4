@@ -60,9 +60,9 @@ const World = (() => {
       chihuahua_black: 70,
       chihuahua_brown: 70,
       chihuahua_dark_brown: 70,
-      poodle_black: 70,
-      poodle_gray: 70,
-      poodle_brown: 70,
+      poodle_black: 83,
+      poodle_gray: 83,
+      poodle_brown: 83,
     };
     const baseSz = SZ_BY_SP[sp] || 84;
 const SZ = isWalk ? baseSz * 1.3 : baseSz;  // walk를 30% 크게
