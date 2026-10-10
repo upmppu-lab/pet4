@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>My little Lisa PET TOWN</title>
+<meta name="description" content="A cozy isometric pet-shop and town-building game with pets, crafting, farming, café, ranch, and village life.">
+<meta property="og:title" content="My little Lisa PET TOWN">
+<meta property="og:description" content="A cozy isometric pet-shop and town-building game with pets, crafting, farming, café, ranch, and village life.">
+<script>
+(function() {
+  if (!Object.hasOwn) Object.hasOwn = function(o, p) { return Object.prototype.hasOwnProperty.call(o, p); };
+  if (!Array.prototype.at) Array.prototype.at = function(n) { n = Math.trunc(n) || 0; if (n < 0) n += this.length; return (n < 0 || n >= this.length) ? undefined : this[n]; };
+  if (!String.prototype.replaceAll) String.prototype.replaceAll = function(s, r) { return this.split(s).join(r); };
+  var _def = Object.defineProperty;
+  Object.defineProperty = function(obj, prop, desc) {
+    if (obj === window && prop === 'fetch' && desc && !desc.set) {
+      var current = desc.get ? desc.get : function() { return desc.value; };
+      var customVal = null;
+      return _def.call(Object, obj, prop, {
+        configurable: true,
+        enumerable: desc.enumerable !== false,
+        get: function() {
+          return customVal || (typeof current === 'function' ? current() : current);
+        },
+        set: function(v) {
+          customVal = v;
+        }
+      });
+    }
+    return _def.apply(Object, arguments);
+  };
+})();
+</script>
+<script src="env-config.js"></script>
+<script>
+// Central Asset URL manager:
+// - Google AI Studio Preview: returns GitHub raw assets URL (https://raw.githubusercontent.com/upmppu-lab/pet4-assets/main/...)
+// - PC / Claude / CMD APK Build & APK Runtime: returns local relative path (pets/..., spr/...)
+(function() {
+  /*__SERVER_ENV_INJECTION__*/
+  var RAW_BASE = 'https://raw.githubusercontent.com/upmppu-lab/pet4-assets/main';
+  function isRemoteAssets() {
+    if (typeof window === 'undefined') return false;
+    // 1. Explicit environment configuration provided by server or env-config.js
+    if (window.__PET_TOWN_ASSET_MODE === 'remote') return true;
+    if (window.__PET_TOWN_ASSET_MODE === 'local') return false;
+    // 2. Check for AI Studio Cloud Run preview domain
+    var host = (window.location && window.location.hostname) || '';
+    if (host.endsWith('.run.app') || host.includes('aistudio') || host.includes('googleusercontent.com')) {
+      return true;
+    }
+    // 3. Any request on localhost / 127.0.0.1 is STRICTLY LOCAL
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '::1' ||
+      host === '0.0.0.0' ||
+      host.endsWith('.local')
+    ) {
+      return false;
+    }
+    // 4. Strict default is ALWAYS LOCAL (PC, Claude, CMD APK build, APK runtime)
+    return false;
+  }
+  function assetUrl(path) {
+    if (!path) return '';
+    var s = String(path).trim();
+    var prefix = RAW_BASE + '/';
+    if (s.startsWith('data:') || s.startsWith('blob:')) return s;
+    if (s.startsWith('http://') || s.startsWith('https://')) {
+      if (s.startsWith(prefix)) {
+        return isRemoteAssets() ? s : s.slice(prefix.length);
+      }
+      return s;
+    }
+    // Clean leading slashes or accidental assets/ prefix
+    s = s.replace(/^\.?\/+/, '');
+    if (s.startsWith('assets/')) s = s.slice(7);
+    if (isRemoteAssets()) {
+      return prefix + s;
+    }
+    return s;
+  }
+  window.assetUrl = assetUrl;
+  window.isRemoteAssets = isRemoteAssets;
+  if (typeof globalThis !== 'undefined') globalThis.assetUrl = assetUrl;
+})();
+</script>
+<link rel="stylesheet" href="style.css"></head>
+<body><script>
+// v1.100.50: "버튼 눌리는 애니메이션 좀 넣어줘" - 버튼들은 이미 CSS에 :active 눌림 효과가 있었지만,
+// 안드로이드 웹뷰는 터치만으로는 :active 상태가 거의 안 켜짐(모바일 웹의 잘 알려진 문제). 빈
+// touchstart 리스너를 하나 걸어주면 브라우저가 :active를 터치에도 제대로 적용해줌.
+document.addEventListener('touchstart', function() {}, { passive: true });
+</script>
+<script>(function(){var n=0;function show(m){if(n++>2)return;var d=document.createElement('div');d.style.cssText='position:fixed;left:8px;right:8px;bottom:8px;z-index:99999;background:rgba(150,20,20,.94);color:#fff;font:12px/1.35 sans-serif;padding:8px 10px;border-radius:8px;word-break:break-all;max-height:40vh;overflow:auto';d.textContent='[오류] '+m+' (눌러서 닫기)';d.onclick=function(){d.remove()};document.body.appendChild(d)}window.addEventListener('error',function(e){if(e.__seen)return;var msg=String(e.message||'');var file=String(e.filename||'');if(msg.includes('Cannot set property fetch')||msg.includes('ResizeObserver')||file.includes('200.js')||file.includes('_aistudio'))return;show((e.message||'error')+' @'+file.split('/').pop()+':'+e.lineno)});function rep(e,w){var st=String(e&&e.stack||'').split('\n').slice(1,4).map(function(x){return x.replace(/\(?(file|https?):[^ )]*\/(\w+\.js)/,'$2').trim()}).join(' < ');show((e&&e.message||e)+' ['+w+'] '+st)}window.__rep=rep;var M=new WeakMap();function wrap(f,w){if(typeof f!=='function')return f;if(f.__g)return f;var g=M.get(f);if(g)return g;g=function(){try{return f.apply(this,arguments)}catch(e){rep(e,w)}};g.__g=1;M.set(f,g);return g}window.__guard=wrap;var sT=window.setTimeout,sI=window.setInterval,rA=window.requestAnimationFrame;window.setTimeout=function(f,d){var a=[].slice.call(arguments,2);return sT.apply(window,[wrap(f,'timer')].concat([d],a))};window.setInterval=function(f,d){var a=[].slice.call(arguments,2);return sI.apply(window,[wrap(f,'interval')].concat([d],a))};window.requestAnimationFrame=function(f){return rA.call(window,wrap(f,'frame'))};var aE=EventTarget.prototype.addEventListener,rE=EventTarget.prototype.removeEventListener;EventTarget.prototype.addEventListener=function(t,f,o){return aE.call(this,t,t==='error'||t==='unhandledrejection'?f:wrap(f,t),o)};EventTarget.prototype.removeEventListener=function(t,f,o){return rE.call(this,t,(f&&M.get(f))||f,o)};window.addEventListener('unhandledrejection',function(e){var reason=e.reason&&e.reason.message||String(e.reason||'');var stack=String(e.reason&&e.reason.stack||'');if(reason.includes('fetch')||reason.includes('200.js')||reason.includes('M_ID')||stack.includes('200.js')||stack.includes('_aistudio'))return;show('promise: '+reason)})})();</script><canvas id="cv"></canvas><div id="ui"></div><div id="panel"></div><div id="toasts"></div>
+<script src="data.js"></script><script src="i18n.js"></script><script src="i18n2.js"></script><script src="i18n3.js"></script><script src="i18n4.js"></script><script src="quiz.js"></script><script src="i18n5.js"></script><script src="i18n6.js"></script><script src="i18n7.js"></script><script src="i18n8.js"></script><script src="i18n9.js"></script><script src="i18n10.js"></script><script src="i18n11.js"></script><script src="i18n12.js"></script><script src="i18n13.js"></script><script src="i18n14.js"></script><script src="i18n15.js"></script><script src="i18n16.js"></script>
+<script src="spr/meta.js"></script><script src="art.js"></script><script src="human.js"></script><script src="traits.js"></script><script src="furn.js"></script><script src="furn2.js"></script><script src="furn3.js"></script><script src="extra.js"></script><script src="bot.js"></script><script src="homecore.js"></script><script src="homelife.js"></script><script src="farmcore.js"></script><script src="cafecore.js"></script><script src="hospcore.js"></script><script src="park.js"></script><script src="village.js"></script><script src="salon.js"></script><script src="town.js"></script><script src="ranch.js"></script><script src="train.js"></script><script src="game.js"></script>
+<script src="core.js"></script><script src="net.js"></script><script src="sfx.js"></script><script src="minigame.js"></script><script src="minigame2.js"></script><script src="world.js"></script><script src="app.js"></script><script src="home.js"></script><script src="instapic.js"></script><script src="app2.js"></script><script src="townui.js"></script><script src="onlineui.js"></script>
+<script>(function(){try{var d=document.createElement('div');d.textContent='v'+APP_VER;d.style.cssText='position:fixed;right:4px;bottom:2px;z-index:99998;color:rgba(0,0,0,.4);font:9px/1 sans-serif;pointer-events:none;text-shadow:0 0 2px rgba(255,255,255,.8);';document.body.appendChild(d);}catch(e){}})();</script>
+</body></html>

@@ -1,0 +1,8 @@
+{
+  "name": "My little Lisa PET TOWN",
+  "description": "A cozy isometric pet-shop and town-building game with pets, crafting, farming, café, ranch, and village life.",
+  "prompt": "My little Lisa PET TOWN",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

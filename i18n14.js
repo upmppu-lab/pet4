@@ -1,0 +1,36 @@
+// my home strings
+Object.assign(I18N.ko, {
+  myHome:'우리 집', myHomeShort:'내 집', homeExit:'나가기', homeWelcome:'우리 집에 왔어요! 가구를 놓고 꾸며 보세요',
+  homeBonus:'가게 꾸미기 +{n}⭐', napDoneChip:'오늘 낮잠 완료', napReadyChip:'침대를 누르면 낮잠', homeFurn:'가구', homeStyle:'바닥·벽지', homeUp:'업그레이드', homePets:'펫', toShop:'가게로',
+  homeFurnDesc:'가구를 사면 집에 바로 놓여요. 가구가 많을수록 가게 손님이 늘어요', homeLvN:'집 Lv{n}', homeStyleShared:'가게에서 산 바닥·벽지는 집에서도 무료예요',
+  hname_1:'아늑한 원룸', hname_2:'예쁜 투룸', hname_3:'파란 지붕 2층집', hname_4:'2층 주택', hname_5:'2층 단독주택',
+  hname_6:'3층 타운하우스', hname_7:'3층 대저택', hname_8:'궁전 같은 3층집', hname_9:'가족의 성', hname_10:'꿈의 대궁전',
+  homePetCap:'펫 {n}마리', homeUpPerks:'새 가구 열림', homeUpBtn:'집 넓히기', homeMax:'최고 레벨 집이에요!',
+  napTitle:'낮잠', napDesc:'집의 침대를 누르면 하루 한 번 낮잠을 자요. 코인·경험치를 받고, 가게 아이들 기분도 좋아져요. 좋은 침대일수록 보상이 커요',
+  homePetsDesc:'좋아하는 아이를 집에 데려와 함께 살 수 있어요 ({n}/{m}). 집에 있는 아이는 배고프지 않고 늘 행복해요', atHome:'집에서 지내는 중', sendBack:'가게로', shopPets:'가게 아이들', takeHome:'데려가기', noShopPets:'가게에 아이가 없어요',
+  homeSellQ:'이 가구를 팔까요? (절반 가격 환불)',
+  homeBought:'가구를 샀어요! 놓을 자리를 누르세요', homeSold:'🪙{c} 환불받았어요', homeUpOk:'집이 Lv{n}으로 커졌어요! 🏡', napOk:'푹 잤어요! 😴 🪙{c} · 아이들 기분 UP', takenHome:'{name}(이)가 우리 집에 왔어요 🏠', backToShop:'{name}(이)가 가게로 돌아갔어요',
+  homeNeedLv:'집 Lv{n}부터 살 수 있어요', homeFull:'집에 빈 자리가 없어요', homeNeedPlayer:'레벨 {n}부터 업그레이드할 수 있어요', homeNoBed:'침대가 있어야 낮잠을 잘 수 있어요', napDone:'오늘은 벌써 낮잠을 잤어요. 내일 또 자요!', homePetsFull:'집에는 {n}마리까지 살 수 있어요 (업그레이드하면 늘어요)', homePetBusy:'손님과 만나는 중이라 데려갈 수 없어요',
+  hf_h_bed:'싱글 침대', hf_h_petbed:'펫 방석', hf_plant:'화분', hf_lamp:'스탠드', hf_rug:'러그', hf_h_heart:'하트 러그', hf_armchair:'1인 소파', hf_table:'티 테이블', hf_radio:'라디오', hf_coatrack:'옷걸이', hf_h_bookpile:'책 더미', hf_h_frame:'커플 액자',
+  hf_bench:'소파', hf_h_wardrobe:'옷장', hf_h_stove:'가스레인지', hf_fridge:'냉장고', hf_tv:'TV', hf_bookcase:'책장', hf_desk:'책상', hf_h_vanity:'화장대', hf_h_dining:'식탁 세트', hf_h_dbed:'더블 침대', hf_washer:'세탁기', hf_bathtub:'욕조', hf_cafe:'주방 조리대',
+  hf_h_fire:'벽난로', hf_h_piano:'피아노', hf_aquarium:'어항', hf_h_canopy:'공주 침대',
+  huse_h_piano:'띵동~ 피아노를 쳤어요', huse_tv:'재미있는 방송을 봤어요', huse_h_fire:'따뜻해요~', huse_h_stove:'맛있는 요리를 했어요', huse_fridge:'시원한 주스 한 잔!', huse_bathtub:'거품 목욕 최고!', huse_h_vanity:'오늘도 예뻐요', huse_bookcase:'책을 읽었어요', huse_h_bookpile:'책을 읽었어요', huse_radio:'좋아하는 노래가 나와요', huse_aquarium:'물고기가 귀여워요', huse_h_petbed:'폭신폭신한 방석', huse_h_frame:'우리 사진 ♥', huse_cafe:'커피를 내렸어요', huse_h_dining:'맛있게 먹었어요', huse_desk:'인스타를 확인했어요', huse_washer:'빨래 끝!', huse_h_wardrobe:'옷을 골라 봤어요',
+});
+Object.assign(I18N.ru, {
+  myHome:'Наш дом', myHomeShort:'Мой дом', homeExit:'Выйти', homeWelcome:'Добро пожаловать домой! Расставьте мебель',
+  homeBonus:'Декор магазина +{n}⭐', napDoneChip:'Сегодня уже спали', napReadyChip:'Нажмите на кровать — сон', homeFurn:'Мебель', homeStyle:'Пол и обои', homeUp:'Улучшить', homePets:'Питомцы', toShop:'В магазин',
+  homeFurnDesc:'Купленная мебель сразу появляется дома. Больше мебели — больше покупателей', homeLvN:'Дом ур.{n}', homeStyleShared:'Пол и обои, купленные для магазина, дома бесплатны',
+  hname_1:'Уютная студия', hname_2:'Милая квартира', hname_3:'Дом с синей крышей (2 эт.)', hname_4:'Двухэтажный дом', hname_5:'Особняк в 2 этажа',
+  hname_6:'Таунхаус в 3 этажа', hname_7:'Большая усадьба (3 эт.)', hname_8:'Дом-дворец', hname_9:'Семейный замок', hname_10:'Дом мечты',
+  homePetCap:'{n} питомц.', homeUpPerks:'Новая мебель', homeUpBtn:'Расширить дом', homeMax:'Максимальный уровень!',
+  napTitle:'Дневной сон', napDesc:'Нажмите на кровать — раз в день можно поспать. Монеты, опыт и хорошее настроение питомцев. Чем лучше кровать, тем больше награда',
+  homePetsDesc:'Любимцы могут жить дома ({n}/{m}). Дома они не голодают и всегда счастливы', atHome:'Живёт дома', sendBack:'В магазин', shopPets:'Питомцы магазина', takeHome:'Забрать', noShopPets:'В магазине нет питомцев',
+  homeSellQ:'Продать эту мебель? (вернётся половина)',
+  homeBought:'Куплено! Нажмите, куда поставить', homeSold:'Возвращено 🪙{c}', homeUpOk:'Дом вырос до ур.{n}! 🏡', napOk:'Отлично поспали! 😴 🪙{c} · питомцы довольны', takenHome:'{name} теперь живёт дома 🏠', backToShop:'{name} вернулся в магазин',
+  homeNeedLv:'Доступно с дома ур.{n}', homeFull:'В доме нет места', homeNeedPlayer:'Улучшение с уровня {n}', homeNoBed:'Нужна кровать', napDone:'Сегодня уже спали. Завтра снова!', homePetsFull:'Дома может жить до {n} (улучшите дом)', homePetBusy:'Сейчас с покупателем',
+  hf_h_bed:'Кровать', hf_h_petbed:'Лежанка', hf_plant:'Цветок', hf_lamp:'Торшер', hf_rug:'Коврик', hf_h_heart:'Коврик-сердце', hf_armchair:'Кресло', hf_table:'Столик', hf_radio:'Радио', hf_coatrack:'Вешалка', hf_h_bookpile:'Книги', hf_h_frame:'Наше фото',
+  hf_bench:'Диван', hf_h_wardrobe:'Шкаф', hf_h_stove:'Плита', hf_fridge:'Холодильник', hf_tv:'ТВ', hf_bookcase:'Книжный шкаф', hf_desk:'Стол', hf_h_vanity:'Туалетный столик', hf_h_dining:'Обеденный стол', hf_h_dbed:'Двуспальная кровать', hf_washer:'Стиральная машина', hf_bathtub:'Ванна', hf_cafe:'Кухня',
+  hf_h_fire:'Камин', hf_h_piano:'Пианино', hf_aquarium:'Аквариум', hf_h_canopy:'Кровать принцессы',
+  huse_h_piano:'Сыграли мелодию', huse_tv:'Посмотрели шоу', huse_h_fire:'Тепло~', huse_h_stove:'Приготовили вкусняшку', huse_fridge:'Стакан сока!', huse_bathtub:'Пенная ванна!', huse_h_vanity:'Красота!', huse_bookcase:'Почитали книгу', huse_h_bookpile:'Почитали книгу', huse_radio:'Любимая песня', huse_aquarium:'Рыбки милые', huse_h_petbed:'Мягкая лежанка', huse_h_frame:'Наше фото ♥', huse_cafe:'Сварили кофе', huse_h_dining:'Вкусно поели', huse_desk:'Проверили инсту', huse_washer:'Стирка готова', huse_h_wardrobe:'Выбрали наряд',
+});
+Object.assign(I18N.ko, { homeUp2:'우리 집 업그레이드' }); Object.assign(I18N.ru, { homeUp2:'улучшение дома' });
