@@ -3915,7 +3915,7 @@ function getFlowerSprite(kind) {
   // 대체함. 이 그림들은 동물원/공원/호수 배경과 달리 위에서 내려다본 평면도가 아니라, 건물을
   // 비스듬히 바라본 "서 있는 건물" 형태라서(내 집 홈 스프라이트와 같은 방식), 타일 부지의
   // 중심점 위에 고정 비율로 띄워서 그리는 방식(앵커 스프라이트)으로 맞춤.
-  const STORE_IMG_KEYS = ['conv', 'florist', 'bakery', 'fire', 'clocktower', 'aquarium_center', 'chapel', 'lookout', 'market', 'pet_themepark', 'school', 'gazebo', 'windmill'];
+  const STORE_IMG_KEYS = ['conv', 'florist', 'bakery', 'fire', 'clocktower', 'aquarium_center', 'chapel', 'lookout', 'market', 'pet_themepark', 'school', 'gazebo', 'windmill', 'clinic', 'photo', 'training', 'police', 'library'];
   const STORE_IMG = {};
   for (const _sk of STORE_IMG_KEYS) {
     const _su = (typeof assetUrl === 'function') ? assetUrl('spr/store/' + _sk + '.png') : ('spr/store/' + _sk + '.png');
