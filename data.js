@@ -123,7 +123,6 @@ const SPECIES_RAW = [
  ['rat_white_5', 'small', 1, 40, 90, 3, '화이트 래트 5', 'Белая крыса 5'],
  ['goldfish','fish',1,25,60,2,'금붕어','Золотая рыбка'],
  ['budgie','bird',1,60,130,4,'사랑앵무','Волнистый попугай'],
- ['guinea','small',2,90,190,5,'기니피그','Морская свинка'],
  ['neon','fish',2,35,80,2,'네온테트라','Неон'],
  ['canary','bird',2,80,170,4,'카나리아','Канарейка'],
  ['rabbit','small',3,120,260,6,'집토끼','Домашний кролик'],
@@ -165,6 +164,20 @@ const SPECIES_RAW = [
  ['chihuahua_black','dog',11,400,860,10,'치와와 블랙','Чихуахуа чёрный'],
  ['chihuahua_brown','dog',11,410,880,10,'치와와 브라운','Чихуахуа коричневый'],
  ['chihuahua_dark_brown','dog',11,420,900,10,'치와와 다크 브라운','Чихуахуа тёмно-коричневый'],
+ ['guineapig_black_1','small',10,380,820,6,'기니피그 블랙 1','Морская свинка чёрная 1'],
+ ['guineapig_black_2','small',10,380,820,6,'기니피그 블랙 2','Морская свинка чёрная 2'],
+ ['guineapig_black_3','small',10,380,820,6,'기니피그 블랙 3','Морская свинка чёрная 3'],
+ ['guineapig_black_4','small',10,380,820,6,'기니피그 블랙 4','Морская свинка чёрная 4'],
+ ['guineapig_brown_1','small',10,380,820,6,'기니피그 브라운 1','Морская свинка коричневая 1'],
+ ['guineapig_brown_2','small',10,380,820,6,'기니피그 브라운 2','Морская свинка коричневая 2'],
+ ['guineapig_brown_3','small',10,380,820,6,'기니피그 브라운 3','Морская свинка коричневая 3'],
+ ['guineapig_brown_4','small',10,380,820,6,'기니피그 브라운 4','Морская свинка коричневая 4'],
+ ['guineapig_cream','small',10,380,820,6,'기니피그 크림','Морская свинка кремовая'],
+ ['guineapig_dark_brown_1','small',10,380,820,6,'기니피그 다크 브라운 1','Морская свинка тёмно-коричневая 1'],
+ ['guineapig_dark_brown_2','small',10,380,820,6,'기니피그 다크 브라운 2','Морская свинка тёмно-коричневая 2'],
+ ['guineapig_gray','small',10,380,820,6,'기니피그 그레이','Морская свинка серая'],
+ ['guineapig_mix','small',10,380,820,6,'기니피그 믹스','Морская свинка пёстрая'],
+ ['guineapig_white','small',10,380,820,6,'기니피그 화이트','Морская свинка белая'],
  ['poodle_black','dog',11,430,930,10,'푸들 블랙','Пудель чёрный'],
  ['poodle_gray','dog',11,440,950,10,'푸들 그레이','Пудель серый'],
  ['poodle_brown','dog',11,450,970,10,'푸들 브라운','Пудель коричневый'],
@@ -223,6 +236,7 @@ const LEGACY_SP_MAP = {
   labrador: 'retriever_brown',
   dalmatian: 'dalmatian_black',
   poodle: 'poodle_brown',
+  guinea: 'guineapig_mix',
 };
 for (const [k, v] of Object.entries(LEGACY_SP_MAP)) {
   if (!SPECIES[k] && SPECIES[v]) SPECIES[k] = SPECIES[v];
@@ -383,6 +397,10 @@ const FEED_TIERS = [
   { k: 2.2, hunger: 75, lv: 3, ko: '고급', ru: 'Премиум', icon: '🌟' },
 ];
 const DIET_BY_SP = { hamster: 'seed', robo: 'seed', gerbil: 'seed', chinchilla: 'seed', rabbit: 'hay', hollandlop: 'hay', dwarfrabbit: 'hay', lionhead: 'hay', guinea: 'hay',
+  guineapig_black_1: 'hay', guineapig_black_2: 'hay', guineapig_black_3: 'hay', guineapig_black_4: 'hay',
+  guineapig_brown_1: 'hay', guineapig_brown_2: 'hay', guineapig_brown_3: 'hay', guineapig_brown_4: 'hay',
+  guineapig_cream: 'hay', guineapig_dark_brown_1: 'hay', guineapig_dark_brown_2: 'hay',
+  guineapig_gray: 'hay', guineapig_mix: 'hay', guineapig_white: 'hay',
   hedgehog: 'insect', gecko: 'insect', ferret: 'ferret', duckling: 'duck', axolotl: 'axo', turtle: 'turtle' };
 const dietOf = sp => DIET_BY_SP[sp] || { dog: 'dog', cat: 'cat', bird: 'birdseed', fish: 'flake', small: 'seed', reptile: 'insect' }[(SPECIES[sp] || {}).cat] || 'seed';
 const feedPrice = (line, tier) => Math.max(5, Math.round(FEED_LINES[line].price * FEED_TIERS[tier].k / 5) * 5);

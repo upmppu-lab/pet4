@@ -28,7 +28,8 @@ const World = (() => {
     // st.moving이 켜진 모든 경우에 그 체크 없이 매번 sp+'_walk1'/'_walk2'를 새로 불러오려 시도해서,
     // 존재하지도 않는 파일을 계속 요청 -> 로컬에 없음 -> GitHub로 자동 대체 요청 -> 거기도 없어서 404,
     // 이 흐름이 매번 콘솔에 404 에러로 찍혔음. 애초에 걷기 그림이 없는 종은 아예 시도하지 않도록 함.
-    if (st.moving && !sp.startsWith('rat_')) {
+    // v2026-10-10b: 기니피그(guineapig_*)도 동일 -- 걷기 그림 없는 "cage" 종.
+    if (st.moving && !sp.startsWith('rat_') && !sp.startsWith('guineapig_')) {
       const w1 = PET_PNG.img(sp + '_walk1');
       const w2 = PET_PNG.img(sp + '_walk2');
       if (w1 && w1.complete && w1.naturalWidth && w2 && w2.complete && w2.naturalWidth) {

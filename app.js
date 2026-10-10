@@ -73,6 +73,20 @@ const PNG_PETS = {
   poodle_black: 1,
   poodle_gray: 1,
   poodle_brown: 1,
+  guineapig_black_1: 1,
+  guineapig_black_2: 1,
+  guineapig_black_3: 1,
+  guineapig_black_4: 1,
+  guineapig_brown_1: 1,
+  guineapig_brown_2: 1,
+  guineapig_brown_3: 1,
+  guineapig_brown_4: 1,
+  guineapig_cream: 1,
+  guineapig_dark_brown_1: 1,
+  guineapig_dark_brown_2: 1,
+  guineapig_gray: 1,
+  guineapig_mix: 1,
+  guineapig_white: 1,
 };
 const PET_PNG = (() => {
   const cache = {};
@@ -94,7 +108,7 @@ const PET_PNG = (() => {
 // 본체 + 걷기 이미지 미리 로드
 Object.keys(PNG_PETS).forEach(sp => {
   PET_PNG.load(sp);
-  if (!sp.startsWith('rat_')) {
+  if (!sp.startsWith('rat_') && !sp.startsWith('guineapig_')) {
     PET_PNG.load(sp + '_walk1');
     PET_PNG.load(sp + '_walk2');
   }
