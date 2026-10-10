@@ -159,13 +159,15 @@ const SPECIES_RAW = [
  ['corgi','dog',9,560,1200,13,'웰시코기','Вельш-корги'],
  ['russianblue','cat',9,540,1160,12,'러시안 블루','Русская голубая'],
  ['conure','bird',9,420,900,10,'썬코뉴어','Солнечная аратинга'],
- ['poodle','dog',10,520,1120,12,'푸들','Пудель'],
  ['scottish','cat',10,600,1290,13,'스코티시 폴드','Шотландская вислоухая'],
  ['ferret','small',10,380,820,10,'페럿','Хорёк'],
  ['ragdoll','cat',11,680,1460,14,'랙돌','Рэгдолл'],
  ['chihuahua_black','dog',11,400,860,10,'치와와 블랙','Чихуахуа чёрный'],
  ['chihuahua_brown','dog',11,410,880,10,'치와와 브라운','Чихуахуа коричневый'],
  ['chihuahua_dark_brown','dog',11,420,900,10,'치와와 다크 브라운','Чихуахуа тёмно-коричневый'],
+ ['poodle_black','dog',11,430,930,10,'푸들 블랙','Пудель чёрный'],
+ ['poodle_gray','dog',11,440,950,10,'푸들 그레이','Пудель серый'],
+ ['poodle_brown','dog',11,450,970,10,'푸들 브라운','Пудель коричневый'],
  ['samoyed','dog',12,750,1620,15,'사모예드','Самоед'],
  ['bengal','cat',12,760,1640,15,'벵갈','Бенгальская кошка'],
  ['axolotl','fish',12,500,1080,12,'우파루파','Аксолотль'],
@@ -220,6 +222,7 @@ const LEGACY_SP_MAP = {
   golden: 'retriever_brown',
   labrador: 'retriever_brown',
   dalmatian: 'dalmatian_black',
+  poodle: 'poodle_brown',
 };
 for (const [k, v] of Object.entries(LEGACY_SP_MAP)) {
   if (!SPECIES[k] && SPECIES[v]) SPECIES[k] = SPECIES[v];

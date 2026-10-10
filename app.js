@@ -70,6 +70,9 @@ const PNG_PETS = {
   chihuahua_black: 1,
   chihuahua_brown: 1,
   chihuahua_dark_brown: 1,
+  poodle_black: 1,
+  poodle_gray: 1,
+  poodle_brown: 1,
 };
 const PET_PNG = (() => {
   const cache = {};

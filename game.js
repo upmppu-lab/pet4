@@ -167,6 +167,7 @@ const SP_MAP = {
   golden: 'retriever_brown',
   labrador: 'retriever_brown',
   dalmatian: 'dalmatian_black',
+  poodle: 'poodle_brown',
 };
 const _mapSp = obj => { if (obj) obj.sp = SP_MAP[obj.sp] || obj.sp; };
 // 모든 펫 위치 순회
