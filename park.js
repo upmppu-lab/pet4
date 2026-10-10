@@ -191,10 +191,12 @@ const PARK = (() => {
     if (!isBuilt()) { const sg = PARK_SIGN(); out.push({ depth: sg.x + sg.y + .5, fn: () => { at(c, sg.x + .5, sg.y + .5, () => sign(c, T)); const sx = ISO.wx(sg.x + .5, sg.y + .5), sy = ISO.wy(sg.x + .5, sg.y + .5); addHit({ kind: 'parksign', x0: sx - 56, x1: sx + 56, y0: sy - 110, y1: sy + 6 }); } }); return out; }
     const parkReady = PARK_IMG && PARK_IMG.complete && PARK_IMG.naturalWidth > 0;
     if (parkReady) {
-      // the trees/fountain/benches/gate are all painted into the ground image now; just keep a tap zone
-      // near the gate so tapping the park still shows the parkHello toast. Real villagers (not WALKERS)
-      // are drawn separately by town.js's villagerStep, on top of this image.
-      out.push({ depth: p.x + p.y + 6.5, fn: () => { const sx = ISO.wx(p.x, p.y + 7), sy = ISO.wy(p.x, p.y + 7); addHit({ kind: 'park', x0: sx - 60, x1: sx + 60, y0: sy - 90, y1: sy + 40 }); } });
+      // v2026-10-10: "공원 둘레 길도 못 가요" 버그 수정 -- 여기서 입구 근처에 넓게(가로 120px 세로
+      // 130px) 깔아두던 'park' 탭 영역이 그 범위 안의 모든 클릭(입구로 이어지는 길까지)을 가로채서
+      // 그냥 인사 토스트만 띄우고 끝내버렸음(이동 로직까지 전혀 도달 못 함). 호수처럼 이런 전역
+      // 가로채기 영역 자체를 없애서, 공원 둘레와 입구 쪽도 다른 곳처럼 그냥 눌러서 걸어갈 수 있게 함.
+      // the trees/fountain/benches/gate are all painted into the ground image now. Real villagers
+      // (not WALKERS) are drawn separately by town.js's villagerStep, on top of this image.
       return out;
     }
     TREES.forEach(([u, v, k], i) => out.push({ depth: p.x + u + p.y + v + .9, fn: () => at(c, p.x + u + .5, p.y + v + .5, () => tree(c, k, T, i)) }));
@@ -202,7 +204,7 @@ const PARK = (() => {
     for (const [u, v] of LAMPS) out.push({ depth: p.x + u + p.y + v, fn: () => at(c, p.x + u, p.y + v, () => lamp(c, T)) });
     out.push({ depth: p.x + FOUNT.u + p.y + FOUNT.v + 3, fn: () => at(c, p.x + FOUNT.u, p.y + FOUNT.v, () => fountain(c, T)) });
     out.push({ depth: p.x + PLAY.u + p.y + PLAY.v + 3.5, fn: () => at(c, p.x + PLAY.u, p.y + PLAY.v, () => playground(c, T)) });
-    out.push({ depth: p.x + p.y + 6.5, fn: () => { at(c, p.x - .15, p.y + 6, () => gate(c, T)); const sx = ISO.wx(p.x, p.y + 7), sy = ISO.wy(p.x, p.y + 7); addHit({ kind: 'park', x0: sx - 40, x1: sx + 40, y0: sy - 100, y1: sy + 10 }); } });
+    out.push({ depth: p.x + p.y + 6.5, fn: () => { at(c, p.x - .15, p.y + 6, () => gate(c, T)); } });
     WALKERS.forEach((w, i) => out.push(walker(c, T, w, i)));
     return out;
   }
