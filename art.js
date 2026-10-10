@@ -237,6 +237,15 @@ const ART = (() => {
   // look: t=template, c1 main, c2 secondary (muzzle/belly), c3 accent, ear, pat, fluff
   const L = {
     hamster: { t: 'rat', c1: '#f4f1ec', c2: '#ffffff', c3: '#4a3f3a', pat: 'hood', eye: null },
+    hamster_black: { t: 'rat', c1: '#2f2b2b', c2: '#4a4442', c3: '#2f2b2b' },
+    hamster_brown: { t: 'rat', c1: '#9b6a45', c2: '#b88760', c3: '#6b4530' },
+    hamster_cream: { t: 'rat', c1: '#f3e6c8', c2: '#fff4e0', c3: '#d9c3a8' },
+    hamster_cream_brown: { t: 'rat', c1: '#d9b98c', c2: '#f3e6c8', c3: '#9b6a45' },
+    hamster_dark_brown: { t: 'rat', c1: '#5c3a1e', c2: '#8a5a33', c3: '#3a2410' },
+    hamster_dark_gray: { t: 'rat', c1: '#6b7480', c2: '#9a9aa2', c3: '#4a4442' },
+    hamster_deepdark_gray: { t: 'rat', c1: '#3a3a40', c2: '#5a5a62', c3: '#1f1f22' },
+    hamster_gray: { t: 'rat', c1: '#9a9aa2', c2: '#c9c9d0', c3: '#6b7480' },
+    hamster_white: { t: 'rat', c1: '#ffffff', c2: '#ffffff', c3: '#e8e4de' },
     rat: { t: 'rat', c1: '#f4f1ec', c2: '#ffffff', c3: '#4a3f3a', pat: 'hood', eye: null },
     robo: { t: 'rodent', c1: '#e8c9a0', c2: '#ffffff', small: 1 },
     gerbil: { t: 'rodent', c1: '#d9a86a', c2: '#fff8ee', tail: 1, ear: 'tall' },

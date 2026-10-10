@@ -87,6 +87,15 @@ const PNG_PETS = {
   guineapig_gray: 1,
   guineapig_mix: 1,
   guineapig_white: 1,
+  hamster_black: 1,
+  hamster_brown: 1,
+  hamster_cream: 1,
+  hamster_cream_brown: 1,
+  hamster_dark_brown: 1,
+  hamster_dark_gray: 1,
+  hamster_deepdark_gray: 1,
+  hamster_gray: 1,
+  hamster_white: 1,
 };
 const PET_PNG = (() => {
   const cache = {};
@@ -108,7 +117,7 @@ const PET_PNG = (() => {
 // 본체 + 걷기 이미지 미리 로드
 Object.keys(PNG_PETS).forEach(sp => {
   PET_PNG.load(sp);
-  if (!sp.startsWith('rat_') && !sp.startsWith('guineapig_')) {
+  if (!sp.startsWith('rat_') && !sp.startsWith('guineapig_') && !sp.startsWith('hamster_')) {
     PET_PNG.load(sp + '_walk1');
     PET_PNG.load(sp + '_walk2');
   }

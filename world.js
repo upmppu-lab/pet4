@@ -29,7 +29,7 @@ const World = (() => {
     // 존재하지도 않는 파일을 계속 요청 -> 로컬에 없음 -> GitHub로 자동 대체 요청 -> 거기도 없어서 404,
     // 이 흐름이 매번 콘솔에 404 에러로 찍혔음. 애초에 걷기 그림이 없는 종은 아예 시도하지 않도록 함.
     // v2026-10-10b: 기니피그(guineapig_*)도 동일 -- 걷기 그림 없는 "cage" 종.
-    if (st.moving && !sp.startsWith('rat_') && !sp.startsWith('guineapig_')) {
+    if (st.moving && !sp.startsWith('rat_') && !sp.startsWith('guineapig_') && !sp.startsWith('hamster_')) {
       const w1 = PET_PNG.img(sp + '_walk1');
       const w2 = PET_PNG.img(sp + '_walk2');
       if (w1 && w1.complete && w1.naturalWidth && w2 && w2.complete && w2.naturalWidth) {
@@ -67,14 +67,22 @@ const World = (() => {
     const baseSz = SZ_BY_SP[sp] || 84;
 const SZ = isWalk ? baseSz * 1.3 : baseSz;  // walk를 30% 크게
 
+// v2026-10-10c: 기니피그/햄스터는 걷기 프레임이 없고(위 가드) 원본 그림 자체가 옆모습(측면 뷰)이라,
+// 다른 종들의 "idle은 정면이라 반전 없음"과 달리 이동 방향에 따라 좌우 반전을 줘야 함
+// (기본=왼쪽을 보는 그림, 오른쪽 이동 시 반전해서 오른쪽을 보게).
+const sideProfile = sp.startsWith('guineapig_') || sp.startsWith('hamster_');
 c.save();
 // walk 이미지가 왼쪽 보는 그림 → 오른쪽 이동 시 좌우 반전
-// idle은 정면이라 반전 없음
-if (isWalk) c.scale(-(st.dir || 1), 1);
+// idle은 정면이라 반전 없음 (단, 기니피그/햄스터는 예외 -- 위 참고)
+if (isWalk || sideProfile) c.scale(-(st.dir || 1), 1);
 ART.shadow(c, 0, 0, 14);
 c.translate(0, -bob);
 c.rotate(tilt);
-const yOffset = isWalk ? 6 + SZ * .15 : 6;  // walk는 더 아래 (발이 바닥에 닿게)
+// v2026-10-10c: 기니피그/햄스터 원본 PNG는 다른 종들보다 그림 아래쪽 여백(투명 영역)이 훨씬 커서
+// (측정 결과 캔버스 높이의 약 28% vs 기존 종들의 13~19%), 고정 yOffset=6을 그대로 쓰면 바닥보다
+// 한참 위에 떠 보임. 그 차이만큼 더 아래로 내려서 그림 속 발이 실제 그림자 위치에 오도록 보정.
+const groundAdj = sideProfile ? SZ * .28 : 0;
+const yOffset = (isWalk ? 6 + SZ * .15 : 6) + groundAdj;  // walk는 더 아래 (발이 바닥에 닿게)
 c.drawImage(img, -SZ / 2, -SZ + yOffset, SZ, SZ);
 c.restore();
 return true;

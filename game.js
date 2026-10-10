@@ -155,7 +155,7 @@ const G = (() => {
     EXTRA.migrate(s); HOME.ensure(s); TOWN.ensure(s); // PET TOWN
 	// v1.101: 기존 벡터 종 → 새 PNG 종 (A안)
 const SP_MAP = {
-  hamster: 'rat_brown_1',
+  hamster: 'hamster_brown',
   husky: 'husky_black',
   maltese: 'maltese_white',
   maltese_cream: 'maltese_white',
