@@ -4453,131 +4453,138 @@ function getFlowerSprite(kind) {
     };
 
     // 2. HABITAT 위1 (상단 1구역): 하마 그리고 코끼리 (상단 좌측 라군 & 백사장)
-    const s1x = x + 3.8, s1y = y + 15.5;
+    // 코끼리: 아래 1, 하마: 아래 2 오른쪽 2 이동 반영
+    const s1x = x + 3.8, s1y = y + 16.5;
     list.push({
       depth: s1x + s1y + 4.5,
       fn: () => {
-        const hName = drawBadge(x + 4.2, y + 14.6, '🦛', 'top1', 'hama');
-        // 하마 가족: 우측 호수 물속 및 얕은 여울 (울타리 안쪽 안전 반경)
-        const bHippo = { minX: x + 3.4, maxX: x + 5.8, minY: y + 14.8, maxY: y + 17.5 };
-        drawZooAnimal('hama', x + 4.2, y + 15.8, 6.5, ZT, 10, { rx: .28, ry: .16, sc: .18, ...bHippo }, hName);
-        drawZooAnimal('hama', x + 5.2, y + 16.5, 6.5, ZT + 2.1, 11, { rx: .28, ry: .16, sc: .18, ...bHippo }, hName);
-        drawZooAnimal('hama', x + 3.6, y + 16.8, 6.5, ZT + 1.2, 12, { rx: .20, ry: .12, sc: .10, baby: true, ...bHippo }, hName);
-        drawZooAnimal('hama', x + 4.8, y + 15.2, 6.5, ZT + 2.8, 13, { rx: .20, ry: .12, sc: .10, baby: true, ...bHippo }, hName);
-        // 코끼리 가족: 라군 뒤편 모래사장 및 둔덕 (울타리 안쪽)
-        const bEle = { minX: x + 1.6, maxX: x + 3.5, minY: y + 12.6, maxY: y + 14.8 };
-        drawZooAnimal('koggiri', x + 2.2, y + 13.5, 6.4, ZT, 20, { rx: .28, ry: .16, sc: .18, ...bEle }, hName);
-        drawZooAnimal('koggiri', x + 3.2, y + 14.2, 6.4, ZT + 1.9, 21, { rx: .28, ry: .16, sc: .18, ...bEle }, hName);
-        drawZooAnimal('koggiri', x + 1.8, y + 14.2, 6.4, ZT + 2.6, 22, { rx: .20, ry: .12, sc: .10, baby: true, ...bEle }, hName);
-        drawZooAnimal('koggiri', x + 2.7, y + 13.0, 6.4, ZT + 0.7, 23, { rx: .20, ry: .12, sc: .10, baby: true, ...bEle }, hName);
+        const hName = drawBadge(x + 4.2, y + 15.6, '🦛', 'top1', 'hama');
+        // 하마 가족: 우측 호수 물속 및 얕은 여울 (아래 2 오른쪽 2 이동)
+        const bHippo = { minX: x + 5.4, maxX: x + 7.8, minY: y + 16.8, maxY: y + 19.5 };
+        drawZooAnimal('hama', x + 6.2, y + 17.8, 6.5, ZT, 10, { rx: .28, ry: .16, sc: .18, ...bHippo }, hName);
+        drawZooAnimal('hama', x + 7.2, y + 18.5, 6.5, ZT + 2.1, 11, { rx: .28, ry: .16, sc: .18, ...bHippo }, hName);
+        drawZooAnimal('hama', x + 5.6, y + 18.8, 6.5, ZT + 1.2, 12, { rx: .20, ry: .12, sc: .10, baby: true, ...bHippo }, hName);
+        drawZooAnimal('hama', x + 6.8, y + 17.2, 6.5, ZT + 2.8, 13, { rx: .20, ry: .12, sc: .10, baby: true, ...bHippo }, hName);
+        // 코끼리 가족: 라군 뒤편 모래사장 및 둔덕 (아래 1 이동)
+        const bEle = { minX: x + 1.6, maxX: x + 3.5, minY: y + 13.6, maxY: y + 15.8 };
+        drawZooAnimal('koggiri', x + 2.2, y + 14.5, 6.4, ZT, 20, { rx: .28, ry: .16, sc: .18, ...bEle }, hName);
+        drawZooAnimal('koggiri', x + 3.2, y + 15.2, 6.4, ZT + 1.9, 21, { rx: .28, ry: .16, sc: .18, ...bEle }, hName);
+        drawZooAnimal('koggiri', x + 1.8, y + 15.2, 6.4, ZT + 2.6, 22, { rx: .20, ry: .12, sc: .10, baby: true, ...bEle }, hName);
+        drawZooAnimal('koggiri', x + 2.7, y + 14.0, 6.4, ZT + 0.7, 23, { rx: .20, ry: .12, sc: .10, baby: true, ...bEle }, hName);
       }
     });
 
     // 3. HABITAT 위2 (상단 2구역): 갈색곰 그리고 홍학 (상단 중앙 모래사장과 갈색건물, 호수)
-    const s2x = x + 8.0, s2y = y + 6.0;
+    // 곰: 왼쪽 4 아래 1, 홍학: 왼쪽 4 이동 반영
+    const s2x = x + 4.0, s2y = y + 6.5;
     list.push({
       depth: s2x + s2y + 4.5,
       fn: () => {
-        const hName = drawBadge(x + 8.0, y + 6.8, '🐻', 'top2', 'bear');
-        // 갈색곰 가족: 모래사장과 갈색건물 (울타리 안쪽)
-        const bBear = { minX: x + 5.8, maxX: x + 7.8, minY: y + 4.8, maxY: y + 6.4 };
-        drawZooAnimal('bear', x + 6.6, y + 5.4, 6.4, ZT, 30, { rx: .28, ry: .16, sc: .18, ...bBear }, hName);
-        drawZooAnimal('bear', x + 7.4, y + 5.8, 6.4, ZT + 1.8, 31, { rx: .28, ry: .16, sc: .18, ...bBear }, hName);
-        drawZooAnimal('bear', x + 6.2, y + 5.9, 6.4, ZT + 2.5, 32, { rx: .20, ry: .12, sc: .10, baby: true, ...bBear }, hName);
-        drawZooAnimal('bear', x + 7.0, y + 5.0, 6.4, ZT + 0.9, 33, { rx: .20, ry: .12, sc: .10, baby: true, ...bBear }, hName);
-        // 홍학 가족: 호수 (울타리 안쪽 안전 반경)
-        const bHak = { minX: x + 8.0, maxX: x + 10.2, minY: y + 5.0, maxY: y + 6.6 };
-        drawZooAnimal('hak', x + 8.6, y + 5.6, 6.5, ZT, 94, { rx: .28, ry: .16, sc: .16, ...bHak }, hName);
-        drawZooAnimal('hak', x + 9.6, y + 6.2, 6.5, ZT + 1.8, 95, { rx: .28, ry: .16, sc: .16, ...bHak }, hName);
-        drawZooAnimal('hak', x + 8.2, y + 6.2, 6.5, ZT + 1.2, 96, { rx: .20, ry: .12, sc: .10, baby: true, ...bHak }, hName);
-        drawZooAnimal('hak', x + 9.2, y + 5.2, 6.5, ZT + 2.5, 97, { rx: .20, ry: .12, sc: .10, baby: true, ...bHak }, hName);
+        const hName = drawBadge(x + 4.0, y + 6.8, '🐻', 'top2', 'bear');
+        // 갈색곰 가족: 모래사장과 갈색건물 (왼쪽 4 아래 1 이동)
+        const bBear = { minX: x + 1.8, maxX: x + 3.8, minY: y + 5.8, maxY: y + 7.4 };
+        drawZooAnimal('bear', x + 2.6, y + 6.4, 6.4, ZT, 30, { rx: .28, ry: .16, sc: .18, ...bBear }, hName);
+        drawZooAnimal('bear', x + 3.4, y + 6.8, 6.4, ZT + 1.8, 31, { rx: .28, ry: .16, sc: .18, ...bBear }, hName);
+        drawZooAnimal('bear', x + 2.2, y + 6.9, 6.4, ZT + 2.5, 32, { rx: .20, ry: .12, sc: .10, baby: true, ...bBear }, hName);
+        drawZooAnimal('bear', x + 3.0, y + 6.0, 6.4, ZT + 0.9, 33, { rx: .20, ry: .12, sc: .10, baby: true, ...bBear }, hName);
+        // 홍학 가족: 호수 (왼쪽 4 이동)
+        const bHak = { minX: x + 4.0, maxX: x + 6.2, minY: y + 5.0, maxY: y + 6.6 };
+        drawZooAnimal('hak', x + 4.6, y + 5.6, 6.5, ZT, 94, { rx: .28, ry: .16, sc: .16, ...bHak }, hName);
+        drawZooAnimal('hak', x + 5.6, y + 6.2, 6.5, ZT + 1.8, 95, { rx: .28, ry: .16, sc: .16, ...bHak }, hName);
+        drawZooAnimal('hak', x + 4.2, y + 6.2, 6.5, ZT + 1.2, 96, { rx: .20, ry: .12, sc: .10, baby: true, ...bHak }, hName);
+        drawZooAnimal('hak', x + 5.2, y + 5.2, 6.5, ZT + 2.5, 97, { rx: .20, ry: .12, sc: .10, baby: true, ...bHak }, hName);
       }
     });
 
     // 4. HABITAT 위3 (상단 3구역): 사자, 악어 (상단 우측 바위 동굴 & 백사장)
-    const s3x = x + 14.5, s3y = y + 4.5;
+    // 악어: 왼쪽 3, 사자: 왼쪽 4 위로 2 이동 반영
+    const s3x = x + 11.0, s3y = y + 3.0;
     list.push({
       depth: s3x + s3y + 4.5,
       fn: () => {
-        const hName = drawBadge(x + 14.8, y + 5.6, '🦁', 'top3', 'tiger');
-        // 악어 가족: 파란 연못 물속 안쪽 (울타리 안쪽 안전 반경)
-        const bCro = { minX: x + 12.8, maxX: x + 14.6, minY: y + 3.0, maxY: y + 4.6 };
-        drawZooAnimal('cro', x + 13.4, y + 3.6, 6.4, ZT, 90, { rx: .24, ry: .14, sc: .17, ...bCro }, hName);
-        drawZooAnimal('cro', x + 14.2, y + 4.2, 6.4, ZT + 1.9, 91, { rx: .24, ry: .14, sc: .17, ...bCro }, hName);
-        drawZooAnimal('cro', x + 13.0, y + 4.0, 6.4, ZT + 1.5, 92, { rx: .18, ry: .10, sc: .10, baby: true, ...bCro }, hName);
-        drawZooAnimal('cro', x + 13.8, y + 3.2, 6.4, ZT + 2.4, 93, { rx: .18, ry: .10, sc: .10, baby: true, ...bCro }, hName);
-        // 사자 가족: 바위 동굴 앞쪽 안전 방사장 (울타리 안쪽 안전 반경)
-        const bLion = { minX: x + 14.8, maxX: x + 16.6, minY: y + 3.6, maxY: y + 5.3 };
-        drawZooAnimal('tiger', x + 15.2, y + 4.2, 6.4, ZT, 70, { rx: .28, ry: .16, sc: .18, ...bLion }, hName);
-        drawZooAnimal('tiger', x + 16.2, y + 4.8, 6.4, ZT + 1.6, 71, { rx: .28, ry: .16, sc: .18, ...bLion }, hName);
-        drawZooAnimal('tiger', x + 15.6, y + 5.0, 6.4, ZT + 2.8, 72, { rx: .20, ry: .12, sc: .10, baby: true, ...bLion }, hName);
-        drawZooAnimal('tiger', x + 16.0, y + 3.8, 6.4, ZT + 0.9, 73, { rx: .20, ry: .12, sc: .10, baby: true, ...bLion }, hName);
+        const hName = drawBadge(x + 11.2, y + 4.2, '🦁', 'top3', 'tiger');
+        // 악어 가족: 파란 연못 물속 안쪽 (왼쪽 3 이동)
+        const bCro = { minX: x + 9.8, maxX: x + 11.6, minY: y + 3.0, maxY: y + 4.6 };
+        drawZooAnimal('cro', x + 10.4, y + 3.6, 6.4, ZT, 90, { rx: .24, ry: .14, sc: .17, ...bCro }, hName);
+        drawZooAnimal('cro', x + 11.2, y + 4.2, 6.4, ZT + 1.9, 91, { rx: .24, ry: .14, sc: .17, ...bCro }, hName);
+        drawZooAnimal('cro', x + 10.0, y + 4.0, 6.4, ZT + 1.5, 92, { rx: .18, ry: .10, sc: .10, baby: true, ...bCro }, hName);
+        drawZooAnimal('cro', x + 10.8, y + 3.2, 6.4, ZT + 2.4, 93, { rx: .18, ry: .10, sc: .10, baby: true, ...bCro }, hName);
+        // 사자 가족: 바위 동굴 앞쪽 안전 방사장 (왼쪽 4 위로 2 이동)
+        const bLion = { minX: x + 10.8, maxX: x + 12.6, minY: y + 1.6, maxY: y + 3.3 };
+        drawZooAnimal('tiger', x + 11.2, y + 2.2, 6.4, ZT, 70, { rx: .28, ry: .16, sc: .18, ...bLion }, hName);
+        drawZooAnimal('tiger', x + 12.2, y + 2.8, 6.4, ZT + 1.6, 71, { rx: .28, ry: .16, sc: .18, ...bLion }, hName);
+        drawZooAnimal('tiger', x + 11.6, y + 3.0, 6.4, ZT + 2.8, 72, { rx: .20, ry: .12, sc: .10, baby: true, ...bLion }, hName);
+        drawZooAnimal('tiger', x + 12.0, y + 1.8, 6.4, ZT + 0.9, 73, { rx: .20, ry: .12, sc: .10, baby: true, ...bLion }, hName);
       }
     });
 
     // 5. HABITAT 아래1 (하단 1구역): 펭귄 (입구 바로 우측 빙하 수영장)
-    const s4x = x + 17.0, s4y = y + 17.5;
+    // 펭귄: 아래 1 오른쪽 1 이동 반영
+    const s4x = x + 18.0, s4y = y + 18.5;
     list.push({
       depth: s4x + s4y + 4.5,
       fn: () => {
-        const hName = drawBadge(x + 17.0, y + 18.8, '🐧', 'bot1', 'penguin');
-        // 펭귄 가족: 빙하 얼음섬 및 유리 울타리 수영장 내부
-        const bPeng = { minX: x + 15.8, maxX: x + 17.8, minY: y + 16.4, maxY: y + 18.4 };
-        drawZooAnimal('penguin', x + 16.5, y + 17.2, 6.5, ZT, 1, { rx: .28, ry: .16, sc: .16, ...bPeng }, hName);
-        drawZooAnimal('penguin', x + 17.4, y + 18.0, 6.5, ZT + 1.7, 2, { rx: .28, ry: .16, sc: .16, ...bPeng }, hName);
-        drawZooAnimal('penguin', x + 16.0, y + 17.8, 6.5, ZT + 2.4, 3, { rx: .20, ry: .12, sc: .09, baby: true, ...bPeng }, hName);
-        drawZooAnimal('penguin', x + 17.2, y + 16.8, 6.5, ZT + 0.8, 4, { rx: .20, ry: .12, sc: .09, baby: true, ...bPeng }, hName);
+        const hName = drawBadge(x + 18.0, y + 19.8, '🐧', 'bot1', 'penguin');
+        // 펭귄 가족: 빙하 얼음섬 및 유리 울타리 수영장 내부 (아래 1 오른쪽 1 이동)
+        const bPeng = { minX: x + 16.8, maxX: x + 18.8, minY: y + 17.4, maxY: y + 19.4 };
+        drawZooAnimal('penguin', x + 17.5, y + 18.2, 6.5, ZT, 1, { rx: .28, ry: .16, sc: .16, ...bPeng }, hName);
+        drawZooAnimal('penguin', x + 18.4, y + 19.0, 6.5, ZT + 1.7, 2, { rx: .28, ry: .16, sc: .16, ...bPeng }, hName);
+        drawZooAnimal('penguin', x + 17.0, y + 18.8, 6.5, ZT + 2.4, 3, { rx: .20, ry: .12, sc: .09, baby: true, ...bPeng }, hName);
+        drawZooAnimal('penguin', x + 18.2, y + 17.8, 6.5, ZT + 0.8, 4, { rx: .20, ry: .12, sc: .09, baby: true, ...bPeng }, hName);
       }
     });
 
     // 6. HABITAT 아래2 (하단 2구역): 너구리 (하단 2번 나무와 바위 1번(얼음)과 3번(동굴) 사이)
-    const s5x = x + 19.2, s5y = y + 13.0;
+    // 너구리: 아래 1 왼쪽 1 이동 반영
+    const s5x = x + 18.2, s5y = y + 14.0;
     list.push({
       depth: s5x + s5y + 4.5,
       fn: () => {
-        const hName = drawBadge(x + 19.5, y + 14.4, '🦝', 'bot2', 'nuguri');
-        // 너구리(레서판다) 가족: 나무와 바위 사이 방사장 내부
-        const bNug = { minX: x + 18.2, maxX: x + 20.2, minY: y + 12.0, maxY: y + 14.0 };
-        drawZooAnimal('nuguri', x + 18.8, y + 12.6, 6.4, ZT, 60, { rx: .28, ry: .16, sc: .15, ...bNug }, hName);
-        drawZooAnimal('nuguri', x + 19.8, y + 13.5, 6.4, ZT + 2.3, 61, { rx: .28, ry: .16, sc: .15, ...bNug }, hName);
-        drawZooAnimal('nuguri', x + 18.5, y + 13.6, 6.4, ZT + 1.5, 62, { rx: .20, ry: .12, sc: .09, baby: true, ...bNug }, hName);
-        drawZooAnimal('nuguri', x + 19.4, y + 12.2, 6.4, ZT + 0.8, 63, { rx: .20, ry: .12, sc: .09, baby: true, ...bNug }, hName);
+        const hName = drawBadge(x + 18.5, y + 15.4, '🦝', 'bot2', 'nuguri');
+        // 너구리(레서판다) 가족: 나무와 바위 사이 방사장 내부 (아래 1 왼쪽 1 이동)
+        const bNug = { minX: x + 17.2, maxX: x + 19.2, minY: y + 13.0, maxY: y + 15.0 };
+        drawZooAnimal('nuguri', x + 17.8, y + 13.6, 6.4, ZT, 60, { rx: .28, ry: .16, sc: .15, ...bNug }, hName);
+        drawZooAnimal('nuguri', x + 18.8, y + 14.5, 6.4, ZT + 2.3, 61, { rx: .28, ry: .16, sc: .15, ...bNug }, hName);
+        drawZooAnimal('nuguri', x + 17.5, y + 14.6, 6.4, ZT + 1.5, 62, { rx: .20, ry: .12, sc: .09, baby: true, ...bNug }, hName);
+        drawZooAnimal('nuguri', x + 18.4, y + 13.2, 6.4, ZT + 0.8, 63, { rx: .20, ry: .12, sc: .09, baby: true, ...bNug }, hName);
       }
     });
 
     // 7. HABITAT 아래3 (하단 3구역): 기린 (하단 3번 바위 폭포 & 연못)
-    const s6x = x + 19.5, s6y = y + 7.8;
+    // 기린: 왼쪽 2 아래 1 이동 반영
+    const s6x = x + 17.5, s6y = y + 8.8;
     list.push({
       depth: s6x + s6y + 4.5,
       fn: () => {
-        const hName = drawBadge(x + 19.8, y + 9.2, '🦒', 'bot3', 'girin');
-        // 기린 가족: 초록 지붕 정자 쉼터 및 사바나 울타리 내부
-        const bGir = { minX: x + 18.5, maxX: x + 20.6, minY: y + 6.6, maxY: y + 8.8 };
-        drawZooAnimal('girin', x + 19.2, y + 7.4, 6.4, ZT, 40, { rx: .28, ry: .16, sc: .18, ...bGir }, hName);
-        drawZooAnimal('girin', x + 20.2, y + 8.2, 6.4, ZT + 2.1, 41, { rx: .28, ry: .16, sc: .19, ...bGir }, hName);
-        drawZooAnimal('girin', x + 18.8, y + 8.2, 6.4, ZT + 1.4, 42, { rx: .20, ry: .12, sc: .10, baby: true, ...bGir }, hName);
-        drawZooAnimal('girin', x + 19.8, y + 7.0, 6.4, ZT + 2.9, 43, { rx: .20, ry: .12, sc: .10, baby: true, ...bGir }, hName);
+        const hName = drawBadge(x + 17.8, y + 10.2, '🦒', 'bot3', 'girin');
+        // 기린 가족: 초록 지붕 정자 쉼터 및 사바나 울타리 내부 (왼쪽 2 아래 1 이동)
+        const bGir = { minX: x + 16.5, maxX: x + 18.6, minY: y + 7.6, maxY: y + 9.8 };
+        drawZooAnimal('girin', x + 17.2, y + 8.4, 6.4, ZT, 40, { rx: .28, ry: .16, sc: .18, ...bGir }, hName);
+        drawZooAnimal('girin', x + 18.2, y + 9.2, 6.4, ZT + 2.1, 41, { rx: .28, ry: .16, sc: .19, ...bGir }, hName);
+        drawZooAnimal('girin', x + 16.8, y + 9.2, 6.4, ZT + 1.4, 42, { rx: .20, ry: .12, sc: .10, baby: true, ...bGir }, hName);
+        drawZooAnimal('girin', x + 17.8, y + 8.0, 6.4, ZT + 2.9, 43, { rx: .20, ry: .12, sc: .10, baby: true, ...bGir }, hName);
       }
     });
 
     // 8. HABITAT 아래4 (하단 4구역): 말, 팬더 (하단 맨 우측 대나무 숲 & 평상)
-    const s7x = x + 22.8, s7y = y + 4.0;
+    // 말: 왼쪽 3, 팬더: 왼쪽 1 이동 반영
+    const s7x = x + 20.8, s7y = y + 4.0;
     list.push({
       depth: s7x + s7y + 4.5,
       fn: () => {
-        const hName = drawBadge(x + 23.2, y + 5.8, '🐼', 'bot4', 'panda');
-        // 얼룩말 가족: 나무 지붕 앞쪽 방사장 내부
-        const bHorse = { minX: x + 21.1, maxX: x + 23.0, minY: y + 2.5, maxY: y + 4.1 };
-        drawZooAnimal('horse', x + 21.8, y + 3.2, 6.4, ZT, 80, { rx: .26, ry: .15, sc: .17, ...bHorse }, hName);
-        drawZooAnimal('horse', x + 22.6, y + 3.8, 6.4, ZT + 1.8, 81, { rx: .26, ry: .15, sc: .17, ...bHorse }, hName);
-        drawZooAnimal('horse', x + 21.4, y + 3.6, 6.4, ZT + 2.5, 82, { rx: .18, ry: .11, sc: .10, baby: true, ...bHorse }, hName);
-        drawZooAnimal('horse', x + 22.2, y + 2.8, 6.4, ZT + 0.7, 83, { rx: .18, ry: .11, sc: .10, baby: true, ...bHorse }, hName);
-        // 판다 가족: 대나무쪽 평상 숲 쉼터 내부
-        const bPanda = { minX: x + 22.7, maxX: x + 24.6, minY: y + 3.7, maxY: y + 5.4 };
-        drawZooAnimal('panda', x + 23.4, y + 4.4, 6.4, ZT, 50, { rx: .26, ry: .15, sc: .17, ...bPanda }, hName);
-        drawZooAnimal('panda', x + 24.2, y + 5.0, 6.4, ZT + 1.8, 51, { rx: .26, ry: .15, sc: .17, ...bPanda }, hName);
-        drawZooAnimal('panda', x + 23.0, y + 4.9, 6.4, ZT + 2.7, 52, { rx: .18, ry: .11, sc: .09, baby: true, ...bPanda }, hName);
-        drawZooAnimal('panda', x + 23.9, y + 4.0, 6.4, ZT + 0.6, 53, { rx: .18, ry: .11, sc: .09, baby: true, ...bPanda }, hName);
+        const hName = drawBadge(x + 21.2, y + 5.8, '🐼', 'bot4', 'panda');
+        // 얼룩말 가족: 나무 지붕 앞쪽 방사장 내부 (왼쪽 3 이동)
+        const bHorse = { minX: x + 18.1, maxX: x + 20.0, minY: y + 2.5, maxY: y + 4.1 };
+        drawZooAnimal('horse', x + 18.8, y + 3.2, 6.4, ZT, 80, { rx: .26, ry: .15, sc: .17, ...bHorse }, hName);
+        drawZooAnimal('horse', x + 19.6, y + 3.8, 6.4, ZT + 1.8, 81, { rx: .26, ry: .15, sc: .17, ...bHorse }, hName);
+        drawZooAnimal('horse', x + 18.4, y + 3.6, 6.4, ZT + 2.5, 82, { rx: .18, ry: .11, sc: .10, baby: true, ...bHorse }, hName);
+        drawZooAnimal('horse', x + 19.2, y + 2.8, 6.4, ZT + 0.7, 83, { rx: .18, ry: .11, sc: .10, baby: true, ...bHorse }, hName);
+        // 판다 가족: 대나무쪽 평상 숲 쉼터 내부 (왼쪽 1 이동)
+        const bPanda = { minX: x + 21.7, maxX: x + 23.6, minY: y + 3.7, maxY: y + 5.4 };
+        drawZooAnimal('panda', x + 22.4, y + 4.4, 6.4, ZT, 50, { rx: .26, ry: .15, sc: .17, ...bPanda }, hName);
+        drawZooAnimal('panda', x + 23.2, y + 5.0, 6.4, ZT + 1.8, 51, { rx: .26, ry: .15, sc: .17, ...bPanda }, hName);
+        drawZooAnimal('panda', x + 22.0, y + 4.9, 6.4, ZT + 2.7, 52, { rx: .18, ry: .11, sc: .09, baby: true, ...bPanda }, hName);
+        drawZooAnimal('panda', x + 22.9, y + 4.0, 6.4, ZT + 0.6, 53, { rx: .18, ry: .11, sc: .09, baby: true, ...bPanda }, hName);
       }
     });
 
