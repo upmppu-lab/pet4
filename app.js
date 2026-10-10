@@ -1718,7 +1718,16 @@ function onWorldTap(h) {
     if (PARK.isBuilt()) return;
     askPrompt({ title: '🌳 ' + t('parkName'), text: t('parkBuildConfirm', { c: fmt(PARK_COST) }), okText: t('parkBuildBtn'), ok: () => { const r = actR({ t: 'buildpark' }); if (r && r.ok) { SND.level(); fxAt(innerWidth / 2, innerHeight / 2, '🌳'); } } });
   }); return; }
-  if (h.kind === 'park') { toast(t('parkHello')); return; }
+  if (h.kind === 'park') {
+    // v2026-10-10: "공원 쪽을 눌러도 캐릭터가 안 움직여요" 버그 수정 -- 공원이 지어진 뒤에도 입구
+    // 근처의 넓은 탭 영역(park.js의 'park' 히트존, 입구길까지 덮을 만큼 큼)이 toast만 띄우고 끝나버려서,
+    // 그 영역 안에서는 길을 눌러도 이동 자체가 아예 가로채여 캐릭터가 걸어가지 않았음(호수는 이런
+    // 전역 가로채기 영역이 없어서 정상 작동). 이제 인사만 하고 끝내지 않고, 눌렀을 때 공원 입구 쪽으로
+    // 걸어가게 한 뒤 인사 토스트를 띄움.
+    const p = PARK_POS();
+    World.walkNear(p.x + 8, p.y + 7, () => toast(t('parkHello')));
+    return;
+  }
   if (h.kind === 'vsign') { const k = h.vk, sg = VILLAGE.SIGN[k](); World.walkNear(sg.x, sg.y, () => { // v9.97
     if (VILLAGE.built(k)) return;
     const others = Object.entries(Net.players || {}).filter(([id]) => id !== CFG.id).map(([, p]) => p), pn = others[0];
