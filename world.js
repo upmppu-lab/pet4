@@ -183,6 +183,12 @@ return true;
     for (const o0 of (S.town && S.town.objs) || []) {
       if (o0.k === 'zoo' && x >= o0.x && x < o0.x + 24 && y >= o0.y && y < o0.y + 22) return true;
     }
+    // v2026-10-10: "공원 둘레 길도 못 가요" 버그 수정 -- 공원처럼 마을 기본 반경 경계에 바싹 붙여
+    // 지은 "큰 부지"는 그 입구로 이어지는 길까지도 함께 반경 밖으로 밀려날 수 있음. 실제로 플레이어가
+    // 정상적으로 깔아서 TOWN.isRoadTile()엔 "길 맞음"으로 잡히는데도, 바로 아래 반경 체크 때문에
+    // walk()에서는 그냥 "막힘"으로 처리돼서 그 길을 눌러도 캐릭터가 전혀 움직이지 않았음. 제대로 깔린
+    // 길이면 반경 밖이어도 항상 걸을 수 있게, 반경 체크보다 먼저 길 여부부터 확인.
+    if (typeof TOWN !== 'undefined' && TOWN.isRoadTile && TOWN.isRoadTile(S, x, y, allowDelivery)) return true;
     if (x < C.vX0 || x > w + VILLAGE_XE - 1 || y < VILLAGE_Y0 || y > C.vS) return false; // edge of the village (1.5x the old extent in each direction)
     const hp = C.hp;
     if (x >= hp.x && x < hp.x + hp.w && y >= hp.y && y < hp.y + hp.d) return false; // the house blocks its own footprint
