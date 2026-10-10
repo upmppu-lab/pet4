@@ -114,8 +114,21 @@ const FARM = (() => {
   function plantChoice(s, f) {
     const ok = CROPS.filter(x => x.ulv <= s.level && (!x.tree || f.autoCrop === x.id)), profit = x => (x.sellPrice - x.seedCost) / x.growDays;
     let c = f.autoCrop ? ok.find(x => x.id === f.autoCrop) : null;
-    if (!c) c = ok.filter(x => f.seeds[x.id] > 0).sort((a, b) => profit(b) - profit(a))[0] || ok.filter(x => s.coins >= seedFee(x)).sort((a, b) => profit(b) - profit(a))[0] || ok.slice().sort((a, b) => a.seedCost - b.seedCost)[0];
-    return c && (f.seeds[c.id] > 0 || s.coins >= seedFee(c)) ? c : null;
+    if (!c) {
+      // 자동 선택: 비싼 한 작물만 몰아서 심지 않고, 심을 수 있는 작물들 중에서 무작위(랜덤)로 골라 다양하게 심음
+      const haveSeeds = ok.filter(x => !x.tree && (f.seeds[x.id] || 0) > 0);
+      if (haveSeeds.length > 0) {
+        c = haveSeeds[Math.floor(Math.random() * haveSeeds.length)];
+      } else {
+        const canBuy = ok.filter(x => !x.tree && s.coins >= seedFee(x));
+        if (canBuy.length > 0) {
+          c = canBuy[Math.floor(Math.random() * canBuy.length)];
+        } else {
+          c = ok.filter(x => !x.tree).sort((a, b) => a.seedCost - b.seedCost)[0];
+        }
+      }
+    }
+    return c && ((f.seeds[c.id] || 0) > 0 || s.coins >= seedFee(c)) ? c : null;
   }
   function freeGround(s, f, taken) {
     const e = f.plots.find(q => !q.crop && !taken(q.x, q.y)); if (e) return e;

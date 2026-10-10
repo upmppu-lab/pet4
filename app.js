@@ -1998,6 +1998,7 @@ function handle(a, v, w) {
       const rd = App.troad;
       if (rd) {
         rd.erase = false;
+        if (rd.pending) rd.pending.clear();
         render();
       }
       break;
@@ -2006,12 +2007,46 @@ function handle(a, v, w) {
       const rd = App.troad;
       if (rd) {
         rd.erase = true;
+        if (rd.pending) rd.pending.clear();
+        render();
+      }
+      break;
+    }
+    case 'troadclear': {
+      const rd = App.troad;
+      if (rd && rd.pending) {
+        rd.pending.clear();
         render();
       }
       break;
     }
     case 'troaddone': {
-      App.troad = null;
+      const rd = App.troad;
+      if (!rd) { render(); break; }
+      const tiles = rd.pending ? Array.from(rd.pending.values()) : [];
+      if (tiles.length > 0) {
+        const r = actR({ t: 'troad', tiles, on: !rd.erase, style: rd.style || 'cobble' });
+        if (r && r.ok) {
+          if (typeof SND !== 'undefined' && SND.pop) SND.pop();
+          if (typeof toast === 'function') {
+            toast(rd.erase ? `🧽 길 ${tiles.length}칸 철거 완료!` : `🛤️ 길 ${tiles.length}칸 깔기 완료!`);
+          }
+          App.troad = null;
+        } else if (r && r.err === 'notEnough') {
+          if (typeof toast === 'function') toast(t('notEnough') || '코인이 부족합니다');
+          render();
+          break;
+        } else if (r && r.err === 'tLocked') {
+          if (typeof toast === 'function') toast(t('tLvlNeed', { n: (r.p && r.p.n) || 1 }) || ('레벨 ' + ((r.p && r.p.n) || 1) + ' 필요'));
+          render();
+          break;
+        } else if (r && r.err === 'tRoadNone') {
+          if (typeof toast === 'function') toast('변경할 수 있는 타일이 없습니다');
+          App.troad = null;
+        }
+      } else {
+        App.troad = null;
+      }
       render();
       break;
     }

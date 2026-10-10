@@ -1638,7 +1638,7 @@ const roadTileOk = (s, x, y) => {
       return { ok: 1, msg: 'tMoved' };
     }
     if (a.t === 'troad') { // pave (on) or erase a list of tiles
-      ensure(s); const T = s.town, R = roadSet(s), tiles = (a.tiles || []).slice(0, 300).map(p => (p[0] | 0) + ',' + (p[1] | 0));
+      ensure(s); const T = s.town, R = roadSet(s), tiles = (a.tiles || []).slice(0, 1000).map(p => (p[0] | 0) + ',' + (p[1] | 0));
       T.rstyle = T.rstyle || {};
       T.rcost = T.rcost || {};
       const style = (ROAD_TYPES.find(q => q.id === a.style) ? a.style : 'cobble');
@@ -4728,14 +4728,13 @@ function getFlowerSprite(kind) {
     }
   }
   const HOUSE_TOP = { cottage: 70, tower: 118, family: 88, yard: 72, barn: 92, twostory: 112, row: 88, villa: 132 }; // roof top of the bigger houses (px) -> tags float just above
-  // v2026-10-08: 집 그림이 이제 티어(1~12)에 따라 높이가 꽤 다르게 그려지므로, 점유 인원표/뱃지가 집
-  // 꼭대기보다 낮게/높게 어긋나지 않도록 티어에 비례한 높이값을 씀 (HOUSE_TOP 고정값 대신)
-  const houseTagZ = o => 146 + (tierOf(o) - 1) * 8; // 확대된 3x3 집 그림 세로 높이에 맞춰 지붕 위로 알맞게 띄움
+  // v2026-10-10: 집 배너(티어 및 주민수)가 너무 위에 붕 떠 있지 않도록 집 지붕 바로 위로 알맞게 내림
+  const houseTagZ = o => 95 + (tierOf(o) - 1) * 3;
   function occTag(c, o) {
     if (!D[o.k] || D[o.k].cat !== 'house') return;
     const q = Q(o.x + 2.5, o.y + 2.5, houseTagZ(o)), txt = (o.n || 0) + '/' + capOf(o), full = (o.n || 0) >= capOf(o);
-    // v2026-10-10: "주민들 마크가 잘 안보여. 오른쪽 위로 더 이동해줘" - 지붕 능선에 가려지지 않게 오른쪽 위로 이동 (+32, -22)
-    const ox = q[0] + 32, oy = q[1] - 22;
+    // 집 지붕 바로 위 우측에 주민 수 배지 표시 (좌측의 티어 배지와 나란히 지붕 위에 안착)
+    const ox = q[0] + 24, oy = q[1];
     c.font = 'bold 9px sans-serif'; const tw = c.measureText(txt).width + 22;
     ART.rrect(c, ox - tw / 2, oy - 8, tw, 14, 7); c.fillStyle = full ? '#e8f7de' : 'rgba(255,255,255,.94)'; c.fill(); c.strokeStyle = full ? '#5cae3c' : '#b8a07a'; c.lineWidth = 1; c.stroke();
     c.textAlign = 'center'; c.fillStyle = '#5a3a2a'; c.fillText('👤' + txt, ox, oy + 2.5); c.textAlign = 'start';
@@ -4743,12 +4742,12 @@ function getFlowerSprite(kind) {
   function lvBadge(c, o) {
     const L = lvOf(o); if (L < 2 || !D[o.k] || (D[o.k].cat !== 'civic' && D[o.k].cat !== 'house')) return;
     const isHouse = D[o.k].cat === 'house';
-    const f = fpOf(o.k, o.r), open = D[o.k].open, z = isHouse ? houseTagZ(o) + 18 : open ? 34 : (D[o.k].h || 24) + 16 + D[o.k].w * 2.4 + (o.k === 'chapel' ? 40 : 0), q = Q(o.x + f.w / 2, o.y + f.d / 2, z);
+    const f = fpOf(o.k, o.r), open = D[o.k].open, z = isHouse ? houseTagZ(o) : open ? 34 : (D[o.k].h || 24) + 16 + D[o.k].w * 2.4 + (o.k === 'chapel' ? 40 : 0), q = Q(o.x + f.w / 2, o.y + f.d / 2, z);
     // 집은 티어가 최대 12까지라 별을 그대로 찍으면 지저분해지므로 "🏠 티어N" 식으로 간단히 표시
     const label = isHouse ? ('🏠 ' + t('tTierN', { n: L })) : ('⭐'.repeat(L - 1) + ' Lv' + L);
     c.font = 'bold 8px sans-serif'; const bw = c.measureText(label).width + 12;
     const maxed = isHouse ? L >= HOUSE_TIER_MAX : L === 3;
-    const bx = isHouse ? q[0] - 24 : q[0], by = isHouse ? q[1] - 20 : q[1];
+    const bx = isHouse ? q[0] - 22 : q[0], by = isHouse ? q[1] : q[1];
     ART.rrect(c, bx - bw / 2, by - 9, bw, 14, 7); c.fillStyle = maxed ? '#fff0b8' : '#ffffff'; c.fill(); c.strokeStyle = maxed ? '#e0a020' : '#c9962a'; c.lineWidth = 1.2; c.stroke();
     c.textAlign = 'center'; c.fillStyle = '#7a4f2e'; c.fillText(label, bx, by + 1); c.textAlign = 'start';
     if (isHouse) return; // 집은 바닥 장식(꽃/램프)을 그림 자체가 이미 표현하므로 추가로 안 그림
@@ -5396,8 +5395,17 @@ function getFlowerSprite(kind) {
   function roadLine(a, b) { const out = []; const sx = Math.sign(b.x - a.x), sy = Math.sign(b.y - a.y); let x = a.x, y = a.y; out.push([x, y]); while (x !== b.x) { x += sx; out.push([x, y]); } while (y !== b.y) { y += sy; out.push([x, y]); } return out; }
   function drawRoadTool(c, st) {
     if (!st) return;
+    // 1. 드래그 중이거나 선택된 대기 타일들 미리보기 렌더링
+    if (st.pending && st.pending.size > 0) {
+      const col = st.erase ? 'rgba(239,68,68,0.52)' : 'rgba(59,130,246,0.52)';
+      const stroke = st.erase ? '#dc2626' : '#2563eb';
+      for (const [tx, ty] of st.pending.values()) {
+        poly(c, [Q(tx, ty), Q(tx + 1, ty), Q(tx + 1, ty + 1), Q(tx, ty + 1)], col, stroke, 2);
+      }
+    }
+    // 2. 현재 마우스/터치 위치 호버 커서
     if (st.hover) {
-      const col = st.erase ? 'rgba(230,70,60,.45)' : 'rgba(80,170,230,.45)';
+      const col = st.erase ? 'rgba(230,70,60,.4)' : 'rgba(80,170,230,.4)';
       const stroke = st.erase ? '#e11d48' : '#2563eb';
       const tiles = st.double
         ? (st.dir === 'y' ? [[st.hover.x, st.hover.y], [st.hover.x, st.hover.y + 1]] : [[st.hover.x, st.hover.y], [st.hover.x + 1, st.hover.y]])

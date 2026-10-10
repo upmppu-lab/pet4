@@ -3561,10 +3561,38 @@ return true;
   const getCvRect = () => cvRect || (cvRect = cv.getBoundingClientRect());
   const gridAt = e => { const r = getCvRect(), g = toGrid(e.clientX - r.left, e.clientY - r.top); return { gx: Math.floor(g.x), gy: Math.floor(g.y) }; };
   const nearBox = (gx, gy, x, y, w, d) => gx >= x - 3 && gx <= x + w && gy >= y - 3 && gy <= y + d; // generous: tall things are touched above their footprint
+  function roadGridLine(x0, y0, x1, y1) {
+    const pts = [];
+    const dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    let err = dx - dy, x = x0, y = y0;
+    while (true) {
+      pts.push([x, y]);
+      if (x === x1 && y === y1) break;
+      const e2 = 2 * err;
+      if (e2 > -dy) { err -= dy; x += sx; }
+      if (e2 < dx) { err += dx; y += sy; }
+    }
+    return pts;
+  }
+  function addRoadTiles(pts) {
+    if (!App.troad) return;
+    App.troad.pending = App.troad.pending || new Map();
+    const isDouble = !!App.troad.double;
+    const isY = App.troad.dir === 'y';
+    for (const [tx, ty] of pts) {
+      App.troad.pending.set(tx + ',' + ty, [tx, ty]);
+      if (isDouble) {
+        const x2 = isY ? tx : tx + 1;
+        const y2 = isY ? ty + 1 : ty;
+        App.troad.pending.set(x2 + ',' + y2, [x2, y2]);
+      }
+    }
+  }
   function grabAt(e) {
     const { gx, gy } = gridAt(e);
     if (App.tplace && typeof TOWN !== 'undefined') { const p = App.tplace, f = TOWN.fpOf(p.k, p.r); if (p.x != null && nearBox(gx, gy, p.x, p.y, f.w, f.d)) return { m: 't', ox: p.x - gx, oy: p.y - gy, lx: p.x, ly: p.y }; return null; }
-    if (App.troad) return null;
+    if (App.troad) return { m: 'road' };
     if (App.hospEdit || App.cafeEdit) { const H = !!App.hospEdit, sel = H ? hospSel : cafeSel; let it = sel != null ? (H ? hospItemById(sel) : cafeItemById(sel)) : null;
       if (!(it && nearBox(gx, gy, it.x, it.y, it.w || 1, it.d || 1))) it = H ? hospItemAt(gx, gy) : cafeItemAt(gx, gy);
       return it ? { m: 'tap', id: it.id, H } : null; }
@@ -3579,11 +3607,56 @@ return true;
   }
   function onDown(e) {
     cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (ptrs.size === 1) { drag = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y, moved: false }; gdrag = null; try { const g = grabAt(e); if (g) { g.sx = e.clientX; g.sy = e.clientY; g.on = false; gdrag = g; } } catch (er) { gdrag = null; } }
-    if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), z: cam.z }; drag = null; gdrag = null; editDrag = null; }
+    if (ptrs.size === 1) {
+      drag = { x: e.clientX, y: e.clientY, cx: cam.x, cy: cam.y, moved: false };
+      gdrag = null;
+      try {
+        const g = grabAt(e);
+        if (g) {
+          g.sx = e.clientX; g.sy = e.clientY; g.on = false; gdrag = g;
+          if (g.m === 'road' && App.troad) {
+            const { gx, gy } = gridAt(e);
+            addRoadTiles([[gx, gy]]);
+            App.troad.lastTile = { gx, gy };
+            App.troad.hover = { x: gx, y: gy };
+            g.on = true;
+            drag = null;
+            typeof render === 'function' && render();
+          }
+        }
+      } catch (er) { gdrag = null; }
+    }
+    if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      pinch = {
+        d: Math.hypot(a.x - b.x, a.y - b.y),
+        z: cam.z,
+        midX: (a.x + b.x) / 2,
+        midY: (a.y + b.y) / 2,
+        camX: cam.x,
+        camY: cam.y
+      };
+      drag = null; gdrag = null; editDrag = null;
+    }
   }
   function gdragMove(e) {
-    const g = gdrag; if (!g.on) { if (Math.hypot(e.clientX - g.sx, e.clientY - g.sy) < 8) return; g.on = true; if (drag) drag.moved = true; if (g.m === 'e' && editSel !== g.id) { editSel = g.id; typeof render === 'function' && render(); } if (g.m === 'tap') { if (g.H) hospSel = g.id; else cafeSel = g.id; typeof render === 'function' && render(); } }
+    const g = gdrag;
+    if (g.m === 'road') {
+      if (App.troad) {
+        const { gx, gy } = gridAt(e);
+        App.troad.hover = { x: gx, y: gy };
+        if (App.troad.lastTile) {
+          const pts = roadGridLine(App.troad.lastTile.gx, App.troad.lastTile.gy, gx, gy);
+          addRoadTiles(pts);
+        } else {
+          addRoadTiles([[gx, gy]]);
+        }
+        App.troad.lastTile = { gx, gy };
+        typeof render === 'function' && render();
+      }
+      return;
+    }
+    if (!g.on) { if (Math.hypot(e.clientX - g.sx, e.clientY - g.sy) < 8) return; g.on = true; if (drag) drag.moved = true; if (g.m === 'e' && editSel !== g.id) { editSel = g.id; typeof render === 'function' && render(); } if (g.m === 'tap') { if (g.H) hospSel = g.id; else cafeSel = g.id; typeof render === 'function' && render(); } }
     if (g.m === 'tap') return;
     const { gx, gy } = gridAt(e), nx = gx + g.ox, ny = gy + g.oy;
     if (g.m === 't') { const p = App.tplace; if (!p) { gdrag = null; return; } if (p.x !== nx || p.y !== ny) { p.x = nx; p.y = ny; typeof render === 'function' && render(); } }
@@ -3591,6 +3664,11 @@ return true;
   }
   function gdragUp(e) {
     const g = gdrag; gdrag = null;
+    if (g && g.m === 'road') {
+      if (App.troad) App.troad.lastTile = null;
+      typeof render === 'function' && render();
+      return;
+    }
     if (g.m === 'tap') { const r = cv.getBoundingClientRect(); tap(e.clientX - r.left, e.clientY - r.top); return; }
     if (g.m === 'e') { const d = editDrag; editDrag = null; if (d && (d.x !== g.x0 || d.y !== g.y0)) onTap && onTap({ kind: 'editdrop', id: d.id, x: d.x, y: d.y }); else typeof render === 'function' && render(); }
   }
@@ -3603,7 +3681,17 @@ return true;
       } catch (err) {}
     }
     if (!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pinch && ptrs.size === 2) { const [a, b] = [...ptrs.values()]; cam.z = Math.max(.2, Math.min(1.6, pinch.z * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d)); return; }
+    if (pinch && ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      const curD = Math.hypot(a.x - b.x, a.y - b.y);
+      cam.z = Math.max(.2, Math.min(1.6, pinch.z * curD / pinch.d));
+      if (pinch.midX != null) {
+        const curMidX = (a.x + b.x) / 2, curMidY = (a.y + b.y) / 2;
+        cam.x = pinch.camX - (curMidX - pinch.midX) / cam.z;
+        cam.y = pinch.camY - (curMidY - pinch.midY) / cam.z;
+      }
+      return;
+    }
     if (gdrag && ptrs.size === 1) { gdragMove(e); return; }
     if (drag) {
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
@@ -3626,7 +3714,7 @@ return true;
     const inb = h => wx >= h.x0 && wx <= h.x1 && wy >= h.y0 && wy <= h.y1;
     const foot = itemAt(gx, gy);
     if (App.tplace) { onTap && onTap({ kind: 'tplace', gx, gy }); return; }
-    if (App.troad) { onTap && onTap({ kind: 'troad', gx, gy }); return; } // PET TOWN v1.6: road tool // PET TOWN: choosing where to build
+    if (App.troad) { addRoadTiles([[gx, gy]]); typeof render === 'function' && render(); return; }
     if (App.hospEdit) { onTap && onTap({ kind: 'hospedit', gx, gy, it: hospItemAt(gx, gy) }); return; }
     if (App.cafeEdit) { onTap && onTap({ kind: 'cafeedit', gx, gy, it: cafeItemAt(gx, gy) }); return; }
     if (App.editing) { onTap && onTap({ kind: 'edit', gx, gy, foot, hit: hits.find(h => h.kind === 'pet' && inb(h)) || hits.find(h => h.kind === 'item' && inb(h)) }); return; }
