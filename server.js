@@ -105,6 +105,16 @@ app.get(['/env-config.js', '/assets/env-config.js'], (req, res) => {
   res.send(`// Express Server Configuration\nwindow.__PET_TOWN_ASSET_MODE = "${mode}";\n`);
 });
 
+app.get(['/spr/meta.js', '/assets/spr/meta.js'], (req, res) => {
+  const metaPath = path.join(__dirname, 'spr', 'meta.js');
+  if (fs.existsSync(metaPath)) {
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    res.sendFile(metaPath);
+  } else {
+    res.redirect(302, `${RAW_BASE}/spr/meta.js`);
+  }
+});
+
 // Helper: Serve index.html with appropriate asset mode injected
 const serveIndexHtml = (req, res) => {
   const targetFile = fs.existsSync(path.join(assetsDir, 'index.html'))
