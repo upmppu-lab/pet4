@@ -495,28 +495,38 @@ function clearThumbCache() {
   function bar_() {
     const rd = App.troad;
     if (rd) {
-  const rts = TOWN.ROAD_TYPES || [{ id: 'cobble', ic: '🪨', cost: TOWN.ROAD_COST }];
-  const curStyle = rd.style || 'cobble';
-  const curRt = rts.find(x => x.id === curStyle) || rts[0];
-  const cards = rts.map(rt => {
-    const isSel = !rd.erase && curStyle === rt.id;
-    const name = t('road_' + rt.id) || rt.id;
-    return `<button class="road-card ${isSel ? 'active' : ''}" data-a="troadstyle" data-v="${rt.id}">
-      <div class="road-card-prev">${roadPreviewSvg(rt.id)}</div>
-      <div class="road-card-title">${name}</div>
-      <div class="road-card-cost">🪙${rt.cost}</div>
-    </button>`;
-  }).join('');
-  return `<div class="editbar tplacebar road-palette-bar">
-    <div class="road-cards-scroll">${cards}</div>
-    <div class="road-bot-row">
-      <div class="grow">${rd.erase ? '🧽' : curRt.ic} <b>${t(rd.a ? 'tRoadHint2' : 'tRoadHint1')}</b> <span class="m">· ${t('tRoadDesc2', { c: curRt.cost })}</span></div>
-      <button class="btn ${rd.erase ? '' : 'g'} sm" data-a="troadpave">🛤️ ${t('tRoadPave')}</button>
-      <button class="btn ${rd.erase ? 'r' : ''} sm" data-a="troaderase">🧽 ${t('tRoadErase')}</button>
-      <button class="btn sm" data-a="troaddone">✓ ${t('done')}</button>
-    </div>
-  </div>`;
-}
+      const rts = TOWN.ROAD_TYPES || [{ id: 'cobble', ic: '🪨', cost: TOWN.ROAD_COST }];
+      const curStyle = rd.style || 'cobble';
+      const curRt = rts.find(x => x.id === curStyle) || rts[0] || { cost: 10, ic: '🛤️' };
+      const isDouble = !!rd.double;
+      const cards = rts.map(rt => {
+        const isSel = !rd.erase && curStyle === rt.id;
+        const name = t('road_' + rt.id) || rt.id;
+        return `<button class="road-card ${isSel ? 'active' : ''}" data-a="troadstyle" data-v="${rt.id}">
+          <div class="road-card-prev">${roadPreviewSvg(rt.id)}</div>
+          <div class="road-card-title">${name}</div>
+          <div class="road-card-cost">🪙${rt.cost}</div>
+        </button>`;
+      }).join('');
+      return `<div class="editbar tplacebar road-palette-bar">
+        <div class="road-cards-scroll">${cards}</div>
+        <div class="road-bot-row">
+          <div class="grow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+            <span>${rd.erase ? '🧽' : curRt.ic} <b>${rd.erase ? (t('tRoadErase') || '길 철거') : (t('tRoadPave') || '길 깔기')}</b> <span class="m">· ${rd.erase ? '1칸 철거 (100% 환불)' : (isDouble ? `2칸 동시 🪙${curRt.cost * 2}` : `1칸 🪙${curRt.cost}`)}</span></span>
+            ${!rd.erase ? `
+            <label class="road-check-label" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;user-select:none;font-weight:700;font-size:12px;background:rgba(255,255,255,0.22);padding:2px 8px;border-radius:12px;border:1px solid rgba(255,255,255,0.35);" data-a="troaddouble">
+              <input type="checkbox" ${isDouble ? 'checked' : ''} style="cursor:pointer;accent-color:#22c55e;width:15px;height:15px;pointer-events:none;">
+              2개타일동시
+            </label>
+            ${isDouble ? `<button class="btn sm" data-a="troaddir" style="padding:2px 7px;font-size:11px;" title="2타일 방향 전환">${rd.dir === 'y' ? '↕ 세로2' : '↔ 가로2'}</button>` : ''}
+            ` : ''}
+          </div>
+          <button class="btn ${rd.erase ? '' : 'g'} sm" data-a="troadpave">🛤️ ${t('tRoadPave') || '길 깔기'}</button>
+          <button class="btn ${rd.erase ? 'r' : ''} sm" data-a="troaderase">🧽 ${t('tRoadErase') || '길 철거'}</button>
+          <button class="btn sm" data-a="troaddone">✓ ${t('done') || '완료'}</button>
+        </div>
+      </div>`;
+    }
     const p = App.tplace; if (!p) return '';
     const bad = TOWN.canPlace(S, p.k, p.x, p.y, p.r, p.mv), d = TOWN_DEF[p.k];
     const cost = p.k === 'zone' ? TOWN.zoneCost(S) : d.cat === 'big' ? d.cost : (d.cat === 'house' && !p.mv) ? TOWN.houseTierBuyCost(S, p.tier || 1) : TOWN.kindCost(S, p.k), turn = TOWN.maxR(p.k) > 1;
@@ -536,9 +546,20 @@ function clearThumbCache() {
       if (o && o.k === 'zoo' && !App.tplace) { return false; } // User Request 4: 동물원 클릭 시 수금/구경 창 뜨지 않고 클릭 이동 허용
       openPanel({ type: 'tobj', id: h.id }); return true;
     }
-    if (h.kind === 'troad' && App.troad) { const rd = App.troad, pt = { x: h.gx, y: h.gy };
-      if (!rd.a) { rd.a = pt; render(); return true; }
-      const tiles = TOWN.roadLine(rd.a, pt), r = actR({ t: 'troad', tiles, on: !rd.erase, style: rd.style || 'cobble' }); if (r && r.ok) { SND.pop && SND.pop(); rd.a = pt; } render(); return true; }
+    if (h.kind === 'troad' && App.troad) {
+      const rd = App.troad, pt = { x: h.gx, y: h.gy };
+      const tiles = (!rd.erase && rd.double)
+        ? (rd.dir === 'y' ? [[pt.x, pt.y], [pt.x, pt.y + 1]] : [[pt.x, pt.y], [pt.x + 1, pt.y]])
+        : [[pt.x, pt.y]];
+      const r = actR({ t: 'troad', tiles, on: !rd.erase, style: rd.style || 'cobble' });
+      if (r && r.ok) {
+        SND.pop && SND.pop();
+      } else if (r && r.err === 'notEnough') {
+        if (typeof toast === 'function') toast(t('notEnough') || '코인이 부족합니다');
+      }
+      render();
+      return true;
+    }
     if (h.kind === 'tzonesign') { openPanel({ type: 'town' }); return true; }
     return false;
   }
@@ -569,12 +590,14 @@ function clearThumbCache() {
       closePanel();
     },
     tgozone: () => { const z = TOWN.zonesOf(S)[0]; if (!z) return; closePanel(); World.cam.follow = false; World.cam.z = .55; World.cam.x = ISO.wx(z.x + z.w / 2, z.y + z.d / 2); World.cam.y = ISO.wy(z.x + z.w / 2, z.y + z.d / 2); },
-    troadgo: () => { App.troad = { erase: false, a: null, style: 'dirt' }; App.tplace = null; closePanel(); World.cam.follow = false; World.cam.z = Math.min(World.cam.z, .6); render(); },
-    troadstart: v => { App.troad = { erase: false, a: null, style: v || 'dirt' }; App.tplace = null; closePanel(); World.cam.follow = false; World.cam.z = Math.min(World.cam.z, .6); render(); },
-    troaderasego: () => { App.troad = { erase: true, a: null, style: 'dirt' }; App.tplace = null; closePanel(); World.cam.follow = false; World.cam.z = Math.min(World.cam.z, .6); render(); },
+    troadgo: () => { App.troad = { erase: false, double: false, dir: 'x', style: 'dirt' }; App.tplace = null; closePanel(); World.cam.follow = false; World.cam.z = Math.min(World.cam.z, .6); render(); },
+    troadstart: v => { App.troad = { erase: false, double: false, dir: 'x', style: v || 'dirt' }; App.tplace = null; closePanel(); World.cam.follow = false; World.cam.z = Math.min(World.cam.z, .6); render(); },
+    troaderasego: () => { App.troad = { erase: true, double: false, dir: 'x', style: 'dirt' }; App.tplace = null; closePanel(); World.cam.follow = false; World.cam.z = Math.min(World.cam.z, .6); render(); },
     troadstyle: v => { const rd = App.troad; if (!rd) return; rd.style = v; rd.erase = false; render(); },
-    troadpave: () => { const rd = App.troad; if (!rd) return; rd.erase = false; rd.a = null; render(); },
-    troaderase: () => { const rd = App.troad; if (!rd) return; rd.erase = true; rd.a = null; render(); },
+    troadpave: () => { const rd = App.troad; if (!rd) return; rd.erase = false; render(); },
+    troaderase: () => { const rd = App.troad; if (!rd) return; rd.erase = true; render(); },
+    troaddouble: () => { const rd = App.troad; if (!rd) return; rd.double = !rd.double; render(); },
+    troaddir: () => { const rd = App.troad; if (!rd) return; rd.dir = rd.dir === 'y' ? 'x' : 'y'; render(); },
     troaddone: () => { App.troad = null; render(); },
     tup: v => { const r = actR({ t: 'tup', id: +v }); if (r && r.ok) { SND.level && SND.level(); fxAt(innerWidth / 2, innerHeight / 2 - 80, '⭐'); } renderPanel(true); },
     buildcafe: () => bigStart('cafe'), buildhosp: () => bigStart('hosp'),
