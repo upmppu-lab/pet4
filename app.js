@@ -1567,13 +1567,13 @@ PANELS.shelter = () => {
 PANELS.zoo = () => {
   const z = S.zoo = S.zoo || { visitors: 0, coins: 0, fed: {} };
   const facilities = [
-    { id: 'savanna', name: t('zooFacName_savanna'), sps: [['girin', 1], ['horse', 2]], anim: '기린 & 얼룩말 가족', pos: '5.5,4.7', desc: t('zooFacDesc_savanna') },
-    { id: 'panda', name: t('zooFacName_panda'), sps: [['panda', 1], ['nuguri', 2]], anim: '판다 & 레서판다 가족', pos: '20.5,4.7', desc: t('zooFacDesc_panda') },
-    { id: 'elephant', name: t('zooFacName_elephant'), sps: [['koggiri', 1]], anim: '코끼리 & 아기 코끼리', pos: '5.5,10.0', desc: t('zooFacDesc_elephant') },
-    { id: 'tiger', name: t('zooFacName_tiger'), sps: [['tiger', 1]], anim: '시베리아 호랑이 가족', pos: '20.5,10.0', desc: t('zooFacDesc_tiger') },
-    { id: 'lagoon', name: t('zooFacName_lagoon'), sps: [['hama', 1], ['cro', 2], ['hak', 3]], anim: '하마 & 악어 & 학', pos: '5.1,15.5', desc: t('zooFacDesc_lagoon') },
-    { id: 'bear', name: '갈색곰 바위 언덕', sps: [['bear', 1]], anim: '갈색곰 & 아기 곰', pos: '20.5,15.5', desc: '바위 언덕에서 휴식하는 곰 가족' },
-    { id: 'polar', name: t('zooFacName_polar'), sps: [['penguin', 1]], anim: '황제 펭귄 가족', pos: '20.9,19.6', desc: t('zooFacDesc_polar') }
+    { id: 'top1', name: t('zooBadge_top1'), sps: [['hama', 1], ['koggiri', 2]], anim: '하마 & 코끼리 가족', pos: '4.2,14.8', desc: '라군 물속의 하마와 백사장 둔덕의 코끼리 가족' },
+    { id: 'top2', name: t('zooBadge_top2'), sps: [['bear', 1], ['hak', 2]], anim: '갈색곰 & 홍학 가족', pos: '8.0,6.8', desc: '모래사장과 건물의 갈색곰, 호수의 홍학 무리' },
+    { id: 'top3', name: t('zooBadge_top3'), sps: [['tiger', 1], ['cro', 2]], anim: '사자 & 악어 가족', pos: '14.8,5.6', desc: '바위 동굴 안전 방사장의 사자와 파란 연못의 악어' },
+    { id: 'bot1', name: t('zooBadge_bot1'), sps: [['penguin', 1]], anim: '황제 펭귄 가족', pos: '17.0,18.8', desc: '빙하 얼음섬과 유리 수영장의 펭귄 가족' },
+    { id: 'bot2', name: t('zooBadge_bot2'), sps: [['nuguri', 1]], anim: '너구리(레서판다) 가족', pos: '19.5,14.4', desc: '빙하와 바위 사이 방사장의 너구리 가족' },
+    { id: 'bot3', name: t('zooBadge_bot3'), sps: [['girin', 1]], anim: '기린 가족', pos: '19.8,9.2', desc: '초록 지붕 정자 쉼터와 사바나 울타리 안 기린 가족' },
+    { id: 'bot4', name: t('zooBadge_bot4'), sps: [['horse', 1], ['panda', 2]], anim: '얼룩말 & 판다 가족', pos: '23.2,5.8', desc: '나무 지붕 앞 방사장의 얼룩말과 대나무 평상의 판다' }
   ];
   let b = `<div class="m" style="margin-bottom:8px">${t('zooPanelIntro')}</div>`;
   b += `<div class="card" style="background:linear-gradient(180deg,#f0fdf4,#dcfce7);border:2px solid #86efac;margin-bottom:8px">
