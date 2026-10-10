@@ -158,6 +158,26 @@ return true;
     // The shop's own outer ring (west wall x=-1, north wall y=-1, south edge y=h, east edge x=w) is
     // solid except the doors
     if (x >= -1 && x <= w && y >= -1 && y <= h) return y === -1 && (x === w - 2 || x === w - 1);
+    // v2026-10-10: "공원/호수/동물원에 아무도 안 가요" 버그 수정 -- 공원/호수/동물원처럼 멀리 떨어뜨려
+    // 지을 수 있는 "큰 부지"는 입구 연결 체크(TOWN.isFacilityAccessible, "길 연결 필요" 경고에 쓰임)는
+    // 통과하는데, 정작 길찾기가 쓰는 이 walk()는 그 부지 타일들이 기본 마을 반경
+    // (VILLAGE_X0~W+VILLAGE_XE-1, VILLAGE_Y0~VILLAGE_S_MAX) 밖으로 나가면 묻지도 따지지도 않고 전부
+    // "막힘"으로 처리해버렸음. 그래서 경고 배지도 안 뜨고 그냥 아무도 못 찾아가는 상태가 됐었음.
+    // 이 세 시설은 반경 체크보다 먼저 처리해서, 부지 전체를 항상 걸을 수 있는 땅으로 인정하게 함.
+    if (S.park && S.park.built && typeof PARK_POS === 'function') {
+      const pp0 = PARK_POS();
+      if (x >= pp0.x && x < pp0.x + pp0.w && y >= pp0.y && y < pp0.y + pp0.d) {
+        const k0 = x + ',' + y;
+        return !C.park || !C.park.has(k0);
+      }
+    }
+    if (S.village && S.village.lake && typeof VILLAGE !== 'undefined' && typeof VILLAGE.LAKE === 'function') {
+      const lp0 = VILLAGE.LAKE();
+      if (x >= lp0.x && x < lp0.x + lp0.w && y >= lp0.y && y < lp0.y + lp0.d) return true; // 호수 부지 전체(선착장/낚시 포인트 포함)를 걸을 수 있게
+    }
+    for (const o0 of (S.town && S.town.objs) || []) {
+      if (o0.k === 'zoo' && x >= o0.x && x < o0.x + 24 && y >= o0.y && y < o0.y + 22) return true;
+    }
     if (x < C.vX0 || x > w + VILLAGE_XE - 1 || y < VILLAGE_Y0 || y > C.vS) return false; // edge of the village (1.5x the old extent in each direction)
     const hp = C.hp;
     if (x >= hp.x && x < hp.x + hp.w && y >= hp.y && y < hp.y + hp.d) return false; // the house blocks its own footprint
@@ -186,18 +206,8 @@ return true;
         return !C.sal || !C.sal.has(k);
       }
     }
-    if (S.park && S.park.built && typeof PARK_POS === 'function') {
-      const pp = PARK_POS();
-      if (x >= pp.x && x < pp.x + pp.w && y >= pp.y && y < pp.y + pp.d) {
-        return !C.park || !C.park.has(k);
-      }
-    }
     if (S.farm && typeof inFarm === 'function' && inFarm(x, y, w, h)) return true;
     if (S.ranch && typeof inRanch === 'function' && inRanch(x, y)) return true;
-    if (S.village && S.village.lake && typeof VILLAGE !== 'undefined' && typeof VILLAGE.LAKE === 'function') {
-      const lp = VILLAGE.LAKE();
-      if (x >= lp.x && x < lp.x + 3 && y >= lp.y + 8 && y <= lp.y + 11) return true;
-    }
     for (const o of (S.town && S.town.objs) || []) {
       if (o.k === 'zoo') {
         if (x >= o.x && x < o.x + 24 && y >= o.y && y < o.y + 22) return true;
