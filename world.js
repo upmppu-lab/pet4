@@ -150,7 +150,9 @@ return true;
   }
   function walk(x, y, allowDelivery) {
     const C = walkCtx(), w = C.w, h = C.h, dy = h - 2, dr = 2; // front door at h-2, delivery door at row 2 (original position)
-    if (x >= 0 && y >= 0 && x < w && y < h) return !occ.has(x + ',' + y);
+    // v2026-10-10: occ(가구 점유 칸)가 아직 한 번도 안 만들어졌을(null) 수 있는 호출 경로에 대한 안전장치
+    // -- occ==null이면 죽이지 않고 "막힌 칸 없음"으로 간주 (buildOcc()가 호출되면 다음 호출부터는 정상 값)
+    if (x >= 0 && y >= 0 && x < w && y < h) return !occ || !occ.has(x + ',' + y);
     if (y === dy && x >= w && x <= w + 2) return true;       // front door path
     if (allowDelivery && y >= 1 && y <= 3 && x >= w && x <= w + 2) return true; // delivery door (original position)
     // The shop's own outer ring (west wall x=-1, north wall y=-1, south edge y=h, east edge x=w) is
@@ -3680,6 +3682,14 @@ return true;
   // 책정되어 도착하기도 전에 인내심이 바닥남. 실제 길찾기 경로 길이를 반환해서 그 값으로 보너스를 주도록 함.
   // 길을 못 찾으면(아직 도로가 안 이어진 집 등) 직선 거리로 안전하게 대체.
   function pathDist(x0, y0, x1, y1) {
+    // v2026-10-10: "가게 안에서 길이 끊겼다는 메시지가 뜬다 / 멀쩡한데 멈춰 선다" 버그의 진짜 원인 --
+    // 손님이 집에서 스폰될 때(spawnCustomer)는 World.sync()(= 매 프레임 가게 가구 점유 칸 occ를 다시
+    // 계산하는 곳)가 그 프레임에 아직 한 번도 실행되지 않았을 수 있음(특히 실내 상점 화면에 머무는
+    // 동안엔 바깥 월드 렌더링이 돌지 않아 World.sync가 안 불림). 그 상태에서 pathDist가 findPath→walk를
+    // 부르면 occ가 아직 null이라 "Cannot read properties of null (reading 'has')"로 매번 튕겨져 나갔고,
+    // 그 예외 때문에 그 프레임의 나머지 로직(주민 산책 로직 등)까지 통째로 중단되어 여러 이상 증상으로
+    // 이어졌음. occ를 쓰기 전에 직접 한 번 보장해서 고침.
+    buildOcc();
     const p = findPath(x0, y0, x1, y1, false);
     if (!p || !p.length) return Math.hypot(x1 - x0, y1 - y0);
     let d = Math.hypot(p[0].x - x0, p[0].y - y0);
