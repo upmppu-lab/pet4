@@ -87,6 +87,23 @@ const PNG_PETS = {
   guineapig_gray: 1,
   guineapig_mix: 1,
   guineapig_white: 1,
+  gerbil_black: 1,
+  gerbil_brown: 1,
+  gerbil_cream: 1,
+  gerbil_gray: 1,
+  ferrets_black: 1,
+  ferrets_brown: 1,
+  ferrets_cream: 1,
+  ferrets_dot: 1,
+  ferrets_gray: 1,
+  ferrets_white: 1,
+  ferrets_white_2: 1,
+  betta_gold: 1,
+  betta_green: 1,
+  betta_mix: 1,
+  betta_pink: 1,
+  betta_purple: 1,
+  betta_red: 1,
   hamster_black: 1,
   hamster_brown: 1,
   hamster_cream: 1,
@@ -117,7 +134,8 @@ const PET_PNG = (() => {
 // 본체 + 걷기 이미지 미리 로드
 Object.keys(PNG_PETS).forEach(sp => {
   PET_PNG.load(sp);
-  if (!sp.startsWith('rat_') && !sp.startsWith('guineapig_') && !sp.startsWith('hamster_')) {
+  if (!sp.startsWith('rat_') && !sp.startsWith('guineapig_') && !sp.startsWith('hamster_') &&
+      !sp.startsWith('gerbil_') && !sp.startsWith('ferrets_') && !sp.startsWith('betta_')) {
     PET_PNG.load(sp + '_walk1');
     PET_PNG.load(sp + '_walk2');
   }

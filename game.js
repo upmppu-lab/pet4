@@ -169,6 +169,9 @@ const SP_MAP = {
   dalmatian: 'dalmatian_black',
   poodle: 'poodle_brown',
   guinea: 'guineapig_mix',
+  gerbil: 'gerbil_brown',
+  ferret: 'ferrets_black',
+  betta: 'betta_red',
 };
 const _mapSp = obj => { if (obj) obj.sp = SP_MAP[obj.sp] || obj.sp; };
 // 모든 펫 위치 순회
