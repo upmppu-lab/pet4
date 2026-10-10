@@ -1484,6 +1484,69 @@ const roadTileOk = (s, x, y) => {
     const dong = dongs[o.id % dongs.length], ho = (o.id * 7 + 3) % 90 + 10;
     return lang === 'ru' ? `ул. ${dong}, д. ${ho}` : `${dong} ${ho}번지`;
   }
+  function residentStatus(s, rid) {
+    if (!rid) return '';
+    const lang = (s && s.lang) || (typeof S !== 'undefined' && S && S.lang) || 'ko';
+    const isRu = lang === 'ru';
+    let act = null;
+    if (typeof WORLD !== 'undefined' && WORLD.actors) {
+      for (const a of WORLD.actors.values()) {
+        if (a && a.type === 'vil' && a.residentId === rid) {
+          act = a;
+          break;
+        }
+      }
+    }
+    if (!act) {
+      return isRu ? 'Отдыхает дома 🏠' : '집에서 쉬는 중 🏠';
+    }
+    const st = act.st;
+    if (st === 'start') {
+      return isRu ? 'Выходит на улицу 🚪' : '외출 준비 중 (집 앞) 🚪';
+    }
+    if (st === 'stroll') {
+      return isRu ? 'Гуляет по посёлку 🌸' : '마을 산책로 걷는 중 🌸';
+    }
+    if (st === 'rest') {
+      return isRu ? 'Отдыхает на улице ☕' : '길가에서 잠시 휴식 중 ☕';
+    }
+    if (st === 'play_pet') {
+      return isRu ? 'Гуляет с питомцем 🐾' : '반려동물과 산책 & 놀아주는 중 🐾';
+    }
+    if (st === 'visit') {
+      const k = act.dstK;
+      if (k === 'cafe') return isRu ? 'Идёт в пет-кафе ☕' : '펫 카페로 가는 중 ☕';
+      if (k === 'hosp') return isRu ? 'Идёт в ветклинику 🏥' : '동물병원으로 가는 중 🏥';
+      if (k === 'salon') return isRu ? 'Идёт в груминг-салон ✂️' : '펫 미용실로 가는 중 ✂️';
+      if (k === 'zoo') return isRu ? 'Идёт в зоопарк 🦁' : '동물원으로 가는 중 🦁';
+      if (k === 'park') return isRu ? 'Идёт в парк 🌳' : '공원으로 가는 중 🌳';
+      if (k === 'lake') return isRu ? 'Идёт к озеру 🦢' : '호수로 가는 중 🦢';
+      if (k === 'shelter') return isRu ? 'Идёт в приют 🛖' : '유기동물 보관소로 가는 중 🛖';
+      return isRu ? 'Идёт на прогулку ✨' : '나들이 가는 중 ✨';
+    }
+    if (st === 'in') {
+      const k = act.dstK;
+      if (k === 'cafe') return isRu ? 'В пет-кафе ☕' : '펫 카페에서 티타임 중 ☕';
+      if (k === 'hosp') return isRu ? 'В ветклинике на осмотре 🏥' : '동물병원에서 진료/검진 중 🏥';
+      if (k === 'salon') return isRu ? 'В груминг-салоне ✂️' : '펫 미용실에서 케어 받는 중 ✂️';
+      if (k === 'zoo') return isRu ? 'В зоопарке любуется животными 🦁' : '동물원에서 동물들 구경 중 🦁';
+      if (k === 'park') return isRu ? 'Гуляет и отдыхает в парке 🌳' : '공원에서 힐링 산책 중 🌳';
+      if (k === 'lake') {
+        return act.lakeAct === 'fish'
+          ? (isRu ? 'Рыбачит на озере 🎣' : '호수에서 낚시하는 중 🎣')
+          : (isRu ? 'Отдыхает у озера 🦢' : '호숫가에서 쉬는 중 🦢');
+      }
+      if (k === 'shelter') return isRu ? 'В приюте для животных 🛖' : '유기동물 보관소에서 동물들 만나는 중 🛖';
+      return isRu ? 'В здании ✨' : '시설 이용 중 ✨';
+    }
+    if (st === 'back') {
+      return isRu ? 'Возвращается домой 🏠' : '집으로 돌아가는 중 🏠';
+    }
+    if (st === 'idle') {
+      return isRu ? 'Отдыхает на свежем воздухе 🍃' : '길가에서 쉬는 중 🍃';
+    }
+    return isRu ? 'Отдыхает дома 🏠' : '집에서 쉬는 중 🏠';
+  }
   const kindCost = (s, k) => { const d = D[k], n = ((s.town && s.town.objs) || []).filter(o => o.k === k && o.paid).length; return Math.round(d.cost * (1 + TOWN_BAL.COST_STEP * n) / 50) * 50; }; // the free starter houses don't count
   const houseTierBuyCost = (s, tier) => {
     const t = Math.max(1, Math.min(HOUSE_TIER_MAX, tier | 0));
@@ -4671,9 +4734,11 @@ function getFlowerSprite(kind) {
   function occTag(c, o) {
     if (!D[o.k] || D[o.k].cat !== 'house') return;
     const q = Q(o.x + 2.5, o.y + 2.5, houseTagZ(o)), txt = (o.n || 0) + '/' + capOf(o), full = (o.n || 0) >= capOf(o);
+    // v2026-10-10: "주민들 마크가 잘 안보여. 오른쪽 위로 더 이동해줘" - 지붕 능선에 가려지지 않게 오른쪽 위로 이동 (+32, -22)
+    const ox = q[0] + 32, oy = q[1] - 22;
     c.font = 'bold 9px sans-serif'; const tw = c.measureText(txt).width + 22;
-    ART.rrect(c, q[0] - tw / 2, q[1] - 8, tw, 14, 7); c.fillStyle = full ? '#e8f7de' : 'rgba(255,255,255,.92)'; c.fill(); c.strokeStyle = full ? '#5cae3c' : '#b8a07a'; c.lineWidth = 1; c.stroke();
-    c.textAlign = 'center'; c.fillStyle = '#5a3a2a'; c.fillText('👤' + txt, q[0], q[1] + 2.5); c.textAlign = 'start';
+    ART.rrect(c, ox - tw / 2, oy - 8, tw, 14, 7); c.fillStyle = full ? '#e8f7de' : 'rgba(255,255,255,.94)'; c.fill(); c.strokeStyle = full ? '#5cae3c' : '#b8a07a'; c.lineWidth = 1; c.stroke();
+    c.textAlign = 'center'; c.fillStyle = '#5a3a2a'; c.fillText('👤' + txt, ox, oy + 2.5); c.textAlign = 'start';
   }
   function lvBadge(c, o) {
     const L = lvOf(o); if (L < 2 || !D[o.k] || (D[o.k].cat !== 'civic' && D[o.k].cat !== 'house')) return;
@@ -4683,8 +4748,9 @@ function getFlowerSprite(kind) {
     const label = isHouse ? ('🏠 ' + t('tTierN', { n: L })) : ('⭐'.repeat(L - 1) + ' Lv' + L);
     c.font = 'bold 8px sans-serif'; const bw = c.measureText(label).width + 12;
     const maxed = isHouse ? L >= HOUSE_TIER_MAX : L === 3;
-    ART.rrect(c, q[0] - bw / 2, q[1] - 9, bw, 14, 7); c.fillStyle = maxed ? '#fff0b8' : '#ffffff'; c.fill(); c.strokeStyle = maxed ? '#e0a020' : '#c9962a'; c.lineWidth = 1.2; c.stroke();
-    c.textAlign = 'center'; c.fillStyle = '#7a4f2e'; c.fillText(label, q[0], q[1] + 1); c.textAlign = 'start';
+    const bx = isHouse ? q[0] - 24 : q[0], by = isHouse ? q[1] - 20 : q[1];
+    ART.rrect(c, bx - bw / 2, by - 9, bw, 14, 7); c.fillStyle = maxed ? '#fff0b8' : '#ffffff'; c.fill(); c.strokeStyle = maxed ? '#e0a020' : '#c9962a'; c.lineWidth = 1.2; c.stroke();
+    c.textAlign = 'center'; c.fillStyle = '#7a4f2e'; c.fillText(label, bx, by + 1); c.textAlign = 'start';
     if (isHouse) return; // 집은 바닥 장식(꽃/램프)을 그림 자체가 이미 표현하므로 추가로 안 그림
     frameOn(o, D[o.k].w, D[o.k].d); try { const d = D[o.k]; flowers(c, o.x + .1, o.y + d.d - .45, L === 3 ? 8 : 4, o.x + L); if (L === 3 && d.cat === 'civic' && !d.open) for (const lx of [o.x + .15, o.x + d.w - .15]) { const a = Q(lx, o.y + d.d - .2), b2 = Q(lx, o.y + d.d - .2, 26); c.strokeStyle = '#3a3a44'; c.lineWidth = 1.6; c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b2[0], b2[1]); c.stroke(); ART.ell(c, b2[0], b2[1], 3.5, 4, '#ffe68a', ART.OUT, .8); } } finally { frameOff(); }
   }
@@ -6029,7 +6095,7 @@ function getFlowerSprite(kind) {
     return undefined;
   }
   return { houses, drawHouse, houseSolid, followStep, drawFollower, apply, FISH, FISH_MAX,
-    roadSet, roadNearShop, drawPlayerRoads, roadLine, drawRoadTool, ROAD_COST, ROAD_TYPES, pathRects, maxR, rotPt, ground, collect, zonesOf, laneOf, zoneAt, zoneCost, zoneLots, villagerStep, lvOf, capOf, upNeed, upCost, upLevel, canUp, LV_MAX, pow, has, inBig, bigBuilt, ensure, stats, tick, custK, maxAdd, spendK, bestPop, mood, pickHome, doorOf, canPlace, fpOf, kindCost, unlockedK, drawObj, depthOf, drawGhost, stageOf, pop, cap, countOf, occFrac, nearFree, fitShop, clearBuildingOverlaps, trainZones, overlapsTrain, relocateBuildingsOffTracks, syncResidents, pickResidentOf, residentById, residentsOf, addressOf,
+    roadSet, roadNearShop, drawPlayerRoads, roadLine, drawRoadTool, ROAD_COST, ROAD_TYPES, pathRects, maxR, rotPt, ground, collect, zonesOf, laneOf, zoneAt, zoneCost, zoneLots, villagerStep, lvOf, capOf, upNeed, upCost, upLevel, canUp, LV_MAX, pow, has, inBig, bigBuilt, ensure, stats, tick, custK, maxAdd, spendK, bestPop, mood, pickHome, doorOf, canPlace, fpOf, kindCost, unlockedK, drawObj, depthOf, drawGhost, stageOf, pop, cap, countOf, occFrac, nearFree, fitShop, clearBuildingOverlaps, trainZones, overlapsTrain, relocateBuildingsOffTracks, syncResidents, pickResidentOf, residentById, residentsOf, addressOf, residentStatus,
     tierOf, houseCapOf, houseNextReq, houseUpOk, HOUSE_TIER_MAX, HOUSE_TIERS, HOUSE_TIER_NAMES, houseTierName, houseTierBuyCost, nextHouseSlotLevel, canPlaceNewHouse, getTownHouseImg,
     isRoadTile, isCrosswalk, getCrosswalkRows, isRailCrossing, getRailCrossingRows, isRailCrossingTile, drawRailCrossings, facilityEntrances, isEntranceConnected, isFacilityAccessible, isHouseAccessible, drawCrosswalks,
     DEF: TOWN_DEF,

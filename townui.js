@@ -382,7 +382,8 @@ function clearThumbCache() {
       if (residents.length) {
         info += `<div class="t" style="margin-top:8px">${t('tResidentsHere')}</div>` + residents.map(r => {
           const lk = ART.randomHuman(r.seed), hp = r.happy == null ? 70 : r.happy, pets = r.pets || [];
-          return `<div class="li" data-a="villager" data-v="${r.id}"><div class="ic"><img src="${PIC.human(lk, 'res' + r.id)}"></div><div class="grow"><div class="t">${esc(r.name)}</div><div class="m">😊 ${Math.round(hp)}% · 🐾 ${pets.length}${t('tPetCountUnit')}</div></div></div>`;
+          const status = TOWN.residentStatus ? TOWN.residentStatus(S, r.id) : '';
+          return `<div class="li" data-a="villager" data-v="${r.id}" style="position:relative"><div class="ic"><img src="${PIC.human(lk, 'res' + r.id)}"></div><div class="grow"><div class="t">${esc(r.name)}</div>${status ? `<div class="m" style="color:var(--c-accent, #2b6cb0);font-size:12px;margin:1px 0 2px;">📍 ${esc(status)}</div>` : ''}<div class="m">😊 ${Math.round(hp)}% · 🐾 ${pets.length}${t('tPetCountUnit')}</div></div><span style="position:absolute;top:9px;right:10px;font-size:11px;font-weight:bold;color:#2b6cb0;background:rgba(215,235,255,0.7);padding:2px 7px;border-radius:10px;">🏠 ${t('villagerTitle')}</span></div>`;
         }).join('');
       }
     }

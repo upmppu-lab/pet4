@@ -763,8 +763,10 @@ PANELS.villager = m => {
   const addr = home && TOWN.addressOf ? TOWN.addressOf(S, home) : '';
   const townHap = TOWN.stats ? TOWN.stats(S).hap : null;
   const visits = res.visits || 0;
+  const status = (typeof TOWN !== 'undefined' && TOWN.residentStatus) ? TOWN.residentStatus(S, res.id) : '';
   const head = `<div class="row"><div class="portrait" style="width:76px;height:76px"><img src="${PIC.human(lk, 'res' + res.id)}"></div><div class="grow"><div class="t">${esc(res.name || t('villagerTitle'))}</div>
     <div class="m">${addr ? '📍 ' + esc(addr) : t('villagerHome')}</div>
+    ${status ? `<div class="m" style="color:var(--c-accent, #2b6cb0);font-size:12px;margin:2px 0 4px;">📍 ${esc(status)}</div>` : ''}
     ${bar(happy, 'linear-gradient(#ffd3e0,#ff7aa8)', '😊 ' + t('villagerHappy') + ' ' + Math.round(happy) + '%')}</div></div>`;
   const why = `<div class="card" style="margin-top:6px"><div class="m">${t('villagerWhyTitle')}</div>
     <div class="m">🏘️ ${t('villagerWhyTown', { n: townHap == null ? '?' : Math.round(townHap) })}</div>

@@ -441,8 +441,10 @@ return true;
         if (cb) { a.cb = null; cb(); }
       } else {
         a.cb = null;
-        a.say = (typeof t === 'function' && t('roadNone')) || '길이 없어요 😢';
-        a.sayT = 2.8;
+        if (a.type !== 'vil') {
+          a.say = (typeof t === 'function' && t('roadNone')) || '길이 없어요 😢';
+          a.sayT = 2.8;
+        }
         a._retryTarget = { tx: a.tx, ty: a.ty, cb };
         a._retryWait = 0;
       }
@@ -460,8 +462,10 @@ return true;
       // 길 단절 감지: 이동 중 길이 삭제되거나 끊겼을 때
       const allowDelivery = a.type === 'me' || a.type === 'staff';
       if (!walk(Math.floor(n.x), Math.floor(n.y), allowDelivery)) {
-        a.say = (typeof t === 'function' && t('roadCut')) || '길이 끊겼어요! ⚠️';
-        a.sayT = 3.5;
+        if (a.type !== 'vil') {
+          a.say = (typeof t === 'function' && t('roadCut')) || '길이 끊겼어요! ⚠️';
+          a.sayT = 3.5;
+        }
         // 새로 길이 생겼는지 목적지 방향으로 우회로 탐색
         if (a.tx != null && a.ty != null) {
           const newP = findPath(a.x, a.y, a.tx, a.ty, allowDelivery);
@@ -509,7 +513,7 @@ return true;
           if (a.partialEnd) {
             a.partialEnd = false;
             a.cb = null;
-            if (a.type === 'vil' || a.type === 'me' || a.type === 'cust') {
+            if (a.type === 'me' || a.type === 'cust') {
               a.say = (typeof t === 'function' && t('roadNone')) || '길이 없어요 😢';
               a.sayT = 3.2;
             }
@@ -685,8 +689,8 @@ return true;
         if (cu.type === 'vip') { look.top = 'jacket'; look.jacket = '#c9a227'; look.glasses = 2; look.hat = 'crown'; look.necklace = true; } // 👑 VIP: gold suit + crown
         { const sn = seasonOf(); if (sn && (cu.seed || cu.id) % 10 < 4) { look.hat = SEASON_HAT[sn]; look.hatc = '#ef8fa8'; } }
         // arrive from the far end of the street, not out of thin air mid-road ("갑자기 중간에 나타나")
-        const hm = cu.home && TOWN.objs().find(o => o.id === cu.home), hd = hm && TOWN.doorOf(hm); // PET TOWN: villagers walk over from their own house
-        a = mkActor(id, 'cust', hd ? hd.x + .5 : w + 1.5 + (cu.id % 2), hd ? hd.y + .5 : fromTop ? VILLAGE_N : villageS(), { look, speed: 1.7 + (cu.id % 3) * .15, baseSpeed: 1.7 + (cu.id % 3) * .15, cust: cu, inside: false });
+        // 주민은 상점에 갈 필요가 없으므로 상점 고객은 외부 거리 끝에서 자연스럽게 입장
+        a = mkActor(id, 'cust', w + 1.5 + (cu.id % 2), fromTop ? VILLAGE_N : villageS(), { look, speed: 1.7 + (cu.id % 3) * .15, baseSpeed: 1.7 + (cu.id % 3) * .15, cust: cu, inside: false });
         if (cu.vsp) a.hold = { sp: cu.vsp, grow: 1 };
         SFX.door && setTimeout(() => SFX.door(), 1200);
         goTo(a, door.x + 1, door.y, () => goTo(a, door.x, door.y, () => { a.inside = true; }));
@@ -930,8 +934,10 @@ return true;
     for (const [id, a] of actors) {
       if (alive.has(id) || a.type === 'me' || a.type === 'partner' || a.type === 'truck' || a.leaving || id.startsWith('gh')) continue; // gh*: commuting staff (v9.95)
       if (a.type === 'cust' || a.type === 'insp' || a.type === 'reg' || a.type === 'staff' || a.type === 'thief') {
-        a.homeId = a.cust && a.cust.home; a.leaving = true; a.cust = null; a.watching = false;
-        goTo(a, door.x, door.y, () => goTo(a, door.x + 2, door.y, () => { const hm = a.homeId && TOWN.objs().find(o => o.id === a.homeId), hd = hm && TOWN.doorOf(hm); goTo(a, hd ? hd.x : w + 1.5, hd ? hd.y : (a.id.length % 2) ? VILLAGE_N : villageS(), () => { actors.delete(id); }); }));
+        a.homeId = null; a.leaving = true; a.cust = null; a.watching = false;
+        goTo(a, door.x, door.y, () => goTo(a, door.x + 2, door.y, () => {
+          goTo(a, w + 1.5, (a.id.length % 2) ? VILLAGE_N : villageS(), () => { actors.delete(id); });
+        }));
       } else if (a.type === 'cafeguest') {
         // v9.76: left because the food never came -> angry face + a line, no meal, no paying
         const ang = S.cafe && (S.cafe.angry || []).find(x => 'cg' + x.id === id);
@@ -1588,7 +1594,14 @@ return true;
       // v2026-10-08: "외부주민들은 머리위에 작은 아이콘을 달아줘" -- 우리 마을에 집이 없는(= 마을주민
       // 시스템에 없는) 손님은 펫샵에 들어가기 전까진 겉모습만으로 마을 주민과 구분이 안 됐음.
       // 아주 작게 🧳 아이콘만 머리 위에 살짝 띄워서 "이 사람은 외부에서 온 손님"이라고 미리 표시.
-      if (a.type === 'cust' && !a.inside && a.cust && !a.cust.residentId) { c.save(); c.font = '9px sans-serif'; c.textAlign = 'center'; c.globalAlpha = .85; c.fillText('🧳', sx, sy - 62); c.restore(); }
+      if (a.type === 'cust' && !a.inside && a.cust && !a.cust.residentId) {
+        c.save();
+        const emX = sx + 16, emY = sy - 82;
+        ART.ell(c, emX, emY - 4, 9, 9, 'rgba(255,255,255,.9)', 'rgba(60,38,25,.25)', 1);
+        c.font = '10px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+        c.fillText('🧳', emX, emY - 3.5);
+        c.restore();
+      }
       // pet overlays hug the pet (scaled to its size) and vanish while I'm holding it -- they used to hang in mid-air
       const petHeld = a.type === 'pet' && a.pet && App.carry && App.carry.pid === a.pet.id;
       const psz = a.type === 'pet' && a.pet && a.pet.grow != null ? .36 + .64 * G.ageOf(a.pet) : 1, ptop = sy - 30 * psz - 6;
@@ -2026,7 +2039,17 @@ return true;
         // v2026-10-08: "애완동물 위치를 사람 발끝 선에 맞춰서 아래로 내려줘" -- sy(사람 발 기준점)에서
         // 거의 안 내려가 있어서 공중에 뜬 것처럼 보였음. 땅에 닿도록 더 내림(+9).
         if (a.pet) { const pBob = a.moving ? Math.abs(Math.sin(a.t * 8)) * 2 : 0; c.save(); c.translate(sx - 22 * vdir, sy + 9 - pBob); c.scale(.4 * vdir, .4); ART.pet(c, a.pet, { t: T, mood: 'happy', seed: a.id.length * 31, age: 1, moving: a.moving, dir: vdir }); c.restore(); }
-        if (a.emoT > 0 && a.emo) { c.font = '13px sans-serif'; c.textAlign = 'center'; c.fillText(a.emo, sx + 9, sy - 60 - Math.abs(Math.sin(T * 3)) * 2); c.textAlign = 'start'; }
+        // v2026-10-10: "주민들 마크가 잘 안보여. 오른쪽 위로 더 이동해줘"
+        // 캐릭터 머리/모자에 겹치지 않고 잘 보이도록 오른쪽 위(sx + 18, sy - 84)로 이동 및 산뜻한 미니 뱃지 스타일 적용
+        const vEmo = (a.emoT > 0 && a.emo) ? a.emo : (a.st === 'back' ? '🏠' : a.pet ? '🐾' : (a.dstK === 'zoo' ? '🦁' : a.dstK === 'park' ? '🌳' : a.dstK === 'lake' ? '🦢' : a.dstK === 'cafe' ? '☕' : a.dstK === 'hosp' ? '🏥' : a.dstK === 'salon' ? '✂️' : a.dstK === 'shelter' ? '🛖' : '🏡'));
+        if (vEmo) {
+          c.save();
+          const emX = sx + 18, emY = (a.sayT > 0 ? sy - 110 : sy - 84) - Math.abs(Math.sin(T * 3)) * 2;
+          ART.ell(c, emX, emY - 4, 10, 10, 'rgba(255,255,255,0.92)', 'rgba(60,38,25,0.28)', 1);
+          c.font = '12px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+          c.fillText(vEmo, emX, emY - 3.5);
+          c.restore();
+        }
         // v2026-10-08: 공원 산책 중 머리 위에 띄우는 속마음 한마디 ("공원에 오니깐 너무 좋다" 등)
         if (a.sayT > 0 && a.say) {
           c.save(); c.font = 'bold 11px sans-serif';
