@@ -36,7 +36,14 @@ function morph(from, to) {
   const fa = from.attributes, ta = to.attributes;
   for (let i = fa.length - 1; i >= 0; i--) { const n = fa[i].name; if (!to.hasAttribute(n)) from.removeAttribute(n); }
   for (let i = 0; i < ta.length; i++) { const { name, value } = ta[i]; if (from.getAttribute(name) !== value) from.setAttribute(name, value); }
-  if (from.tagName === 'INPUT') return;
+  if (from.tagName === 'INPUT') {
+    if (from.type === 'checkbox' || from.type === 'radio') {
+      from.checked = to.checked;
+    } else if (from.value !== to.value) {
+      from.value = to.value;
+    }
+    return;
+  }
   morphChildren(from, to);
 }
 function morphChildren(from, to) {

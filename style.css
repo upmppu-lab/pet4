@@ -334,6 +334,9 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
 .road-card-cost{font-size:9px;font-weight:800;color:#b45309;line-height:1}
 .road-thumb-box{display:flex;align-items:center;justify-content:center;background:#fffdf8;border-radius:10px;border:1.5px solid #ecd8b6;padding:4px}
 .road-bot-row{display:flex;align-items:center;gap:8px;width:100%}
+.road-double-btn{transition:background .15s,border-color .15s,transform .1s}
+.road-double-btn:active{transform:scale(.95)}
+.road-double-btn.g{background:rgba(34,197,94,.28)!important;border-color:#22c55e!important;color:#14532d!important;box-shadow:0 0 0 1px #22c55e}
 
 /* Sky & Weather mini window + Population Banner horizontal layout */
 .town-hud-wrap{display:flex;flex-direction:row;align-items:center;gap:6px}

@@ -514,11 +514,11 @@ function clearThumbCache() {
           <div class="grow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             <span>${rd.erase ? '🧽' : curRt.ic} <b>${rd.erase ? (t('tRoadErase') || '길 철거') : (t('tRoadPave') || '길 깔기')}</b> <span class="m">· ${rd.erase ? '1칸 철거 (100% 환불)' : (isDouble ? `2칸 동시 🪙${curRt.cost * 2}` : `1칸 🪙${curRt.cost}`)}</span></span>
             ${!rd.erase ? `
-            <label class="road-check-label" style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;user-select:none;font-weight:700;font-size:12px;background:rgba(255,255,255,0.22);padding:2px 8px;border-radius:12px;border:1px solid rgba(255,255,255,0.35);" data-a="troaddouble">
-              <input type="checkbox" ${isDouble ? 'checked' : ''} style="cursor:pointer;accent-color:#22c55e;width:15px;height:15px;pointer-events:none;">
-              2개타일동시
-            </label>
-            ${isDouble ? `<button class="btn sm" data-a="troaddir" style="padding:2px 7px;font-size:11px;" title="2타일 방향 전환">${rd.dir === 'y' ? '↕ 세로2' : '↔ 가로2'}</button>` : ''}
+            <button type="button" class="btn sm road-double-btn ${isDouble ? 'g' : ''}" data-a="troaddouble" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none;font-weight:700;font-size:12px;padding:3px 9px;border-radius:12px;background:${isDouble ? 'rgba(34,197,94,0.24)' : 'rgba(255,255,255,0.22)'};border:1px solid ${isDouble ? '#22c55e' : 'rgba(255,255,255,0.38)'};">
+              <span class="road-chk-box" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:3px;background:${isDouble ? '#22c55e' : '#ffffff'};border:1.5px solid ${isDouble ? '#16a34a' : '#94a3b8'};color:#fff;font-size:11px;font-weight:900;line-height:1;box-shadow:inset 0 1px 2px rgba(0,0,0,0.12);">${isDouble ? '✔' : ''}</span>
+              <span>2개타일동시</span>
+            </button>
+            ${isDouble ? `<button type="button" class="btn sm o" data-a="troaddir" style="padding:3px 8px;font-size:11px;font-weight:800;" title="2타일 방향 전환">${rd.dir === 'y' ? '↕ 세로2' : '↔ 가로2'}</button>` : ''}
             ` : ''}
           </div>
           <button class="btn ${rd.erase ? '' : 'g'} sm" data-a="troadpave">🛤️ ${t('tRoadPave') || '길 깔기'}</button>
@@ -548,14 +548,16 @@ function clearThumbCache() {
     }
     if (h.kind === 'troad' && App.troad) {
       const rd = App.troad, pt = { x: h.gx, y: h.gy };
-      const tiles = (!rd.erase && rd.double)
+      const tiles = rd.double
         ? (rd.dir === 'y' ? [[pt.x, pt.y], [pt.x, pt.y + 1]] : [[pt.x, pt.y], [pt.x + 1, pt.y]])
         : [[pt.x, pt.y]];
       const r = actR({ t: 'troad', tiles, on: !rd.erase, style: rd.style || 'cobble' });
       if (r && r.ok) {
-        SND.pop && SND.pop();
+        if (typeof SND !== 'undefined' && SND.pop) SND.pop();
       } else if (r && r.err === 'notEnough') {
         if (typeof toast === 'function') toast(t('notEnough') || '코인이 부족합니다');
+      } else if (r && r.err === 'tLocked') {
+        if (typeof toast === 'function') toast(t('tLvlNeed', { n: (r.p && r.p.n) || 1 }) || ('레벨 ' + ((r.p && r.p.n) || 1) + ' 필요'));
       }
       render();
       return true;
@@ -643,6 +645,7 @@ function clearThumbCache() {
   });
   return { chip, bar: bar_, tap, thumb, startPlace, clearThumbCache };
 })();
+if (typeof window !== 'undefined') window.TOWNUI = TOWNUI;
 
 Object.assign(I18N.ko, {
   tTitle: '우리 마을', tPopNow: '현재 주민', tPopCap: '가능 주민', tHappy: '행복', tBuildBtn: '건설', tRoadQuickBtn: '길깔기', tPopN: '주민 {n}명',

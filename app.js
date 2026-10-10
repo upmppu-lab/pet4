@@ -1894,7 +1894,16 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('change', e => {
   const el = e.target;
-  if (!el || el.dataset.a !== 'sethue') return;
+  if (!el) return;
+  if (el.dataset.a === 'troaddouble' || el.closest('[data-a="troaddouble"]')) {
+    const rd = App.troad;
+    if (rd) {
+      rd.double = typeof el.checked === 'boolean' ? el.checked : !rd.double;
+      render();
+    }
+    return;
+  }
+  if (el.dataset.a !== 'sethue') return;
   saveCfg();
 });
 // 내가 그린 헤어/상의/하의/소품 그림을 폰에서 바로 불러와 추가하는 기능
@@ -1933,6 +1942,52 @@ function handle(a, v, w) {
   const _xa = (typeof XACT !== 'undefined' && XACT) || (typeof window !== 'undefined' && window.XACT);
   if (_xa && _xa[a]) { _xa[a](v, w); return; }
   switch (a) {
+    case 'troaddouble': {
+      const rd = App.troad;
+      if (rd) {
+        rd.double = !rd.double;
+        render();
+      }
+      break;
+    }
+    case 'troaddir': {
+      const rd = App.troad;
+      if (rd) {
+        rd.dir = rd.dir === 'y' ? 'x' : 'y';
+        render();
+      }
+      break;
+    }
+    case 'troadstyle': {
+      const rd = App.troad;
+      if (rd) {
+        rd.style = v;
+        rd.erase = false;
+        render();
+      }
+      break;
+    }
+    case 'troadpave': {
+      const rd = App.troad;
+      if (rd) {
+        rd.erase = false;
+        render();
+      }
+      break;
+    }
+    case 'troaderase': {
+      const rd = App.troad;
+      if (rd) {
+        rd.erase = true;
+        render();
+      }
+      break;
+    }
+    case 'troaddone': {
+      App.troad = null;
+      render();
+      break;
+    }
     case 'close': closePanel(); break;
     case 'panelBack': panelBack(); break;
     case 'open': openPanel(Object.assign({ type: v }, w ? { tab: w } : {})); break;

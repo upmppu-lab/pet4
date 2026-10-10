@@ -5333,7 +5333,23 @@ function getFlowerSprite(kind) {
   // the road tool's preview: the first point and the straight L-shaped run to where you tap next
   function roadLine(a, b) { const out = []; const sx = Math.sign(b.x - a.x), sy = Math.sign(b.y - a.y); let x = a.x, y = a.y; out.push([x, y]); while (x !== b.x) { x += sx; out.push([x, y]); } while (y !== b.y) { y += sy; out.push([x, y]); } return out; }
   function drawRoadTool(c, st) {
-    if (!st || !st.a) return; const col = st.erase ? 'rgba(230,70,60,.55)' : 'rgba(80,170,230,.55)';
+    if (!st) return;
+    if (st.hover) {
+      const col = st.erase ? 'rgba(230,70,60,.45)' : 'rgba(80,170,230,.45)';
+      const stroke = st.erase ? '#e11d48' : '#2563eb';
+      const tiles = st.double
+        ? (st.dir === 'y' ? [[st.hover.x, st.hover.y], [st.hover.x, st.hover.y + 1]] : [[st.hover.x, st.hover.y], [st.hover.x + 1, st.hover.y]])
+        : [[st.hover.x, st.hover.y]];
+      for (const [tx, ty] of tiles) {
+        poly(c, [Q(tx, ty), Q(tx + 1, ty), Q(tx + 1, ty + 1), Q(tx, ty + 1)], col, stroke, 2);
+      }
+      const p = Q(st.hover.x + .5, st.hover.y + .5);
+      c.font = '16px sans-serif'; c.textAlign = 'center';
+      c.fillText(st.erase ? '🧽' : '📍', p[0], p[1] - 8);
+      c.textAlign = 'start';
+      return;
+    }
+    if (!st.a) return; const col = st.erase ? 'rgba(230,70,60,.55)' : 'rgba(80,170,230,.55)';
     const p = Q(st.a.x + .5, st.a.y + .5); poly(c, [Q(st.a.x, st.a.y), Q(st.a.x + 1, st.a.y), Q(st.a.x + 1, st.a.y + 1), Q(st.a.x, st.a.y + 1)], col, '#ffffff', 2);
     c.font = '16px sans-serif'; c.textAlign = 'center'; c.fillText(st.erase ? '🧽' : '📍', p[0], p[1] - 8); c.textAlign = 'start';
   }

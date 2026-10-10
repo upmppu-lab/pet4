@@ -3569,6 +3569,13 @@ return true;
     if (g.m === 'e') { const d = editDrag; editDrag = null; if (d && (d.x !== g.x0 || d.y !== g.y0)) onTap && onTap({ kind: 'editdrop', id: d.id, x: d.x, y: d.y }); else typeof render === 'function' && render(); }
   }
   function onMove(e) {
+    if (App.troad) {
+      try {
+        const r = getCvRect();
+        const g = toGrid(e.clientX - r.left, e.clientY - r.top);
+        App.troad.hover = { x: Math.floor(g.x), y: Math.floor(g.y) };
+      } catch (err) {}
+    }
     if (!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pinch && ptrs.size === 2) { const [a, b] = [...ptrs.values()]; cam.z = Math.max(.2, Math.min(1.6, pinch.z * Math.hypot(a.x - b.x, a.y - b.y) / pinch.d)); return; }
     if (gdrag && ptrs.size === 1) { gdragMove(e); return; }
