@@ -202,58 +202,68 @@ const RANCH = (() => {
   // 부지 크기에 맞춰 늘리면 그림이 부지보다 작게 보여 길과 사이에 빈 틈이 생겼음. 이제 ground()에서
   // 콘텐츠 영역 기준으로 다시 늘려 부지 가장자리까지 꽉 차게 그리므로, 그 그림을 기준으로 소/돼지
   // 우리 등 모든 좌표도 같이 다시 환산함(픽셀 위치 자체는 그대로 유지한 채 타일 좌표만 재계산).
+  // v2026-10-10: 목장 이미지(ranch.png)를 새로 교체 -- 잔디/흙바닥 경계가 완전한 직선이 아니라
+  // 살짝 휘어진 울타리(칸막이)를 따라 생김. 실제 ranch.png 픽셀을 좌표 격자와 겹쳐서 분석해
+  // (dy 위치별로 울타리의 실제 x 위치를 여러 점으로 측정) 아래 구분선 함수로 반영. 소는 이 선의
+  // 왼쪽(잔디) 전체, 돼지는 오른쪽(흙바닥) 전체를 쓰되 선에서 0.35칸 안전 여백을 둬서 울타리를
+  // 절대 넘거나 겹치지 않게 함.
+  const RANCH_DIV_PTS = [[0, 6.3], [2, 6.0], [3.6, 5.6], [5.0, 6.0], [7.0, 6.9], [9.5, 7.3]];
+  function ranchDivX(dy) {
+    const pts = RANCH_DIV_PTS;
+    if (dy <= pts[0][0]) return pts[0][1];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const y0 = pts[i][0], x0 = pts[i][1], y1 = pts[i + 1][0], x1 = pts[i + 1][1];
+      if (dy <= y1) { const u = (dy - y0) / (y1 - y0); return x0 + (x1 - x0) * u; }
+    }
+    return pts[pts.length - 1][1];
+  }
   const PEN = L0 => ({
-    cow: { x: L0.x + 1.0, y: L0.y + 0.5, w: 5.6, d: 8.8 },
-    pig: { x: L0.x + 8.0, y: L0.y + 6.0, w: 4.0, d: 3.7 },
+    cow: { x: L0.x + 0.6, y: L0.y + 1.3, w: 5.0, d: 8.0 },
+    pig: { x: L0.x + 6.3, y: L0.y + 1.6, w: 5.2, d: 7.2 },
     box: { x: L0.x + 3.5, y: L0.y + 3.8 },
     hay: { x: L0.x + 10.0, y: L0.y + 2.0 },
-    haybox: { x: L0.x + 1.6, y: L0.y + 8.3 },
-    pigbox: { x: L0.x + 8.9, y: L0.y + 9.6 }
+    // v2026-10-10: 건초 먹이통 -- 실제 게임 화면에 맞춰(World.toScreen으로 직접 대조) 새 그림의
+    // 헛간 옆 건초 여물통 위치로 재배치(1.8, 2.2) 후, 요청한 대로 오른쪽으로 1, 위로 1 만큼 미세 조정.
+    haybox: { x: L0.x + 1.9, y: L0.y + 2.1 },
+    // v2026-10-10: 돼지 먹이통 -- 실제 게임 화면에 맞춰(World.toScreen으로 직접 대조) 새 그림의
+    // 창고 옆 먹이통 위치로 재배치(9.4, 2.8) 후, 요청한 대로 오른쪽으로 10, 위로 5 만큼 미세 조정.
+    pigbox: { x: L0.x + 10.4, y: L0.y + 2.3 }
   });
   const walk = new Map();
   function wander(a, pen, T, trough, hungry, isCow, L0) {
     let st = walk.get(a.id); const now = T;
     const samplePos = () => {
       if (isCow && L0) {
-        // v2026-10-09: "소들이 풀밭의 북쪽에만 몰려있어. 목장안 풀밭 전체에 있게 해줘. 울타리는 겹치거나 넘지말고."
-        // 소들이 북쪽에만 뭉치지 않고 목장 안 풀밭 전체(북쪽, 중앙, 남쪽, 동남쪽)에 고르게 퍼져서 활동하도록
-        // 소의 순번(trough.i) 또는 랜덤에 따라 목장 풀밭 전체 구간(v: 1.2 ~ 8.4)을 골고루 배정
-        const cowIdx = (trough && trough.i != null) ? trough.i : Math.floor(Math.random() * 4);
-        const sector = (cowIdx + Math.floor(Math.random() * 2)) % 4;
-        let vMin = 1.2, vMax = 8.4;
-        if (sector === 0) { vMin = 1.2; vMax = 2.8; } // 북쪽 목초지
-        else if (sector === 1) { vMin = 2.8; vMax = 4.8; } // 중앙 북부 목초지
-        else if (sector === 2) { vMin = 4.8; vMax = 6.6; } // 중앙 남부 목초지
-        else { vMin = 6.6; vMax = 8.4; } // 남쪽 목초지 (남쪽 끝까지 활용)
-
+        // 소: 울타리 안쪽 잔디 전체(위~아래)를 고르게 사용, 구분선(ranchDivX) 안쪽으로만
+        const vMin = 1.3, vMax = 9.3;
         const chosenV = vMin + Math.random() * (vMax - vMin);
-        // 울타리 기울기에 맞춘 안전 여백 (울타리와 겹치거나 넘지 않도록 안전 마진 유지)
-        const uMin = 1.5 + (chosenV - 1.0) * 0.14;
-        const uMax = 4.7 + (chosenV - 1.0) * 0.18;
-        const chosenU = uMin + Math.random() * Math.max(0.6, uMax - uMin);
+        const uMin = 0.6, uMax = Math.max(uMin + 0.4, ranchDivX(chosenV) - 0.35);
+        const chosenU = uMin + Math.random() * (uMax - uMin);
         return [L0.x + chosenU, L0.y + chosenV];
       }
       if (L0) {
-        // Pig: roam across the entire dirt floor evenly
-        return [
-          L0.x + 8.0 + Math.random() * 4.0,
-          L0.y + 6.0 + Math.random() * 3.7
-        ];
+        // 돼지: 구분선 바깥쪽(오른쪽) 흙바닥 전체를 고르게 사용
+        const vMin = 1.6, vMax = 8.8;
+        const chosenV = vMin + Math.random() * (vMax - vMin);
+        const uMin = ranchDivX(chosenV) + 0.35, uMax = 11.1;
+        const chosenU = uMin + Math.random() * Math.max(0.4, uMax - uMin);
+        return [L0.x + chosenU, L0.y + chosenV];
       }
       return [pen.x + .4 + Math.random() * (pen.w - .8), pen.y + .4 + Math.random() * (pen.d - .8)];
     };
     const clampPos = (spt) => {
       if (isCow && L0) {
-        const relV = Math.max(1.2, Math.min(8.4, spt.y - L0.y));
-        const uMin = 1.4 + (relV - 1.0) * 0.14;
-        const uMax = 4.8 + (relV - 1.0) * 0.18;
+        const relV = Math.max(1.3, Math.min(9.3, spt.y - L0.y));
         spt.y = L0.y + relV;
+        const uMin = 0.6, uMax = Math.max(uMin + 0.2, ranchDivX(relV) - 0.35);
         spt.x = Math.max(L0.x + uMin, Math.min(L0.x + uMax, spt.x));
         return;
       }
       if (L0) {
-        spt.x = Math.max(L0.x + 8.0, Math.min(L0.x + 12.0, spt.x));
-        spt.y = Math.max(L0.y + 6.0, Math.min(L0.y + 9.7, spt.y));
+        const relV = Math.max(1.6, Math.min(8.8, spt.y - L0.y));
+        spt.y = L0.y + relV;
+        const uMin = ranchDivX(relV) + 0.35, uMax = Math.max(uMin + 0.2, 11.1);
+        spt.x = Math.max(L0.x + uMin, Math.min(L0.x + uMax, spt.x));
         return;
       }
       spt.x = Math.max(pen.x + .4, Math.min(pen.x + pen.w - .4, spt.x));
