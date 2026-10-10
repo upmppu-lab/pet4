@@ -1826,8 +1826,11 @@ return true;
     // 지점에 몰릴 때 완전히 겹쳐 보였음. 실제 좌표(길찾기/충돌)는 그대로 두고, 화면에 그릴 때만
     // 캐릭터별로 고정된(매 프레임 안 흔들리는) 작은 픽셀 오프셋을 줘서 서로 살짝 떨어져 보이게 함.
     if ((a.type === 'cust' || a.type === 'vil') && a.id) {
+      // v2026-10-10: 위 오프셋(sy 음수)을 주면 캐릭터가 실제 서 있는 칸(길/바닥)보다 위로
+      // 떠 보여서 "사람들이 작아지고 날아다닌다"는 문제로 이어짐. 겹침 방지는 유지하되,
+      // 세로축은 카메라 쪽(아래, 양수)으로만 밀어서 발이 항상 바닥에 붙어 보이게 고침.
       const jh = typeof ART !== 'undefined' && ART.hashStr ? Math.abs(ART.hashStr(a.id)) : 0;
-      sx += (jh % 17 - 8) * 1.7; sy += (Math.floor(jh / 17) % 11 - 5) * 1.3;
+      sx += (jh % 17 - 8) * 1.7; sy += (Math.floor(jh / 17) % 6) * 1.3;
     }
     if (a.type === 'stray') {
       if (a.strayInfo && a.strayInfo.sp && a.sp !== a.strayInfo.sp) {
