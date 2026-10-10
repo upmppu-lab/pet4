@@ -218,8 +218,8 @@ const RANCH = (() => {
     return pts[pts.length - 1][1];
   }
   const PEN = L0 => ({
-    cow: { x: L0.x + 0.6, y: L0.y + 1.3, w: 5.0, d: 8.0 },
-    pig: { x: L0.x + 6.3, y: L0.y + 1.6, w: 5.2, d: 7.2 },
+    cow: { x: L0.x + 1.4, y: L0.y + 3.6, w: 4.0, d: 4.8 },
+    pig: { x: L0.x + 6.4, y: L0.y + 5.0, w: 3.8, d: 3.5 },
     box: { x: L0.x + 3.5, y: L0.y + 3.8 },
     hay: { x: L0.x + 10.0, y: L0.y + 2.0 },
     // v2026-10-10: 건초 먹이통 -- 실제 게임 화면에 맞춰(World.toScreen으로 직접 대조) 새 그림의
@@ -234,18 +234,18 @@ const RANCH = (() => {
     let st = walk.get(a.id); const now = T;
     const samplePos = () => {
       if (isCow && L0) {
-        // 소: 울타리 안쪽 잔디 전체(위~아래)를 고르게 사용, 구분선(ranchDivX) 안쪽으로만
-        const vMin = 1.3, vMax = 9.3;
+        // 소: 울타리 안쪽 잔디 전체를 사용하되, 절대 울타리(상단 헛간/외곽/중앙 칸막이)를 넘지 않도록 안전 영역 엄격 제한
+        const vMin = 3.6, vMax = 8.3;
         const chosenV = vMin + Math.random() * (vMax - vMin);
-        const uMin = 0.6, uMax = Math.max(uMin + 0.4, ranchDivX(chosenV) - 0.35);
+        const uMin = 1.4, uMax = Math.max(uMin + 0.5, ranchDivX(chosenV) - 0.7);
         const chosenU = uMin + Math.random() * (uMax - uMin);
         return [L0.x + chosenU, L0.y + chosenV];
       }
       if (L0) {
-        // 돼지: 구분선 바깥쪽(오른쪽) 흙바닥 전체를 고르게 사용
-        const vMin = 1.6, vMax = 8.8;
+        // 돼지: 흙바닥에서만 머물도록 상단 잔디와 울타리를 피해 진흙 우리 영역 내부로만 제한
+        const vMin = 5.0, vMax = 8.5;
         const chosenV = vMin + Math.random() * (vMax - vMin);
-        const uMin = ranchDivX(chosenV) + 0.35, uMax = 11.1;
+        const uMin = ranchDivX(chosenV) + 0.65, uMax = 10.2;
         const chosenU = uMin + Math.random() * Math.max(0.4, uMax - uMin);
         return [L0.x + chosenU, L0.y + chosenV];
       }
@@ -253,16 +253,16 @@ const RANCH = (() => {
     };
     const clampPos = (spt) => {
       if (isCow && L0) {
-        const relV = Math.max(1.3, Math.min(9.3, spt.y - L0.y));
+        const relV = Math.max(3.6, Math.min(8.3, spt.y - L0.y));
         spt.y = L0.y + relV;
-        const uMin = 0.6, uMax = Math.max(uMin + 0.2, ranchDivX(relV) - 0.35);
+        const uMin = 1.4, uMax = Math.max(uMin + 0.3, ranchDivX(relV) - 0.7);
         spt.x = Math.max(L0.x + uMin, Math.min(L0.x + uMax, spt.x));
         return;
       }
       if (L0) {
-        const relV = Math.max(1.6, Math.min(8.8, spt.y - L0.y));
+        const relV = Math.max(5.0, Math.min(8.5, spt.y - L0.y));
         spt.y = L0.y + relV;
-        const uMin = ranchDivX(relV) + 0.35, uMax = Math.max(uMin + 0.2, 11.1);
+        const uMin = ranchDivX(relV) + 0.65, uMax = Math.max(uMin + 0.3, 10.2);
         spt.x = Math.max(L0.x + uMin, Math.min(L0.x + uMax, spt.x));
         return;
       }
@@ -352,7 +352,8 @@ const RANCH = (() => {
 
     const im = COW_IMGS[frame] || COW_IMGS[1];
     if (im && im.complete && im.naturalWidth > 0) {
-      const dw = grown ? 84 : 56;
+      // 소 크기를 축소하여 우리 안에서 여유 있게 뛰놀 수 있도록 조정 (성체: 84 -> 68, 송아지: 56 -> 46)
+      const dw = grown ? 68 : 46;
       const dh = Math.round(dw * (im.naturalHeight / im.naturalWidth));
       c.save();
       c.scale(dir, 1);
@@ -381,7 +382,8 @@ const RANCH = (() => {
 
     const im = PIG_IMGS[frame] || PIG_IMGS[1];
     if (im && im.complete && im.naturalWidth > 0) {
-      const dw = grown ? 68 : 44;
+      // 돼지 크기를 축소하여 흙바닥 우리 안에서 자연스럽게 어울리도록 조정 (성체: 68 -> 54, 새끼: 44 -> 35)
+      const dw = grown ? 54 : 35;
       const dh = Math.round(dw * (im.naturalHeight / im.naturalWidth));
       c.save();
       c.scale(dir, 1);
@@ -647,8 +649,8 @@ const RANCH = (() => {
       if (q.k === 'milk') {
         const u = q.u == null ? (q.id * .37) % 1 : q.u;
         const v = q.v == null ? (q.id * .61) % 1 : q.v;
-        x = L0.x + 1.6 + u * 3.0;
-        y = L0.y + 2.2 + v * 5.2;
+        x = L0.x + 1.8 + u * 2.8;
+        y = L0.y + 3.8 + v * 4.2;
       } else {
         const pen = pn.pig;
         x = pen.x + .4 + (q.u == null ? (q.id * .37) % 1 : q.u) * (pen.w - .8);
@@ -703,7 +705,7 @@ const RANCH = (() => {
       const tr = isCow ? { x: pn.haybox.x, y: pn.haybox.y, food: r.hay > 0, big: 1 } : { x: pn.pigbox.x, y: pn.pigbox.y, food: pfTotal(r) > 0 }; tr.i = list.indexOf(a);
       const w = wander(a, pen, T, tr, a.fed !== d, isCow, L0); const grown = d - a.born >= RANCH_GROW;
       const fnFallback = isCow ? (grown ? drawCow : drawCalf) : drawPig;
-      const scFallback = isCow ? (grown ? 1.9 : 1.38) : (grown ? 1.35 : .8);
+      const scFallback = isCow ? (grown ? 1.55 : 1.1) : (grown ? 1.1 : .65);
       const isHungry = a.fed !== d && !w.waiting && !w.moving;
       out.push({ depth: w.x + w.y, fn: () => {
         const q = RP(L0, w.x, w.y);
