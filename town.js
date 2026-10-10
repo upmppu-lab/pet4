@@ -644,6 +644,9 @@ const TOWN = (() => {
   };
 
   const isFacilityAccessible = (s, f) => {
+    if (f === 'shop') return true;
+    const k = typeof f === 'string' ? f : (f && (f.k || f.id));
+    if (k && !['cafe', 'hosp', 'salon', 'zoo', 'park', 'lake', 'shelter'].includes(k)) return true;
     const ents = facilityEntrances(s, f);
     if (!ents.length) return true;
     return ents.some(e => isEntranceConnected(s, e));
@@ -5074,7 +5077,6 @@ function getFlowerSprite(kind) {
     let warnList = _warnListCache;
     if (k !== _warnListKey) {
       warnList = [];
-      if (!isFacilityAccessible(s, 'shop')) warnList.push({ name: (typeof t === 'function' && t('roomSec')) || '가게', x: Wd(s) / 2, y: Hd(s) / 2, h: 40 });
       if (s.cafe && s.cafe.built && !isFacilityAccessible(s, 'cafe')) {
         const cp = (typeof CAFE_POS === 'function') ? CAFE_POS(s) : null;
         if (cp) warnList.push({ name: (typeof t === 'function' && t('tk_cafe')) || '카페', x: cp.x + cp.w / 2, y: cp.y + cp.d / 2, h: 42 });
@@ -5095,18 +5097,12 @@ function getFlowerSprite(kind) {
         const lp = (typeof VILLAGE !== 'undefined' && typeof VILLAGE.LAKE === 'function') ? VILLAGE.LAKE() : null;
         if (lp) warnList.push({ name: (typeof t === 'function' && t('tk_lake')) || '호수', x: lp.x + 9, y: lp.y + 8, h: 25 });
       }
-      if (s.ranch && !isFacilityAccessible(s, 'ranch')) {
-        const rp = (typeof LAY === 'function') ? LAY('ranch', s) : null;
-        if (rp) warnList.push({ name: (typeof t === 'function' && t('tk_ranch')) || '목장', x: rp.x + 6, y: rp.y + 5, h: 35 });
-      }
       for (const o of ((s.town && s.town.objs) || [])) {
         const d = D[o.k];
-        if (d && d.cat === 'civic' && !isFacilityAccessible(s, o)) {
-          if (o.k === 'zoo') {
-            warnList.push({ name: nmFunc(o.k), x: o.x + 4.5, y: o.y + 19.5, h: 32 });
-          } else {
-            warnList.push({ name: nmFunc(o.k), x: o.x + d.w / 2, y: o.y + d.d / 2, h: (d.h || 26) + 10 });
-          }
+        if (o.k === 'zoo' && !isFacilityAccessible(s, o)) {
+          warnList.push({ name: nmFunc(o.k), x: o.x + 4.5, y: o.y + 19.5, h: 32 });
+        } else if (o.k === 'shelter' && !isFacilityAccessible(s, o)) {
+          warnList.push({ name: nmFunc(o.k), x: o.x + d.w / 2, y: o.y + d.d / 2, h: (d.h || 26) + 10 });
         } else if (d && d.cat === 'house' && !isHouseAccessible(s, o)) {
           warnList.push({ name: (typeof t === 'function' && t('tHouse')) || '주택', x: o.x + 2.5, y: o.y + 2.5, h: 36 });
         }
@@ -5353,9 +5349,9 @@ function getFlowerSprite(kind) {
     const p = Q(st.a.x + .5, st.a.y + .5); poly(c, [Q(st.a.x, st.a.y), Q(st.a.x + 1, st.a.y), Q(st.a.x + 1, st.a.y + 1), Q(st.a.x, st.a.y + 1)], col, '#ffffff', 2);
     c.font = '16px sans-serif'; c.textAlign = 'center'; c.fillText(st.erase ? '🧽' : '📍', p[0], p[1] - 8); c.textAlign = 'start';
   }
-  // ---------------- villagers out and about (v1.3): visual only, each phone runs its own ----------------
-  // they leave a house with people in it, walk to a shop / public building / fountain..., stay a while, come back out with what they got, and go home
-  const VISIT = { bakery: '🥐', conv: '🛍️', florist: '💐', clinic: '💊', dogpark: '🐕', photo: '📸', school: '📚', police: '👮', fire: '🚒', library: '📖', market: '🛒', training: '🎓', pethotel: '🏨', clocktower: '🕰️', lookout: '🔭', chapel: '💒', gate: '👋', fountain: '💦', playground: '🛝', bench: '☕', shelter: '🐾', zoo: '🦁', aquarium_center: '🐬', pet_themepark: '🎡', cat_cafe: '🐱', pet_bakery: '🧁', pet_fountain: '⛲', camping_zone: '⛺', park: '🌳', lake: '🎣' };
+  // Only the designated destinations that villagers should visit:
+  // 펫 카페, 동물병원, 펫 미용실, 동물원, 공원, 호수, 유기동물 보관소
+  const VISIT = { cafe: '☕', hosp: '🏥', salon: '✂️', zoo: '🦁', park: '🌳', lake: '🎣', shelter: '🐾' };
   const V = []; let vSeq = 0, vT = 2;
   // v2026-10-08: "공원 가면 한곳에 멍하니 서있다가 나오는게 너무 단순해" -- 공원 안의 6개 포인트
   // (분수/벤치/연못/놀이터 등)를 따로 뽑아서, 머무는 동안 이 사이를 몇 번 더 걸어다니고(wander),
@@ -5402,7 +5398,19 @@ function getFlowerSprite(kind) {
       const sp = LAKE_SPOTS[Math.floor(Math.random() * LAKE_SPOTS.length)];
       return [jit({ x: o.x + sp.u, y: o.y + sp.v, act: sp.act, sit: sp.sit }), false];
     }
-    const d = D[o.k], f = fpOf(o.k, o.r);
+    if (o.k === 'cafe') {
+      const cp = (typeof CAFE_POS === 'function' && typeof S !== 'undefined') ? CAFE_POS(S) : { x: o.x, y: o.y, w: 10, d: 8 };
+      const cw = (typeof cafeW === 'function' && typeof S !== 'undefined') ? cafeW(S) : (cp.x + cp.w);
+      return [{ x: cw + 1, y: cp.y + cp.d - 1 }, true];
+    }
+    if (o.k === 'hosp') {
+      const hp = (typeof HOSP_POS === 'function' && typeof S !== 'undefined') ? HOSP_POS(S) : { x1: o.x, y: o.y };
+      return [{ x: hp.x1 + 1, y: hp.y + 3 }, true];
+    }
+    if (o.k === 'salon') {
+      const sp = (typeof SALON_POS === 'function') ? SALON_POS() : { x: o.x, y: o.y, w: 6, d: 6 };
+      return [{ x: sp.x + sp.w + 1, y: sp.y + sp.d - 2 }, true];
+    }
     if (o.k === 'zoo') {
       // Real villagers walk along zoo viewing walkways and admire animals
       const spots = [
@@ -5421,13 +5429,14 @@ function getFlowerSprite(kind) {
       const [u, v] = spots[Math.floor(Math.random() * spots.length)];
       return [jit({ x: o.x + u, y: o.y + v }), false];
     }
-    if (o.k === 'pet_themepark') {
-      return [{ x: o.x + 1 + Math.floor(Math.random() * (d.w - 2)), y: o.y + 1 + Math.floor(Math.random() * (d.d - 2)) }, false];
+    if (o.k === 'shelter') {
+      const d = D[o.k] || { w: 4, d: 4 };
+      return [rotPt(o, Math.floor(d.w / 2), d.d - 1, d.w, d.d), true];
     }
-    if (d.cat === 'civic' && !d.open) return [rotPt(o, Math.floor(d.w / 2), d.d - 1, d.w, d.d), true];
-    if (o.k === 'gate') return [rotPt(o, Math.floor(d.w / 2), 0, d.w, d.d), false];
-    if (d.cat === 'civic') return [jit(rotPt(o, Math.floor(d.w / 2), d.d, d.w, d.d)), false];
-    return [jit({ x: o.x + Math.floor(f.w / 2), y: o.y + f.d }), false];
+    const d = D[o.k], f = fpOf(o.k, o.r);
+    if (d && d.cat === 'civic' && !d.open) return [rotPt(o, Math.floor(d.w / 2), d.d - 1, d.w, d.d), true];
+    if (d && d.cat === 'civic') return [jit(rotPt(o, Math.floor(d.w / 2), d.d, d.w, d.d)), false];
+    return [jit({ x: o.x + Math.floor((f ? f.w : 1) / 2), y: o.y + (f ? f.d : 1) }), false];
   }
   // v2026-10-08 (재시도 4, 근본 원인 해결): 옆걸음을 흉내내려고 a.path에 억지로 반대부호 대각선을
   // 꽂아넣었다가 다시 goTo로 꺾어 돌아오는 방식(wobbleGo + 이동 중간 끼워넣기)을 전부 제거함 --
@@ -5445,14 +5454,22 @@ function getFlowerSprite(kind) {
       rest: ['잠시 쉬었다 가야지 ☕', '여유로운 하루야 ✨', '풍경이 참 평화롭네 😌', '잠깐 다리 좀 쉬자', '따뜻한 햇살 좋다 ☀️'],
       play_pet: ['착하지~ 우리 귀염둥이 💕', '신나게 놀자! 🎾', '꼬리 흔드는 것 봐 너무 귀여워 ✨', '간식 줄까? 🍖', '산책 좋아하지? 🐾'],
       road_none: ['길이 없어요 😢', '길이 연결되지 않았어요 🚧', '어디로 가야 하지? 🧭'],
-      road_cut: ['길이 끊겼어요! ⚠️', '길을 찾는 중... 🧭', '돌아가야겠네 ↩️']
+      road_cut: ['길이 끊겼어요! ⚠️', '길을 찾는 중... 🧭', '돌아가야겠네 ↩️'],
+      cafe: ['카페에서 디저트와 커피 한 잔 ☕', '분위기가 너무 아늑하고 좋아 ✨', '향긋한 커피 향에 기분이 좋아져 🍰', '카페 창가 자리에 앉아 쉬어가요 ☕'],
+      hosp: ['우리 펫 정기 건강검진 받으러 왔어요 🏥', '의사 선생님이 꼼꼼하게 봐주시네 💊', '치료받고 나니 한결 편안해 보여요 ✨', '건강하게 오래오래 함께하자 🐾'],
+      salon: ['우리 펫 예쁘게 스타일링 받았어요 ✂️', '털이 보송보송하고 너무 귀여워졌네 ✨', '미용하고 나니 인물이 훤칠해요 🐩', '스타일이 마음에 쏙 들어요 💕'],
+      shelter: ['유기동물 아이들이 사랑받았으면 좋겠어 🐾', '따뜻한 가족을 만나길 응원해요 💕', '모두 건강하고 행복하렴 ✨']
     },
     ru: {
       stroll: ['Как приятно гулять по деревне! 🌸', 'Отличная погода ☀️', 'Птицы так красиво поют 🐦', 'Люблю ходить по дорожкам ✨', 'Деревня становится краше 🏘️'],
       rest: ['Отдохну немного ☕', 'Такой спокойный день ✨', 'Очень мирный вид 😌', 'Посижу чуток', 'Приятное солнышко ☀️'],
       play_pet: ['Хороший мой, умница! 💕', 'Поиграем! 🎾', 'Как виляет хвостиком! ✨', 'Хочешь вкусняшку? 🍖', 'Любишь гулять? 🐾'],
       road_none: ['Нет дороги 😢', 'Дорога не соединена 🚧', 'Куда же идти? 🧭'],
-      road_cut: ['Дорога оборвалась! ⚠️', 'Ищу дорогу... 🧭', 'Придётся вернуться ↩️']
+      road_cut: ['Дорога оборвалась! ⚠️', 'Ищу дорогу... 🧭', 'Придётся вернуться ↩️'],
+      cafe: ['Отдохну в уютном кафе с чашечкой кофе ☕', 'Здесь так вкусно и тепло ✨'],
+      hosp: ['Пришли на плановый осмотр в клинику 🏥', 'Доктор очень внимательный 💊'],
+      salon: ['Наш питомец такой ухоженный после салона ✂️', 'Шёрстка такая мягкая ✨'],
+      shelter: ['Пусть каждый хвостик найдёт свой дом 🐾', 'Мы болеем за каждого малыша 💕']
     }
   };
 
@@ -5469,7 +5486,9 @@ function getFlowerSprite(kind) {
       const home = pickHome(S);
       // 도로가 연결되어 있지 않은 집에서는 주민이 밖으로 나오지 않음
       if (home && isHouseAccessible(S, home)) {
-        const dests = S.town.objs.filter(o => VISIT[o.k] && isFacilityAccessible(S, o));
+        // 주민이 방문할 시설은 오직 7개 지정 장소만 (펫 카페, 동물병원, 펫 미용실, 동물원, 공원, 호수, 유기동물 보관소)
+        const allowedKinds = new Set(['cafe', 'hosp', 'salon', 'zoo', 'park', 'lake', 'shelter']);
+        const dests = S.town.objs.filter(o => allowedKinds.has(o.k) && isFacilityAccessible(S, o));
         if (typeof PARK !== 'undefined' && PARK.isBuilt() && typeof PARK_POS === 'function' && isFacilityAccessible(S, 'park')) {
           const pp = PARK_POS();
           dests.push({ id: 'park_lot', k: 'park', x: pp.x, y: pp.y, r: 0 });
@@ -5479,6 +5498,18 @@ function getFlowerSprite(kind) {
           if (lp && lp.x < 1000) {
             dests.push({ id: 'lake_lot', k: 'lake', x: lp.x, y: lp.y, r: 0 });
           }
+        }
+        if (S.cafe && S.cafe.built && typeof CAFE_POS === 'function' && isFacilityAccessible(S, 'cafe')) {
+          const cp = CAFE_POS(S);
+          dests.push({ id: 'cafe_fac', k: 'cafe', x: cp.x, y: cp.y, w: cp.w, d: cp.d, r: 0 });
+        }
+        if (S.hosp && S.hosp.built && typeof HOSP_POS === 'function' && isFacilityAccessible(S, 'hosp')) {
+          const hp = HOSP_POS(S);
+          dests.push({ id: 'hosp_fac', k: 'hosp', x: hp.x1, y: hp.y, w: 6, d: 6, r: 0 });
+        }
+        if (S.salon && S.salon.built && typeof SALON_POS === 'function' && isFacilityAccessible(S, 'salon')) {
+          const sp = SALON_POS();
+          dests.push({ id: 'salon_fac', k: 'salon', x: sp.x, y: sp.y, w: sp.w, d: sp.d, r: 0 });
         }
 
         const hd = doorOf(home), id = 'vil' + (++vSeq);
@@ -5582,14 +5613,29 @@ function getFlowerSprite(kind) {
         if (r2) r2.happy = Math.round(Math.min(100, (r2.happy || 70) + 1));
       }
     } else if (currentAct === 'visit') {
-      // 4. 시설 방문: 접근 가능한 시설만 방문
+      // 4. 시설 방문: 접근 가능한 지정 시설(펫 카페, 동물병원, 펫 미용실, 동물원, 공원, 호수, 유기동물 보관소)만 방문
       const dests = (a.dests || []).filter(o => isFacilityAccessible(s, o));
       if (!dests.length) {
-        // 방문할 수 있는 시설이 없으면 산책으로 대체
-        a.st = 'idle';
-        a.tt = 3;
-        a.say = rpick(spLines.road_none);
-        a.sayT = 2.5;
+        // 방문할 수 있는 지정 시설이 없으면 산책으로 전환 (길이 없다는 불평 없이 자연스럽게 산책)
+        a.st = 'stroll';
+        a.emo = rpick(['🌸', '☀️', '🍃', '🚶']);
+        a.emoT = 4;
+        const R = roadSet(s);
+        const roadArr = [...R];
+        let targetTile = null;
+        if (roadArr.length > 0) {
+          for (let tries = 0; tries < 8; tries++) {
+            const cand = roadArr[Math.floor(Math.random() * roadArr.length)].split(',').map(Number);
+            if (Math.hypot(cand[0] - a.x, cand[1] - a.y) < 18) { targetTile = { x: cand[0] + .5, y: cand[1] + .5 }; break; }
+          }
+        }
+        if (!targetTile) targetTile = { x: a.x, y: a.y };
+        goTo(a, targetTile.x, targetTile.y, () => {
+          a.st = 'idle';
+          a.tt = 2 + Math.random() * 3;
+          a.say = rpick(spLines.stroll);
+          a.sayT = 3.0;
+        });
         return;
       }
       const dst = rpick(dests);
@@ -5599,7 +5645,7 @@ function getFlowerSprite(kind) {
       a.dstK = dst.k;
       goTo(a, spot.x, spot.y, () => {
         a.st = 'in';
-        a.tt = dst.k === 'zoo' ? 22 + Math.random() * 14 : dst.k === 'park' ? 5 + Math.random() * 15 : dst.k === 'lake' ? 10 + Math.random() * 16 : 5 + Math.random() * 7;
+        a.tt = dst.k === 'zoo' ? 22 + Math.random() * 14 : dst.k === 'park' ? 5 + Math.random() * 15 : dst.k === 'lake' ? 10 + Math.random() * 16 : 6 + Math.random() * 6;
         a.hidden = a.inside;
         if (!a.inside) a.emoT = 7;
         if (dst.k === 'zoo') {
@@ -5775,6 +5821,39 @@ function getFlowerSprite(kind) {
                 goTo(a, a.lakeOrigin.x + sp2.u, a.lakeOrigin.y + sp2.v);
               }
             }
+          }
+        }
+        // 펫 카페 방문: 실내 휴식, 커피/디저트 대사, 마을 행복도 상승
+        if (a.dstK === 'cafe') {
+          a.facSayT = (a.facSayT == null ? 1.5 : a.facSayT) - dt;
+          if (a.facSayT <= 0 && a.tt > 1) {
+            a.facSayT = 3.5 + Math.random() * 3.5;
+            const msgs = spLines.cafe || ['카페에서 디저트와 커피 한 잔 ☕', '분위기가 너무 아늑하고 좋아 ✨'];
+            a.say = rpick(msgs); a.sayT = 2.8;
+            a.emo = rpick(['☕', '🍰', '🍪', '✨']); a.emoT = 2.5;
+            if (S && S.town) S.town.hap = Math.min(100, (S.town.hap || 75) + 0.1);
+          }
+        }
+        // 동물병원 방문: 실내 진료/검진, 건강 대사, 마을 행복도 상승
+        if (a.dstK === 'hosp') {
+          a.facSayT = (a.facSayT == null ? 1.5 : a.facSayT) - dt;
+          if (a.facSayT <= 0 && a.tt > 1) {
+            a.facSayT = 3.5 + Math.random() * 3.5;
+            const msgs = spLines.hosp || ['우리 펫 정기 건강검진 받으러 왔어요 🏥', '의사 선생님이 꼼꼼하게 봐주시네 💊'];
+            a.say = rpick(msgs); a.sayT = 2.8;
+            a.emo = rpick(['🏥', '💊', '✨', '🐾']); a.emoT = 2.5;
+            if (S && S.town) S.town.hap = Math.min(100, (S.town.hap || 75) + 0.1);
+          }
+        }
+        // 펫 미용실 방문: 스타일링, 미용 대사, 마을 행복도 상승
+        if (a.dstK === 'salon') {
+          a.facSayT = (a.facSayT == null ? 1.5 : a.facSayT) - dt;
+          if (a.facSayT <= 0 && a.tt > 1) {
+            a.facSayT = 3.5 + Math.random() * 3.5;
+            const msgs = spLines.salon || ['우리 펫 예쁘게 스타일링 받았어요 ✂️', '털이 보송보송하고 너무 귀여워졌네 ✨'];
+            a.say = rpick(msgs); a.sayT = 2.8;
+            a.emo = rpick(['✂️', '🐩', '✨', '💕']); a.emoT = 2.5;
+            if (S && S.town) S.town.hap = Math.min(100, (S.town.hap || 75) + 0.1);
           }
         }
         if (a.tt <= 0) {

@@ -512,13 +512,16 @@ function clearThumbCache() {
         <div class="road-cards-scroll">${cards}</div>
         <div class="road-bot-row">
           <div class="grow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span>${rd.erase ? '🧽' : curRt.ic} <b>${rd.erase ? (t('tRoadErase') || '길 철거') : (t('tRoadPave') || '길 깔기')}</b> <span class="m">· ${rd.erase ? '1칸 철거 (100% 환불)' : (isDouble ? `2칸 동시 🪙${curRt.cost * 2}` : `1칸 🪙${curRt.cost}`)}</span></span>
-            ${!rd.erase ? `
+            <span>${rd.erase ? '🧽' : curRt.ic} <b>${rd.erase ? (t('tRoadErase') || '길 철거') : (t('tRoadPave') || '길 깔기')}</b> <span class="m">· ${rd.erase ? (isDouble ? '2칸 철거 (100% 환불)' : '1칸 철거 (100% 환불)') : (isDouble ? `2칸 동시 🪙${curRt.cost * 2}` : `1칸 🪙${curRt.cost}`)}</span></span>
             <button type="button" class="btn sm road-double-btn ${isDouble ? 'g' : ''}" data-a="troaddouble" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none;font-weight:700;font-size:12px;padding:3px 9px;border-radius:12px;background:${isDouble ? 'rgba(34,197,94,0.24)' : 'rgba(255,255,255,0.22)'};border:1px solid ${isDouble ? '#22c55e' : 'rgba(255,255,255,0.38)'};">
               <span class="road-chk-box" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:3px;background:${isDouble ? '#22c55e' : '#ffffff'};border:1.5px solid ${isDouble ? '#16a34a' : '#94a3b8'};color:#fff;font-size:11px;font-weight:900;line-height:1;box-shadow:inset 0 1px 2px rgba(0,0,0,0.12);">${isDouble ? '✔' : ''}</span>
               <span>2개타일동시</span>
             </button>
-            ${isDouble ? `<button type="button" class="btn sm o" data-a="troaddir" style="padding:3px 8px;font-size:11px;font-weight:800;" title="2타일 방향 전환">${rd.dir === 'y' ? '↕ 세로2' : '↔ 가로2'}</button>` : ''}
+            ${isDouble ? `
+            <div style="display:inline-flex;gap:4px;align-items:center;">
+              <button type="button" class="btn sm ${rd.dir !== 'y' ? 'g' : 'o'}" data-a="troaddir_x" style="padding:3px 8px;font-size:11px;font-weight:800;" title="가로 2타일 깔기">↔ 가로</button>
+              <button type="button" class="btn sm ${rd.dir === 'y' ? 'g' : 'o'}" data-a="troaddir_y" style="padding:3px 8px;font-size:11px;font-weight:800;" title="세로 2타일 깔기">↕ 세로</button>
+            </div>
             ` : ''}
           </div>
           <button class="btn ${rd.erase ? '' : 'g'} sm" data-a="troadpave">🛤️ ${t('tRoadPave') || '길 깔기'}</button>
@@ -600,6 +603,8 @@ function clearThumbCache() {
     troaderase: () => { const rd = App.troad; if (!rd) return; rd.erase = true; render(); },
     troaddouble: () => { const rd = App.troad; if (!rd) return; rd.double = !rd.double; render(); },
     troaddir: () => { const rd = App.troad; if (!rd) return; rd.dir = rd.dir === 'y' ? 'x' : 'y'; render(); },
+    troaddir_x: () => { const rd = App.troad; if (!rd) return; rd.dir = 'x'; render(); },
+    troaddir_y: () => { const rd = App.troad; if (!rd) return; rd.dir = 'y'; render(); },
     troaddone: () => { App.troad = null; render(); },
     tup: v => { const r = actR({ t: 'tup', id: +v }); if (r && r.ok) { SND.level && SND.level(); fxAt(innerWidth / 2, innerHeight / 2 - 80, '⭐'); } renderPanel(true); },
     buildcafe: () => bigStart('cafe'), buildhosp: () => bigStart('hosp'),

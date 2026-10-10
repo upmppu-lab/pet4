@@ -930,11 +930,6 @@ return true;
     for (const [id, a] of actors) {
       if (alive.has(id) || a.type === 'me' || a.type === 'partner' || a.type === 'truck' || a.leaving || id.startsWith('gh')) continue; // gh*: commuting staff (v9.95)
       if (a.type === 'cust' || a.type === 'insp' || a.type === 'reg' || a.type === 'staff' || a.type === 'thief') {
-        if (typeof TOWN !== 'undefined' && !TOWN.isFacilityAccessible(S, 'shop')) {
-          a.say = (typeof t === 'function' && t('roadNone')) || '길이 없어요 😢';
-          a.sayT = 3.0;
-          continue; // 길이 연결되지 않았으면 나가지 않고 실내 대기
-        }
         a.homeId = a.cust && a.cust.home; a.leaving = true; a.cust = null; a.watching = false;
         goTo(a, door.x, door.y, () => goTo(a, door.x + 2, door.y, () => { const hm = a.homeId && TOWN.objs().find(o => o.id === a.homeId), hd = hm && TOWN.doorOf(hm); goTo(a, hd ? hd.x : w + 1.5, hd ? hd.y : (a.id.length % 2) ? VILLAGE_N : villageS(), () => { actors.delete(id); }); }));
       } else if (a.type === 'cafeguest') {

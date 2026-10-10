@@ -1967,6 +1967,22 @@ function handle(a, v, w) {
       }
       break;
     }
+    case 'troaddir_x': {
+      const rd = App.troad;
+      if (rd) {
+        rd.dir = 'x';
+        render();
+      }
+      break;
+    }
+    case 'troaddir_y': {
+      const rd = App.troad;
+      if (rd) {
+        rd.dir = 'y';
+        render();
+      }
+      break;
+    }
     case 'troadstyle': {
       const rd = App.troad;
       if (rd) {
