@@ -314,8 +314,6 @@ if (s.book) {
     const sk = TOWN.spendK(s), bp = TOWN.bestPop(s); // PET TOWN: a bigger, happier town spends a bit more
     const base = { id: s.seq++, seed: rint(1, 1e6), vip: false, pat, max: pat, t: 0, name: pick(CUST_NAMES[lang] || CUST_NAMES.ko), type: 'normal', mul: sk };
     { const hm = Math.random() < .8 && TOWN.pickHome(s); if (hm) { const d = TOWN.doorOf(hm);
-      // v2026-10-10: 직선 거리 대신 실제 길찾기 경로 길이로 "걸어오는 시간" 보너스를 계산 (집에서 나오자마자
-      // 인내심이 바닥나던 버그 수정 -- 아래 World.pathDist 설명 참고)
       const dist = (typeof World !== 'undefined' && World.pathDist) ? World.pathDist(d.x, d.y, s.room.w, s.room.h / 2) : Math.hypot(d.x - s.room.w, d.y - s.room.h / 2);
       const wk = dist / 1.6; base.home = hm.id; base.pat += wk; base.max += wk;
       // v2026-10-08: when we can, this customer IS a specific, persistent town resident (same face/name as when they're out walking the streets) --

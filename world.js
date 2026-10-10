@@ -392,7 +392,7 @@ return true;
 
   // ---------- actors ----------
   function mkActor(id, type, x, y, extra) {
-    const a = Object.assign({ id, type, x, y, path: [], dir: 1, face: 0, moving: false, speed: 2.4, t: Math.random() * 10, idle: 0 }, extra || {});
+    const a = Object.assign({ id, type, x, y, ox: x, oy: y, path: [], dir: 1, face: 0, moving: false, speed: 2.4, t: Math.random() * 10, idle: 0 }, extra || {});
     actors.set(id, a); return a;
   }
   function goTo(a, tx, ty, cb) {
@@ -406,10 +406,10 @@ return true;
         if (cb) { a.cb = null; cb(); }
       } else {
         a.cb = null;
-        if (a.type === 'vil' || a.type === 'me' || a.type === 'cust') {
-          a.say = (typeof t === 'function' && t('roadNone')) || '길이 없어요 😢';
-          a.sayT = 2.8;
-        }
+        a.say = (typeof t === 'function' && t('roadNone')) || '길이 없어요 😢';
+        a.sayT = 2.8;
+        a._retryTarget = { tx: a.tx, ty: a.ty, cb };
+        a._retryWait = 0;
       }
     }
   }
@@ -486,7 +486,7 @@ return true;
       else { a.x += dx / d * s; a.y += dy / d * s; }
     } else {
       a.moving = false;
-      if (a._retryTarget && (a.type === 'vil' || a.type === 'cust' || a.type === 'cafeguest' || a.type === 'patient')) {
+      if (a._retryTarget) {
         a._retryWait = (a._retryWait || 0) + dt;
         if (a._retryWait > 1.0) {
           a._retryWait = 0;
@@ -498,7 +498,21 @@ return true;
             a.cb = a._retryTarget.cb;
             a._retryTarget = null;
             a._roadBlocked = false;
+            a._noPathTries = 0;
             a.say = null;
+          } else {
+            a._noPathTries = (a._noPathTries || 0) + 1;
+            if (a._noPathTries >= 8) {
+              a._noPathTries = 0;
+              const rt = a._retryTarget;
+              a._retryTarget = null;
+              a._roadBlocked = false;
+              a.say = (typeof t === 'function' && t('roadGiveUp')) || '돌아갈게요 ↩️';
+              a.sayT = 2.6;
+              const backP = (a.ox != null && a.oy != null) ? findPath(a.x, a.y, Math.floor(a.ox), Math.floor(a.oy), allowDelivery) : null;
+              if (backP && backP.length) { a.path = backP; a.moving = true; a.cb = null; }
+              else if (rt && rt.cb) { rt.cb(); }
+            }
           }
         }
       }
@@ -1826,9 +1840,6 @@ return true;
     // 지점에 몰릴 때 완전히 겹쳐 보였음. 실제 좌표(길찾기/충돌)는 그대로 두고, 화면에 그릴 때만
     // 캐릭터별로 고정된(매 프레임 안 흔들리는) 작은 픽셀 오프셋을 줘서 서로 살짝 떨어져 보이게 함.
     if ((a.type === 'cust' || a.type === 'vil') && a.id) {
-      // v2026-10-10: 위 오프셋(sy 음수)을 주면 캐릭터가 실제 서 있는 칸(길/바닥)보다 위로
-      // 떠 보여서 "사람들이 작아지고 날아다닌다"는 문제로 이어짐. 겹침 방지는 유지하되,
-      // 세로축은 카메라 쪽(아래, 양수)으로만 밀어서 발이 항상 바닥에 붙어 보이게 고침.
       const jh = typeof ART !== 'undefined' && ART.hashStr ? Math.abs(ART.hashStr(a.id)) : 0;
       sx += (jh % 17 - 8) * 1.7; sy += (Math.floor(jh / 17) % 6) * 1.3;
     }
@@ -3663,9 +3674,9 @@ return true;
   })();
   if (typeof window !== 'undefined') window.__PET_TOWN_PERF = PERF_TRACKER;
 
-  // v2026-10-10: "집에서 나오자마자 너무 오래 기다렸어요" 버그 수정용 -- 손님이 생성될 때 미리 얹어주는
+  // v2026-10-10: "집에서 나오자마자 너무 오래 기다렸어요" 버그 수정용 -- 손님이 생성될 때 미리 얺어주는
   // "집→상점 걸어오는 시간" 인내심 보너스가 직선 거리(까마귀가 나는 거리)로 계산되어 있었음. 실제로는
-  // 길을 따라 돌아가야 해서, 집이 멀리 돌아가야 하는 위치면 보너스가 실제 걸리는 시간보다 훨씬 적게
+  // 길을 따라 돌아가야 해서, 집이 멀리 돌아가야 하는 위치면 보너스가 실제로 걸리는 시간보다 훨씬 적게
   // 책정되어 도착하기도 전에 인내심이 바닥남. 실제 길찾기 경로 길이를 반환해서 그 값으로 보너스를 주도록 함.
   // 길을 못 찾으면(아직 도로가 안 이어진 집 등) 직선 거리로 안전하게 대체.
   function pathDist(x0, y0, x1, y1) {
