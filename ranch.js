@@ -9,6 +9,19 @@ const RANCH_LOT = { w: 12, d: 10 };
 // 없어서 "typeof RANCH_POS === 'function'"이 항상 false가 되어 목장이 절대 그려지지 않던 버그.
 // 다른 시설들과 동일한 패턴으로 추가함.
 const RANCH_POS = () => { const L = (typeof LAY === 'function') ? LAY('ranch') : null; return L ? { x: L.x, y: L.y, w: RANCH_LOT.w, d: RANCH_LOT.d } : { x: LAY_FAR, y: LAY_FAR, w: RANCH_LOT.w, d: RANCH_LOT.d }; };
+const inRanch = (x, y) => {
+  const p = RANCH_POS();
+  if (!p || p.x >= 1000 || p.x <= -1000) return false;
+  if (x >= p.x && x < p.x + p.w && y >= p.y && y < p.y + p.d) {
+    if (x >= p.x + 1 && x <= p.x + 4 && y >= p.y && y <= p.y + 2) return false;
+    if (x >= p.x + 8 && x <= p.x + 11 && y >= p.y && y <= p.y + 2) return false;
+    if (x === p.x || x === p.x + p.w - 1 || y === p.y) return false;
+    if (y === p.y + p.d - 1 && !(x >= p.x + 5 && x <= p.x + 7)) return false;
+    return true;
+  }
+  return false;
+};
+if (typeof window !== 'undefined') window.inRanch = inRanch;
 const RANCH_COST = 25000, RANCH_LV_REQ = 8;
 const RANCH_LV = [null, { cap: 3, cost: 0 }, { cap: 5, cost: 18000 }, { cap: 8, cost: 42000 }, { cap: 12, cost: 90000 }]; // cap = animals of EACH kind
 const RANCH_GROW = 3, RANCH_BREED = .5; // days until adult, chance per day that a fed adult pair has a baby

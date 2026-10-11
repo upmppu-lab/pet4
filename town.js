@@ -549,12 +549,15 @@ const TOWN = (() => {
       }
     }
 
-    // 7. 목장: 북쪽 입구 아치문 앞 입구길 1칸 생성
+    // 7. 목장: 남쪽 입구 아치문 앞 진입로
     if (checkAll || k === 'ranch') {
       if (s && s.ranch && typeof LAY === 'function') {
         const rp = LAY('ranch', s);
         if (rp) {
-          ents.push({ id: 'gate', x: rp.x + 2, y: rp.y + 1, accessX: rp.x + 2, accessY: rp.y + 1, fac: 'ranch' });
+          const rd = (typeof RANCH_LOT !== 'undefined' && RANCH_LOT.d) || 10;
+          ents.push({ id: 'gate', x: rp.x + 6, y: rp.y + rd - 1, accessX: rp.x + 6, accessY: rp.y + rd, fac: 'ranch' });
+          ents.push({ id: 'gate2', x: rp.x + 5, y: rp.y + rd - 1, accessX: rp.x + 5, accessY: rp.y + rd, fac: 'ranch' });
+          ents.push({ id: 'gate3', x: rp.x + 7, y: rp.y + rd - 1, accessX: rp.x + 7, accessY: rp.y + rd, fac: 'ranch' });
         }
       }
     }
@@ -711,6 +714,17 @@ const TOWN = (() => {
               list.push({ x: o.x + 15, y: ty, st: 'dirt' });
             }
           }
+        }
+      }
+    }
+    // 4. 목장 입구길 (남쪽 아치문 앞뒤 연결)
+    if (s && s.ranch && typeof LAY === 'function') {
+      const rp = LAY('ranch', s);
+      if (rp && rp.x < 1000) {
+        const rd = (typeof RANCH_LOT !== 'undefined' && RANCH_LOT.d) || 10;
+        for (let tx = rp.x + 5; tx <= rp.x + 7; tx++) {
+          list.push({ x: tx, y: rp.y + rd - 1, st: 'dirt' });
+          list.push({ x: tx, y: rp.y + rd, st: 'dirt' });
         }
       }
     }
@@ -1044,7 +1058,7 @@ const TOWN = (() => {
     // 동/서쪽 뾰족한 꼭짓점 근처) 그림과 부지 경계 사이에 빈 풀밭이 남는데, 이 빈 공간까지 전부
     // "건물 내부"로 차단되어 있어서 사용자가 그 틈에 길을 못 깔았음. 그림이 실제로 덜 채우는
     // 가장자리만큼 차단 영역을 안쪽으로 줄여서(inset), 그 틈에도 길을 깔 수 있게 함.
-    const BLOCK_INSET = { park: 1.5, lake: 2 };
+    const BLOCK_INSET = { park: 1.5, lake: 2, ranch: 0.5 };
     for (const bk of ['ranch', 'park', 'lake', 'monu']) {
       const L = LAY(bk, s), bd = D[bk];
       const ins = BLOCK_INSET[bk] || 0;

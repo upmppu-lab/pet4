@@ -407,6 +407,18 @@ return true;
         });
       }
     }
+    // 7. 목장 (남쪽 아치문 입구로만 출입 허용)
+    if (S.ranch && typeof RANCH_POS === 'function') {
+      const rp = RANCH_POS();
+      if (rp && rp.x < 1000 && rp.x > -1000) {
+        rs.push({
+          k: 'ranch', x: rp.x, y: rp.y, w: rp.w, d: rp.d,
+          check: (ix, iy, ox, oy) => (ix >= rp.x + 4 && ix <= rp.x + 7) &&
+                 (ox >= rp.x + 4 && ox <= rp.x + 7) &&
+                 (iy >= rp.y + rp.d - 2 && oy >= rp.y + rp.d - 1)
+        });
+      }
+    }
     return rs;
   }
   function wallStep(rs, ax, ay, bx, by) {
