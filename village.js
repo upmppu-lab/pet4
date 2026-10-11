@@ -236,6 +236,12 @@ const VILLAGE = (() => {
     c.save();
     const L = LAKE(), M = MONU();
     if (!built('lake')) lot(c, L); else lakeGround(c, T, L);
+    // 추가로 지어진 호수들도 함께 렌더링
+    if (typeof S !== 'undefined' && S && S.town && S.town.objs) {
+      for (const o of S.town.objs) {
+        if (o.k === 'lake') lakeGround(c, T, { x: o.x, y: o.y, w: 18, d: 16 });
+      }
+    }
     if (!built('monu')) lot(c, M); else monuGround(c, T, M);
     if (built('avenue')) { const sn = season(S.clock && S.clock.day); if (sn === 0 || sn === 2 || sn === 3) for (const t of avenueSpots()) { for (let i = 0; i < 5; i++) { const q = Q(t.x + Math.sin(i * 7.3 + t.y) * .7, t.y + Math.cos(i * 3.1 + t.x) * .6); ART.ell(c, q[0], q[1], sn === 3 ? 7 : 2, sn === 3 ? 3 : 1.3, sn === 0 ? '#ffc4d8' : sn === 2 ? ['#e8863a', '#d9542a', '#f2b33a'][i % 3] : 'rgba(255,255,255,.85)'); } } } // petals / leaves / snow under the trees
     c.restore();

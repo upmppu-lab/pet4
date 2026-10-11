@@ -48,28 +48,15 @@ const PARK = (() => {
   const at = (c, x, y, fn) => { c.save(); c.translate(ISO.wx(x, y), ISO.wy(x, y)); fn(); c.restore(); };
   const emo = (c, e, x, y, s) => { c.font = (s || 12) + 'px sans-serif'; c.textAlign = 'center'; c.fillText(e, x, y); c.textAlign = 'start'; };
   // ---- ground layer: lawn, paths, pond, flower beds, back hedges (all under props and people) ----
-  function ground(c, T) {
-    const p = PARK_POS(), x0 = p.x, y0 = p.y, x1 = x0 + p.w, y1 = y0 + p.d;
+  function drawOnePark(c, p, T) {
+    if (!p || p.x === LAY_FAR) return;
+    const x0 = p.x, y0 = p.y, x1 = x0 + p.w, y1 = y0 + p.d;
     c.save();
-    if (!isBuilt()) { // the empty lot: rougher grass, a dashed survey outline and corner stakes
-      rect(c, x0, y0, x1, y1, 'rgba(120,160,70,.28)');
-      c.setLineDash([10, 7]); rect(c, x0 + .1, y0 + .1, x1 - .1, y1 - .1, null, 'rgba(255,255,255,.85)'); c.lineWidth = 2.2; c.stroke(); c.setLineDash([]);
-      for (const [x, y] of [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]) at(c, x, y, () => { c.fillStyle = '#b98552'; c.fillRect(-1.5, -14, 3, 14); c.fillStyle = '#ff7a5a'; c.fillRect(-4, -16, 8, 4); });
-      c.restore(); return;
-    }
     const parkReady = PARK_IMG && PARK_IMG.complete && PARK_IMG.naturalWidth > 0;
     if (parkReady) {
       const [nx, ny] = Q(p.x, p.y);
-      const dw = (p.w + p.d) * 32;
-      // v2026-10-09: "길과 공원 사이에 빈 간격" -- park.png의 실제 그림은 캔버스(1774x887) 전체가
-      // 아니라 안쪽 콘텐츠 영역(약 139,57 ~ 1615,808)에만 그려져 있어서, 캔버스 전체를 부지 크기에
-      // 맞추면 그림이 부지보다 작게 나와 길과 사이에 틈이 생겼음. 콘텐츠 영역 기준으로 다시 늘려서
-      // 부지 가장자리까지 꽉 차게 그림.
       const iw = PARK_IMG.naturalWidth || 1419, ih = PARK_IMG.naturalHeight || 710;
-      // v2026-10-10 (3rd pass): 꼭짓점 최소자승 방식이 북서쪽에 여전히 갭을 남겨서, 그림 전체
-      // 캔버스(거의 정확히 2:1 비율)를 타일의 bounding box에 그대로 맞추는 더 단순하고 안정적인
-      // 방식으로 교체함 (동물원과 동일한 방식).
-      const scale = (p.w + p.d) * 32 / iw; // uniform -- whole-canvas-to-tile-bbox fit, preserves true 2:1 isometric proportions
+      const scale = (p.w + p.d) * 32 / iw;
       const imgW = iw * scale, imgH = ih * scale;
       const imgX = -p.d * 32;
       const imgY = 0;
@@ -88,7 +75,7 @@ const PARK = (() => {
     gEll(c, x0 + 8, y0 + 7, 5.9, 5.1, PATH, EDGE, 1.2); gEll(c, x0 + 8, y0 + 7, 4.7, 3.9, '#7fbf57', EDGE, 1.2);
     rect(c, x0, y0 + 6.3, x0 + 16, y0 + 7.7, PATH, EDGE); rect(c, x0 + 7.3, y0 + 7, x0 + 8.7, y1, PATH, EDGE);
     gEll(c, x0 + 8, y0 + 7, 2.6, 2.6, '#efe2c4', EDGE, 1.2);
-    for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; gEll(c, x0 + 8 + Math.cos(a) * 2.2, y0 + 7 + Math.sin(a) * 2.2, .16, .16, 'rgba(190,160,110,.35)'); } // paving dots
+    for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; gEll(c, x0 + 8 + Math.cos(a) * 2.2, y0 + 7 + Math.sin(a) * 2.2, .16, .16, 'rgba(190,160,110,.35)'); }
     for (let u = .5; u < 16; u += 1) if (u < 5.5 || u > 10.5) { const q = Q(x0 + u, y0 + 7); c.fillStyle = 'rgba(190,160,110,.35)'; c.fillRect(q[0] - 1, q[1] - 1, 2, 2); }
     // pond with lily pads and ducks
     gEll(c, x0 + POND.u, y0 + POND.v, POND.ru + .25, POND.rv + .25, '#c9b48a', 'rgba(110,85,55,.5)', 1.2);
@@ -103,13 +90,31 @@ const PARK = (() => {
     // picnic blanket
     rect(c, x0 + 11.2, y0 + 11.6, x0 + 12.8, y0 + 12.9, '#ff8a8a', 'rgba(120,40,40,.4)'); for (let i = 1; i < 4; i++) { quad(c, [Q(x0 + 11.2 + i * .4, y0 + 11.6), Q(x0 + 11.4 + i * .4, y0 + 11.6), Q(x0 + 11.4 + i * .4, y0 + 12.9), Q(x0 + 11.2 + i * .4, y0 + 12.9)], 'rgba(255,255,255,.55)'); }
     { const q = Q(x0 + 12, y0 + 12.2); emo(c, '🧺', q[0] - 6, q[1] + 2, 12); emo(c, '🍉', q[0] + 9, q[1] + 4, 9); }
-    // hedges along the two back edges (north + west, leaving the west gate open)
+    // hedges along the two back edges
     const hedge = (ax, ay, bx, by) => { const H = 12; quad(c, [Q(ax, ay, H), Q(bx, by, H), Q(bx, by), Q(ax, ay)], '#4f9a44', 'rgba(30,60,30,.5)'); const L = Math.hypot(bx - ax, by - ay); for (let i = 0; i < L * 3; i++) { const u = i / (L * 3), q = Q(ax + (bx - ax) * u, ay + (by - ay) * u, H); ART.ell(c, q[0], q[1], 5, 3.5, i % 2 ? '#5fae52' : '#6cbb5c'); } };
     hedge(x0, y0, x1, y0); hedge(x0, y0, x0, y0 + 6.2); hedge(x0, y0 + 7.8, x0, y1);
-    // low flower border on the two front edges (east + south, leaving the south gate open)
+    // low flower border on the two front edges
     const border = (ax, ay, bx, by) => { const L = Math.hypot(bx - ax, by - ay); for (let i = 0; i <= L * 3; i++) { const u = i / (L * 3), q = Q(ax + (bx - ax) * u, ay + (by - ay) * u); ART.ell(c, q[0], q[1] - 2, 3.5, 2.5, '#5fae52'); ART.ell(c, q[0], q[1] - 4, 1.8, 1.8, FL[i % 4]); } };
     border(x1, y0, x1, y1); border(x0, y1, x0 + 7.2, y1); border(x0 + 8.8, y1, x1, y1);
     c.restore();
+  }
+  function ground(c, T) {
+    if (isBuilt()) {
+      drawOnePark(c, PARK_POS(), T);
+    } else {
+      const p = PARK_POS(), x0 = p.x, y0 = p.y, x1 = x0 + p.w, y1 = y0 + p.d;
+      c.save();
+      rect(c, x0, y0, x1, y1, 'rgba(120,160,70,.28)');
+      c.setLineDash([10, 7]); rect(c, x0 + .1, y0 + .1, x1 - .1, y1 - .1, null, 'rgba(255,255,255,.85)'); c.lineWidth = 2.2; c.stroke(); c.setLineDash([]);
+      for (const [x, y] of [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]) at(c, x, y, () => { c.fillStyle = '#b98552'; c.fillRect(-1.5, -14, 3, 14); c.fillStyle = '#ff7a5a'; c.fillRect(-4, -16, 8, 4); });
+      c.restore();
+    }
+    // 추가로 지어진 공원들도 함께 렌더링
+    if (typeof S !== 'undefined' && S && S.town && S.town.objs) {
+      for (const o of S.town.objs) {
+        if (o.k === 'park') drawOnePark(c, { x: o.x, y: o.y, w: PARK_W, d: PARK_D }, T);
+      }
+    }
   }
   // ---- props (depth-sorted with people) ----
   function tree(c, kind, T, i) {

@@ -205,8 +205,8 @@ Object.assign(TOWN_DEF, {
 TOWN_DEF.zone = { cat: 'zone', w: 20, d: 14, cost: 8000, ic: '🏘️', lane: 6 };
 const TOWN_BIG = ['farm', 'home', 'cafe', 'hosp', 'salon', 'park', 'lake', 'monu', 'avenue'];
 // v2026-10-09: "건설 메뉴 트리를 1.집 2.운영 3.상점·공공 4.장식물 5.나무,꽃 이렇게 5개로" --
-// "길" 탭은 하단 바의 "🛤️ 길깔기" 바로가기 버튼으로 대체되어 건설 메뉴 탭에서는 빠짐.
-const TOWN_TABS = [['house', '🏠'], ['ops', '⚙️'], ['civic', '🏪'], ['deco', '🎨'], ['tree', '🌳']];
+// v2026-10-11: "동물원과 공원 호수는 '환경,행복' 탭을 새로 만들어서 '운영' 탭 옆에 따로 빼줘"
+const TOWN_TABS = [['house', '🏠'], ['ops', '⚙️'], ['env', '🍀'], ['civic', '🏪'], ['deco', '🎨'], ['tree', '🌳']];
 // PET TOWN stage 3: shops & public buildings (tab 🏫). hap/sup like small facilities (only `max` copies count), plus a special effect (fx)
 // look: wall / roof colours, h = wall height, roof = 'gable' | 'hip' | 'flat' | 'none' (open lots), sign = emoji on the sign board
 Object.assign(TOWN_DEF, {
@@ -232,7 +232,7 @@ Object.assign(TOWN_DEF, {
   pet_themepark: { cat: 'civic', w: 7, d: 6, cost: 220000, hap: 12, sup: 50, max: 1, need: 80, ic: '🎡', roof: 'none', open: 1, fx: 'rich' },
   cat_cafe: { cat: 'civic', w: 4, d: 4, cost: 65000, hap: 6, sup: 22, max: 2, need: 35, ic: '🐱', wall: '#fef3c7', roofc: '#f59e0b', h: 26, roof: 'gable', sign: '🐾', fx: 'collector' },
   pet_bakery: { cat: 'civic', w: 4, d: 3, cost: 48000, hap: 5, sup: 18, max: 2, need: 28, ic: '🧁', wall: '#fce7f3', roofc: '#ec4899', h: 24, roof: 'gable', sign: '🧁', fx: 'spend2' },
-  zoo: { cat: 'civic', w: 20, d: 22, cost: 900000, hap: 18, sup: 80, max: 1, need: 70, ic: '🦁', wall: '#f0f4f8', roofc: '#2b8a3e', h: 56, roof: 'hip', sign: '🦁', fx: 'zoo' }
+  zoo: { cat: 'civic', w: 20, d: 22, cost: 900000, hap: 18, sup: 80, max: 5, need: 70, ic: '🦁', wall: '#f0f4f8', roofc: '#2b8a3e', h: 56, roof: 'hip', sign: '🦁', fx: 'zoo' }
 });
 if (typeof window !== 'undefined') window.TOWN_DEF = TOWN_DEF;
 const TOWN_BAL = {
@@ -685,10 +685,10 @@ const TOWN = (() => {
       if (o.k !== 'cottage' && !(d && d.cat === 'house')) continue;
       const hd = doorOf(o);
       out.add(hd.x + ',' + hd.y);
-      if (hd.dir === 2) out.add(o.x + ',' + (o.y + 2));
-      else if (hd.dir === 3) out.add((o.x + 2) + ',' + o.y);
-      else if (hd.dir === 0) out.add((o.x + 4) + ',' + (o.y + 2));
-      else if (hd.dir === 1) out.add((o.x + 2) + ',' + (o.y + 4));
+      if (hd.dir === 0) { out.add((o.x + 4) + ',' + (o.y + 2)); out.add((o.x + 5) + ',' + (o.y + 2)); }
+      else if (hd.dir === 1) { out.add((o.x + 2) + ',' + (o.y + 4)); out.add((o.x + 2) + ',' + (o.y + 5)); }
+      else if (hd.dir === 2) { out.add(o.x + ',' + (o.y + 2)); out.add((o.x - 1) + ',' + (o.y + 2)); out.add((o.x - 2) + ',' + (o.y + 2)); }
+      else if (hd.dir === 3) { out.add((o.x + 2) + ',' + o.y); out.add((o.x + 2) + ',' + (o.y - 1)); out.add((o.x + 2) + ',' + (o.y - 2)); }
       if (baseWalk(hd.x, hd.y)) continue; // 문 바로 앞이 이미 길/골목이면 끝
       const startKey = hd.x + ',' + hd.y;
       const visited = new Set([startKey]);
@@ -987,7 +987,7 @@ const roadTileOk = (s, x, y) => {
       if (overlapsTrain(box, s)) return 'tTaken';
       return null;
     }
-    if (resv(cat === 'big' ? k : null, s).some(q => overlap(box, q))) return 'tTaken';
+    if (resv(cat === 'big' && ignore === k ? k : null, s).some(q => overlap(box, q))) return 'tTaken';
     if (cat === 'house') {
       const R = roadSet(s);
       if (R.size) {
@@ -1128,6 +1128,8 @@ const roadTileOk = (s, x, y) => {
     for (const o of T.objs) {
       const d = D[o.k]; if (!d) continue;
       if (d.cat === 'tree') { const st = stageOf(s, o); green += st === 2 ? d.hap : st === 1 ? d.hap * .5 : d.hap * .2; }
+      else if (o.k === 'park') { fac += 10 * lvMul(o); sup += 40 * lvMul(o); }
+      else if (o.k === 'lake') { fac += 8 * lvMul(o); sup += 30 * lvMul(o); }
       else if (d.cat === 'deco' || d.cat === 'civic') { per[o.k] = (per[o.k] || 0) + 1; if (per[o.k] <= (d.max || 99)) { fac += d.hap * lvMul(o); sup += (d.sup || 0) * lvMul(o); } }
     }
     fac = Math.min(TOWN_BAL.FAC_CAP + civicCap(T), fac); green = Math.min(TOWN_BAL.GREEN_CAP + 4 * Math.min(2, per.florist || 0), green); // 💐 florists: more room for greenery
@@ -1441,8 +1443,8 @@ const roadTileOk = (s, x, y) => {
       // In isometric screen space: +x is Screen Right-Down, +y is Screen Left-Down, -x is Screen Left-Up, -y is Screen Right-Up
       if (dir === 0) return { x: o.x + 4, y: o.y + 2, dir: 0 };  // Front (오른쪽 아래 / 앞)
       if (dir === 1) return { x: o.x + 2, y: o.y + 4, dir: 1 };  // Left (왼쪽 아래 / 좌)
-      if (dir === 2) return { x: o.x - 1, y: o.y + 2, dir: 2 };  // Back (왼쪽 위 / 뒤: 건물 지붕 뒤에 가려지지 않게 외부 연결 타일로 배치)
-      if (dir === 3) return { x: o.x + 2, y: o.y - 1, dir: 3 };  // Right (오른쪽 위 / 우: 건물 지붕 뒤에 가려지지 않게 외부 연결 타일로 배치)
+      if (dir === 2) return { x: o.x, y: o.y + 2, dir: 2 };      // Back (왼쪽 위 / 뒤)
+      if (dir === 3) return { x: o.x + 2, y: o.y, dir: 3 };      // Right (오른쪽 위 / 우)
     }
 
     if (d.cat === 'civic' || d.cat === 'big') {
@@ -1596,11 +1598,24 @@ const roadTileOk = (s, x, y) => {
     : (k === 'lake' || k === 'monu' || k === 'avenue') ? !!(s.village && s.village[k]) : !!(s.lay && s.lay[k]);
   function applyTown(s, a, by) {
     if (a.t === 'tbig') {
-      const d = D[a.k]; if (!d || d.cat !== 'big' || bigBuilt(s, a.k)) return { err: 'gone' };
+      const d = D[a.k]; if (!d || d.cat !== 'big') return { err: 'gone' };
       if (d.rep && repTier(s.rep || 0) < d.rep) return { err: 'tNeedRep', p: { t: (REP_TIERS[d.rep] || {}).ic || '⭐' } };
+      const doorDir = a.doorDir != null ? ((a.doorDir % 4 + 4) % 4) : 0;
+      // v2026-10-11: 공원·호수 추가 건설 지원 (동물원처럼 1개 이상 추가로 건설 가능)
+      if ((a.k === 'park' || a.k === 'lake') && bigBuilt(s, a.k)) {
+        if (!d.noPlace) { const e = canPlace(s, a.k, a.x, a.y, 0); if (e) return { err: e }; }
+        if (s.coins < d.cost) return { err: 'notEnough' };
+        s.coins -= d.cost;
+        s.town = s.town || { objs: [], seq: 1 };
+        s.town.objs = s.town.objs || [];
+        s.town.objs.push({ id: s.town.seq++, k: a.k, x: a.x, y: a.y, r: a.r || 0, paid: d.cost, doorDir });
+        clearBuildingOverlaps(s);
+        if (typeof G !== 'undefined' && G.addXpPublic) G.addXpPublic(s, 20);
+        return { ok: 1, fx: 'coin', msg: 'tBigBuilt_' + a.k };
+      }
+      if (bigBuilt(s, a.k)) return { err: 'gone' };
       s.lay = s.lay || {};
       if (!d.noPlace) { const e = canPlace(s, a.k, a.x, a.y, 0); if (e) return { err: e }; }
-      const doorDir = a.doorDir != null ? ((a.doorDir % 4 + 4) % 4) : 0;
       if (d.act) {
         if (!d.noPlace) s.lay[a.k] = { x: a.x, y: a.y, r: a.r || 0, doorDir };
         if (a.k === 'park') { s.park = s.park || {}; s.park.doorDir = doorDir; }
@@ -1612,13 +1627,24 @@ const roadTileOk = (s, x, y) => {
       if (s.coins < d.cost) return { err: 'notEnough' };
       s.coins -= d.cost; s.lay[a.k] = { x: a.x, y: a.y, r: a.r || 0, doorDir };
       if (a.k === 'park') { s.park = s.park || {}; s.park.doorDir = doorDir; }
+      if (a.k === 'lake') { s.village = s.village || {}; s.village.lake = true; }
       if (a.k === 'farm' && typeof FARM !== 'undefined' && FARM.ensure) FARM.ensure(s);
       clearBuildingOverlaps(s);
       if (typeof G !== 'undefined' && G.addXpPublic) G.addXpPublic(s, 10);
       return { ok: 1, fx: 'coin', msg: 'tBigBuilt_' + a.k };
     }
     if (a.t === 'tbigmove') {
-      const d = D[a.k], L = s.lay && s.lay[a.k]; if (!d || !L) return { err: 'gone' };
+      const d = D[a.k]; if (!d) return { err: 'gone' };
+      if (typeof a.id === 'number') {
+        const o = obj(s, a.id); if (!o) return { err: 'gone' };
+        const e = canPlace(s, o.k, a.x, a.y, 0, o.id); if (e) return { err: e };
+        o.x = a.x; o.y = a.y;
+        if (a.r != null) o.r = a.r;
+        if (a.doorDir != null) o.doorDir = ((a.doorDir % 4 + 4) % 4);
+        clearBuildingOverlaps(s);
+        return { ok: 1, msg: 'tMoved' };
+      }
+      const L = s.lay && s.lay[a.k]; if (!L) return { err: 'gone' };
       if (d.live && s.clock && s.clock.ph === 'open') return { err: 'tMoveClosed' };
       const e = canPlace(s, a.k, a.x, a.y, 0, a.k); if (e) return { err: e };
       L.x = a.x; L.y = a.y;
@@ -3416,6 +3442,13 @@ function getFlowerSprite(kind) {
       [ISO.wx(h.x + .15, h.y + 4.85), ISO.wy(h.x + .15, h.y + 4.85)]
     ], 'rgba(125,190,75,.42)');
 
+    // 1-1. 집 입구 방향에 맞춰 마당 진입로 흙길 타일 렌더링 (앞, 좌, 뒤, 우 모든 방향에서 실제 길 표시)
+    const curDoor = ((h.o && h.o.doorDir != null ? h.o.doorDir : h.r) % 4 + 4) % 4;
+    if (curDoor === 0) { drawRoadTile(h.x + 4, h.y + 2, 'dirt', c); drawRoadTile(h.x + 5, h.y + 2, 'dirt', c); }
+    else if (curDoor === 1) { drawRoadTile(h.x + 2, h.y + 4, 'dirt', c); drawRoadTile(h.x + 2, h.y + 5, 'dirt', c); }
+    else if (curDoor === 2) { drawRoadTile(h.x, h.y + 2, 'dirt', c); drawRoadTile(h.x - 1, h.y + 2, 'dirt', c); drawRoadTile(h.x - 2, h.y + 2, 'dirt', c); }
+    else if (curDoor === 3) { drawRoadTile(h.x + 2, h.y, 'dirt', c); drawRoadTile(h.x + 2, h.y - 1, 'dirt', c); drawRoadTile(h.x + 2, h.y - 2, 'dirt', c); }
+
     // 2. 5x5 부지의 정중앙 3x3 (cx-1.5 ~ cx+1.5, cy-1.5 ~ cy+1.5) 집 밑바닥 기초/마루
     poly(c, [
       [ISO.wx(cx - 1.5, cy - 1.5), ISO.wy(cx - 1.5, cy - 1.5)],
@@ -3454,10 +3487,12 @@ function getFlowerSprite(kind) {
       }
     }
 
-    // 4. 앞마당 우체통: 집 앞마당(도로 쪽) 진입로에 배치 (집과 겹치지 않고 마당 가장자리에 단정하게 위치)
-    const mb = (r === 1)
-      ? [ISO.wx(cx + 0.6, cy + 2.1), ISO.wy(cx + 0.6, cy + 2.1)]
-      : [ISO.wx(cx - 0.6, cy + 2.1), ISO.wy(cx - 0.6, cy + 2.1)];
+    // 4. 입구 우체통: 집 출입문 진입로 옆에 단정하게 배치
+    let mb;
+    if (curDoor === 0) mb = [ISO.wx(cx + 1.2, cy + 0.6), ISO.wy(cx + 1.2, cy + 0.6)];
+    else if (curDoor === 1) mb = (r === 1) ? [ISO.wx(cx + 0.6, cy + 2.1), ISO.wy(cx + 0.6, cy + 2.1)] : [ISO.wx(cx - 0.6, cy + 2.1), ISO.wy(cx - 0.6, cy + 2.1)];
+    else if (curDoor === 2) mb = [ISO.wx(cx - 1.2, cy - 0.6), ISO.wy(cx - 1.2, cy - 0.6)];
+    else if (curDoor === 3) mb = [ISO.wx(cx + 0.6, cy - 2.1), ISO.wy(cx + 0.6, cy - 2.1)];
     c.fillStyle = '#6a452a'; c.fillRect(mb[0] - 1, mb[1] - 12, 2.2, 12);
     ART.rrect(c, mb[0] - 4.5, mb[1] - 17, 9, 6.5, 3);
     c.fillStyle = '#c0392b'; c.fill(); c.strokeStyle = ART.OUT; c.lineWidth = .9; c.stroke();
@@ -5304,13 +5339,22 @@ function getFlowerSprite(kind) {
       const d = D[o.k];
       if (o.k === 'cottage' || (d && d.cat === 'house')) {
         const hd = doorOf(o);
-        const ex = hd.x, ey = hd.y;
-        if (!R.has(ex + ',' + ey)) drawRoadTile(ex, ey, 'dirt', curC);
-        // Also draw the yard edge connecting tile so the road connects directly to the house
-        if (hd.dir === 2 && !R.has(o.x + ',' + (o.y + 2))) drawRoadTile(o.x, o.y + 2, 'dirt', curC);
-        else if (hd.dir === 3 && !R.has((o.x + 2) + ',' + o.y)) drawRoadTile(o.x + 2, o.y, 'dirt', curC);
-        else if (hd.dir === 0 && !R.has((o.x + 4) + ',' + (o.y + 2))) drawRoadTile(o.x + 4, o.y + 2, 'dirt', curC);
-        else if (hd.dir === 1 && !R.has((o.x + 2) + ',' + (o.y + 4))) drawRoadTile(o.x + 2, o.y + 4, 'dirt', curC);
+        const dir = hd.dir;
+        if (dir === 0) {
+          if (!R.has((o.x + 4) + ',' + (o.y + 2))) drawRoadTile(o.x + 4, o.y + 2, 'dirt', curC);
+          if (!R.has((o.x + 5) + ',' + (o.y + 2))) drawRoadTile(o.x + 5, o.y + 2, 'dirt', curC);
+        } else if (dir === 1) {
+          if (!R.has((o.x + 2) + ',' + (o.y + 4))) drawRoadTile(o.x + 2, o.y + 4, 'dirt', curC);
+          if (!R.has((o.x + 2) + ',' + (o.y + 5))) drawRoadTile(o.x + 2, o.y + 5, 'dirt', curC);
+        } else if (dir === 2) {
+          if (!R.has(o.x + ',' + (o.y + 2))) drawRoadTile(o.x, o.y + 2, 'dirt', curC);
+          if (!R.has((o.x - 1) + ',' + (o.y + 2))) drawRoadTile(o.x - 1, o.y + 2, 'dirt', curC);
+          if (!R.has((o.x - 2) + ',' + (o.y + 2))) drawRoadTile(o.x - 2, o.y + 2, 'dirt', curC);
+        } else if (dir === 3) {
+          if (!R.has((o.x + 2) + ',' + o.y)) drawRoadTile(o.x + 2, o.y, 'dirt', curC);
+          if (!R.has((o.x + 2) + ',' + (o.y - 1))) drawRoadTile(o.x + 2, o.y - 1, 'dirt', curC);
+          if (!R.has((o.x + 2) + ',' + (o.y - 2))) drawRoadTile(o.x + 2, o.y - 2, 'dirt', curC);
+        }
       }
     }
   };
@@ -5714,8 +5758,9 @@ function getFlowerSprite(kind) {
       const hedge = (x0, y0, x1, y1) => {
         const n = Math.max(1, Math.round(Math.hypot(x1 - x0, y1 - y0) / 1.0));
         for (let i = 0; i <= n; i++) {
-          const hx = x0 + (x1 - x0) * i / n, hy = y0 + (y1 - y0) * i / n;
-          if (R.has(Math.floor(hx) + ',' + Math.floor(hy)) || R.has(Math.floor(hx - .1) + ',' + Math.floor(hy - .1))) continue;
+          const u = i / n, hx = x0 + (x1 - x0) * u, hy = y0 + (y1 - y0) * u;
+          const flX = Math.floor(hx), flY = Math.floor(hy);
+          if (R.has(flX + ',' + flY) || R.has(Math.floor(hx - .1) + ',' + Math.floor(hy - .1)) || (typeof houseConnectorSet === 'function' && houseConnectorSet(S).has(flX + ',' + flY))) continue;
           const q = Q(hx, hy);
           const spr = getHedgeSprite(i);
           c.drawImage(spr, q[0] - spr.width / 2, q[1] - spr.height + 4);

@@ -271,8 +271,9 @@ function clearThumbCache() {
   // 따로 매핑함. "운영": 내 집/농장/목장/펫카페/동물병원/펫미용실/동물원. "상점·공공": 기존
   // 상점·공공 건물 + 공원/호수/기념광장/가로수길/정자/풍차/펫글램핑쉼터(장식물에서 이동).
   const MENU_TAB_OVERRIDE = {
-    home: 'ops', farm: 'ops', cafe: 'ops', hosp: 'ops', salon: 'ops', ranch: 'ops', zoo: 'ops',
-    park: 'civic', lake: 'civic', monu: 'civic', avenue: 'civic', gazebo: 'civic', windmill: 'civic', camping_zone: 'civic'
+    home: 'ops', farm: 'ops', cafe: 'ops', hosp: 'ops', salon: 'ops', ranch: 'ops',
+    zoo: 'env', park: 'env', lake: 'env',
+    monu: 'civic', avenue: 'civic', gazebo: 'civic', windmill: 'civic', camping_zone: 'civic'
   };
   const uiTabOf = (k, d) => MENU_TAB_OVERRIDE[k] || d.cat;
   let tab = 'house';
@@ -350,6 +351,7 @@ function clearThumbCache() {
       if (uiTabOf(k, d) !== tab) continue;
       if (d.cat === 'house') continue; // v2026-10-08: 집은 12단계 티어로 위에서 전용 렌더링
       if (d.legacy) continue; // v2026-10-08: 예전 집 종류(tower~villa)는 더 이상 새로 지을 수 없음 -- 12단계 티어 사다리로 교체됨
+      if (k === 'zoo' || k === 'park' || k === 'lake') { h += envRow(k, d, best); continue; }
       if (d.cat === 'big') { h += bigRow(k, d); continue; }
       // v2026-10-08: 집은 인구수 조건(need) 말고도, "이미 가진 집 채수"에 따른 레벨 조건도 추가로 걸림
       const lvlNeed = d.cat === 'house' ? TOWN.nextHouseSlotLevel(S) : 0, lvlLock = d.cat === 'house' && (S.level || 1) < lvlNeed;
@@ -362,6 +364,56 @@ function clearThumbCache() {
     const titleTxt = isRoadQuick ? ('🛣️ ' + t('tRoadQuickBtn')) : ('🏗️ ' + t('tBuildBtn') + ` <span class="m">👥 ${st.pop}/${st.cap}</span>`);
     return frameHTML(titleTxt, h);
   };
+  // User Request 7: "동물원과 공원 호수는 버튼있는곳을 위/아래 둘로 나누어서, '옮기기'버튼과 추가로 지을수 있는 금액 버튼 두개를 나타나게 해줘"
+  function envRow(k, d, bestPop) {
+    let built = false, count = 0, cost = d.cost || 0, lock = false, lockMsg = '';
+    if (k === 'zoo') {
+      count = TOWN.objs().filter(o => o.k === 'zoo').length;
+      built = count > 0;
+      cost = TOWN.kindCost(S, 'zoo');
+      const needPop = d.need || 0;
+      lock = (bestPop || 0) < needPop;
+      if (lock) lockMsg = `🔒 ${t('tPopN', { n: needPop })}`;
+    } else if (k === 'park') {
+      const pBuilt = TOWN.bigBuilt(S, 'park');
+      const addCount = TOWN.objs().filter(o => o.k === 'park').length;
+      count = (pBuilt ? 1 : 0) + addCount;
+      built = count > 0;
+      cost = (typeof PARK_COST !== 'undefined') ? PARK_COST : 1000000;
+      const lockRep = d.rep && repTier(S.rep || 0) < d.rep;
+      lock = !!lockRep;
+      if (lockRep) lockMsg = `🔒 ${t('tNeedRep', { t: (REP_TIERS[d.rep] || {}).ic || '⭐' })}`;
+    } else if (k === 'lake') {
+      const lBuilt = TOWN.bigBuilt(S, 'lake');
+      const addCount = TOWN.objs().filter(o => o.k === 'lake').length;
+      count = (lBuilt ? 1 : 0) + addCount;
+      built = count > 0;
+      cost = (typeof VILLAGE_COST !== 'undefined' && VILLAGE_COST.lake) || 500000;
+    }
+
+    const info = t('tLotSize', { w: d.w, d: d.d }) + (d.hap ? ` · 😊 +${d.hap}` : '') + (d.sup ? ` · 🧺 ${t('tSupN', { n: d.sup })}` : '');
+    const desc = t('tBigDesc_' + k) || '';
+    const canMove = built;
+    const canAfford = S.coins >= cost;
+
+    return `<div class="li ${lock ? 'lockli' : ''}">
+      <div class="ic tthumb tbigic" style="font-size:26px;">${d.ic}</div>
+      <div class="grow">
+        <div class="t">${nm(k)}${count ? ` <span class="m">· ${t('ownedN', { n: count })}</span>` : ''}</div>
+        <div class="m">${desc}</div>
+        <div class="m">📐 ${info}</div>
+        ${lockMsg ? `<div class="m tbad">${lockMsg}</div>` : ''}
+      </div>
+      <div style="display:flex; flex-direction:column; gap:5px; align-items:stretch; min-width:96px; flex-shrink:0;">
+        <button class="btn g sm ${!canMove ? 'dis' : ''}" data-a="tenvmove" data-v="${k}" ${!canMove ? 'disabled' : ''} style="padding:5px 8px; font-size:12px; font-weight:900; white-space:nowrap; text-align:center;">
+          🔁 ${t('tMove')}
+        </button>
+        <button class="btn o sm ${lock || !canAfford ? 'dis' : ''}" data-a="tenvbuild" data-v="${k}" style="padding:5px 8px; font-size:12px; font-weight:900; white-space:nowrap; text-align:center;">
+          🪙 ${fmt(cost)}
+        </button>
+      </div>
+    </div>`;
+  }
   // a big building: build it (choose the spot) or, once built, move it
   function bigRow(k, d) {
     const built = TOWN.bigBuilt(S, k), lockRep = d.rep && repTier(S.rep || 0) < d.rep;
@@ -411,18 +463,18 @@ function clearThumbCache() {
     const dirShorts = [t('dirFrontS') || '앞', t('dirLeftS') || '좌', t('dirBackS') || '뒤', t('dirRightS') || '우'];
 
     const roadPosStyle = [
-      'top:73%; left:67%;', // 0: 앞쪽 (남동) - 하단 우측 진입로
-      'top:73%; left:33%;', // 1: 좌측 (남서) - 하단 좌측 진입로
-      'top:28%; left:33%;', // 2: 뒤쪽 (북서) - 상단 좌측 진입로
-      'top:28%; left:67%;'  // 3: 우측 (북동) - 상단 우측 진입로
+      'top:79%; left:72%;', // 0: 앞쪽 (남동) - 하단 우측 진입로
+      'top:79%; left:28%;', // 1: 좌측 (남서) - 하단 좌측 진입로
+      'top:21%; left:28%;', // 2: 뒤쪽 (북서) - 상단 좌측 진입로
+      'top:21%; left:72%;'  // 3: 우측 (북동) - 상단 우측 진입로
     ];
 
     const houseThumb = d.cat === 'house' ? ((TOWN.getTownHouseImg(L).src) || thumb(o.k)) : thumb(o.k);
 
     const previewCard = `
-      <div class="tpreview-card" style="height:230px;">
+      <div class="tpreview-card" style="height:230px; position:relative; overflow:hidden;">
         <!-- Enlarged House Preview Sprite with immediate horizontal flip animation upon rotation -->
-        <img src="${houseThumb}" style="max-width:180px; max-height:165px; object-fit:contain; transition:transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); ${isFlipped ? 'transform:scaleX(-1);' : 'transform:scaleX(1);'} filter:drop-shadow(0 6px 12px rgba(0,0,0,0.18));">
+        <img src="${houseThumb}" style="max-width:170px; max-height:150px; object-fit:contain; transition:transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); ${isFlipped ? 'transform:scaleX(-1);' : 'transform:scaleX(1);'} filter:drop-shadow(0 6px 12px rgba(0,0,0,0.18));">
 
         <!-- Attached Entrance Road Tile directly on the House edge -->
         ${hasDoor ? `
@@ -526,8 +578,11 @@ function clearThumbCache() {
   };
   // ---------- placing ----------
   function startPlace(k, mv, tier) {
-    const big = TOWN_DEF[k].cat === 'big', o = !big && mv && TOWN.objs().find(q => q.id === mv), L = big && mv ? LAY(k) : null;
-    const f = TOWN.fpOf(k, o ? o.r : 0);
+    const isObjId = typeof mv === 'number';
+    const big = TOWN_DEF[k] && TOWN_DEF[k].cat === 'big';
+    const o = isObjId ? TOWN.objs().find(q => q.id === mv) : (!big && mv && TOWN.objs().find(q => q.id === mv));
+    const L = (!isObjId && big && mv) ? LAY(k) : null;
+    const f = TOWN.fpOf(k, o ? o.r : (L && L.r != null ? L.r : 0));
     let x, y;
     const lot = !o && TOWN_DEF[k].cat === 'house' && TOWN.zoneLots(S, k)[0]; // a new house: start on a free lot in a residential zone
     if (o) { x = o.x; y = o.y; } else if (L) { x = L.x; y = L.y; } else if (lot) { x = lot.x; y = lot.y; } else { const g = World.toGrid(innerWidth / 2, innerHeight / 2 - 40); x = Math.floor(g.x - f.w / 2); y = Math.floor(g.y - f.d / 2); const p = TOWN.canPlace(S, k, x, y, 0) ? TOWN.nearFree(S, k, x, y, 0) : null; if (p) { x = p.x; y = p.y; } }
@@ -726,7 +781,7 @@ function clearThumbCache() {
   }
   function bigOk(p) {
     const curDoor = p.doorDir != null ? p.doorDir : ((p.r || 0) % 4);
-    const go = extra => { const r = p.mv ? actR({ t: 'tbigmove', k: p.k, x: p.x, y: p.y, r: p.r, doorDir: curDoor }) : actR(Object.assign({ t: 'tbig', k: p.k, x: p.x, y: p.y, r: p.r, doorDir: curDoor }, extra || {}));
+    const go = extra => { const isId = typeof p.mv === 'number'; const r = p.mv ? actR({ t: 'tbigmove', k: p.k, id: isId ? p.mv : undefined, x: p.x, y: p.y, r: p.r, doorDir: curDoor }) : actR(Object.assign({ t: 'tbig', k: p.k, x: p.x, y: p.y, r: p.r, doorDir: curDoor }, extra || {}));
       if (r && r.ok) { SND.level && SND.level(); fxAt(innerWidth / 2, innerHeight / 2 - 60, TOWN_DEF[p.k].ic); App.tplace = null; } render(); };
     if (p.k === 'monu' && !p.mv) { // the monument needs the words carved on it (and the two of us as the statue)
       const others = Object.entries(Net.players || {}).filter(([id]) => id !== CFG.id).map(([, q]) => q), pn = others[0];
@@ -793,6 +848,36 @@ function clearThumbCache() {
     tup: v => { const r = actR({ t: 'tup', id: +v }); if (r && r.ok) { SND.level && SND.level(); fxAt(innerWidth / 2, innerHeight / 2 - 80, '⭐'); } renderPanel(true); },
     buildcafe: () => bigStart('cafe'), buildhosp: () => bigStart('hosp'),
     tbigmove: v => { if (TOWN_DEF[v].live && S.clock.ph === 'open') { toast(t('tMoveClosed')); return; } startPlace(v, v); },
+    tenvmove: v => {
+      if (v === 'zoo') {
+        const zoo = TOWN.objs().find(o => o.k === 'zoo');
+        if (!zoo) { toast(t('tNotBuilt') || '아직 건설되지 않았습니다'); return; }
+        startPlace('zoo', zoo.id);
+      } else if (v === 'park') {
+        if (!TOWN.bigBuilt(S, 'park') && !TOWN.objs().some(o => o.k === 'park')) {
+          toast(t('tNotBuilt') || '아직 건설되지 않았습니다'); return;
+        }
+        if (TOWN.bigBuilt(S, 'park')) startPlace('park', 'park');
+        else {
+          const p = TOWN.objs().find(o => o.k === 'park');
+          startPlace('park', p ? p.id : 'park');
+        }
+      } else if (v === 'lake') {
+        if (!TOWN.bigBuilt(S, 'lake') && !TOWN.objs().some(o => o.k === 'lake')) {
+          toast(t('tNotBuilt') || '아직 건설되지 않았습니다'); return;
+        }
+        if (TOWN.bigBuilt(S, 'lake')) startPlace('lake', 'lake');
+        else {
+          const l = TOWN.objs().find(o => o.k === 'lake');
+          startPlace('lake', l ? l.id : 'lake');
+        }
+      }
+    },
+    tenvbuild: v => {
+      if (v === 'zoo') startPlace('zoo');
+      else if (v === 'park') startPlace('park');
+      else if (v === 'lake') startPlace('lake');
+    },
     tbignow: v => { const r = actR({ t: 'tbig', k: v }); if (r && r.ok) { SND.level && SND.level(); fxAt(innerWidth / 2, innerHeight / 2, TOWN_DEF[v].ic); } renderPanel(true); },
     ttab: v => { tab = v; if (typeof openPanel === 'function') openPanel({ type: 'tbuild', tab: v }); else renderPanel(true); },
     tpick: v => startPlace(v),
@@ -888,8 +973,10 @@ Object.assign(I18N.ko, {
   tNeedZone: '집은 주택가 안에만 지을 수 있어요 🏘️', tZoneFull: '주택가에 빈 집터가 없어요! 새 주택가를 만들어 동네를 넓혀요 →', tOnLane: '골목길 위에는 지을 수 없어요', tInZone: '주택가 안에는 집·나무·꽃·작은 시설만 지을 수 있어요', tZoneHint: '🏘️ 주민들은 서쪽 주택가에 살아요. 집은 주택가 안에 지어요!',
   tRoadTool: '길 깔기 / 지우기', tRoadDesc: '원하는 곳에 길을 직접 내요. 한 칸 🪙{c}, 지우기는 무료', tRoadStart: '시작', tRoadHint1: '시작할 칸을 누르세요', tRoadHint2: '끝 칸을 누르면 그 사이에 길이 생겨요 (ㄱ자로 이어짐)', tRoadDesc2: '한 칸 🪙{c}', tRoadPave: '깔기', tRoadErase: '지우기', tRoadNone: '바꿀 칸이 없어요 (건물·가게·큰길 위는 안 돼요)', tRoadPaved: '길 {n}칸을 깔았어요 (🪙{c})', tRoadErased: '길 {n}칸을 지웠어요',
   priceHint: '🪙 가격은 이 손님에게 팔 때 받는 기본 금액이고, 성격이 딱 맞으면 +30%예요.', tOnPath: '길 위에는 지을 수 없어요', tZoneGo: '주택가 보기', regSadT: '{n}이(가) 서운한 얼굴로 돌아갔어요… 😢', tUpBtn: '레벨업', tLvMax: '최고 레벨', tUpHouse: '방이 늘어나 주민 {n}명까지 살아요', tUpCivic: '행복·돌봄·특별 효과 ×{m}', tUpgraded: '레벨업! ⭐ Lv{n}이 되었어요',
-  tTab_civic: '상점·공공', tTabDesc_civic: '빵집·학교·소방서 같은 상점·공공 건물과, 공원·호수·기념 광장·가로수길·정자·풍차·펫 글램핑 쉼터 같은 큰 부지예요. 행복을 크게 올리고, 건물마다 특별한 효과가 있어요.',
-  tTab_ops: '운영', tTabDesc_ops: '내 집, 농장, 목장, 펫 카페, 동물병원, 펫 미용실, 동물원처럼 직접 운영하는 핵심 시설이에요. 원하는 자리에 지어 보세요! (부지는 가장 크게 키웠을 때 크기예요)',
+  tTab_civic: '상점·공공', tTabDesc_civic: '빵집·학교·소방서 같은 상점·공공 건물과, 기념 광장·가로수길·정자·풍차·펫 글램핑 쉼터 같은 시설이에요. 행복을 크게 올리고, 건물마다 특별한 효과가 있어요.',
+  tTab_ops: '운영', tTabDesc_ops: '내 집, 농장, 목장, 펫 카페, 동물병원, 펫 미용실처럼 직접 운영하는 핵심 시설이에요. 원하는 자리에 지어 보세요! (부지는 가장 크게 키웠을 때 크기예요)',
+  tTab_env: '환경·행복', tTabDesc_env: '동물원, 공원, 호수처럼 마을의 자연과 주민들의 행복을 크게 높여주는 대형 환경 시설이에요. 자유롭게 배치하고 옮겨 보세요!',
+  tBigDesc_zoo: '사파리 동물원과 신비한 동물들 (행복 +18, 돌봄 +80)',
   tk_gate: '마을 입구 간판', tk_conv: '편의점', tk_bakery: '빵집', tk_florist: '꽃집', tk_clinic: '동네 의원', tk_dogpark: '펫 운동장', tk_photo: '사진관', tk_school: '학교', tk_police: '경찰서', tk_fire: '소방서',
   tk_library: '도서관', tk_market: '주말 벼룩시장', tk_training: '펫 훈련학교', tk_pethotel: '펫 호텔', tk_clocktower: '시계탑 광장', tk_lookout: '전망대', tk_chapel: '웨딩 채플', tk_shelter: '유기동물 보관소', tk_zoo: '동물원',
   rescuedShelter: '🆘 구조 성공! {name}이(가) 유기동물 보관소로 안전하게 이동했어요 🛖🐾', rescuedCafe: '🆘 구조 성공! {name}이(가) 카페 놀이방으로 안전하게 이동했어요 ☕🐾',
@@ -1020,8 +1107,10 @@ Object.assign(I18N.ru, {
   tNeedZone: 'Дома строятся только в жилом квартале 🏘️', tZoneFull: 'В кварталах нет свободных участков! Постройте новый квартал →', tOnLane: 'На улочке строить нельзя', tInZone: 'В жилом квартале — только дома, деревья и мелкие удобства', tZoneHint: '🏘️ Жители живут в квартале на западе. Дома стройте там!',
   tRoadTool: 'Дорожки', tRoadDesc: 'Прокладывайте дорожки сами. Клетка 🪙{c}, убрать — бесплатно', tRoadStart: 'Начать', tRoadHint1: 'Нажмите клетку начала', tRoadHint2: 'Нажмите клетку конца — дорожка ляжет между ними (углом)', tRoadDesc2: 'клетка 🪙{c}', tRoadPave: 'Класть', tRoadErase: 'Убирать', tRoadNone: 'Нечего менять (не на зданиях и не на улице)', tRoadPaved: 'Проложено клеток: {n} (🪙{c})', tRoadErased: 'Убрано клеток: {n}',
   priceHint: '🪙 — базовая цена для этого гостя; идеальное совпадение характера +30%.', tOnPath: 'На дорожке строить нельзя', tZoneGo: 'К жилому кварталу', regSadT: '{n} ушёл(ла) немного расстроенным… 😢', tUpBtn: 'Улучшить', tLvMax: 'макс. уровень', tUpHouse: 'больше комнат: до {n} жителей', tUpCivic: 'счастье, забота и бонус ×{m}', tUpgraded: 'Улучшено! ⭐ Ур.{n}',
-  tTab_civic: 'Город', tTabDesc_civic: 'Пекарня, школа, пожарная часть и большие участки вроде парка, озера, памятной площади, аллеи, беседки, мельницы, кемпинга. Сильно поднимают счастье, и у каждого здания свой бонус.',
-  tTab_ops: 'Хозяйство', tTabDesc_ops: 'Мой дом, ферма, ранчо, кафе, ветклиника, груминг-салон, зоопарк — ключевые объекты, которыми вы управляете сами. Стройте, где захотите!',
+  tTab_civic: 'Город', tTabDesc_civic: 'Пекарня, школа, пожарная часть и участки вроде памятной площади, аллеи, беседки, мельницы, кемпинга. Сильно поднимают счастье, и у каждого здания свой бонус.',
+  tTab_ops: 'Хозяйство', tTabDesc_ops: 'Мой дом, ферма, ранчо, кафе, ветклиника, груминг-салон — ключевые объекты, которыми вы управляете сами. Стройте, где захотите!',
+  tTab_env: 'Экология', tTabDesc_env: 'Зоопарк, парк и озеро — крупные природные объекты для счастья жителей.',
+  tBigDesc_zoo: 'Сафари-парк и экзотические животные (счастье +18, забота +80)',
   tk_gate: 'Въездная арка', tk_conv: 'Магазинчик', tk_bakery: 'Пекарня', tk_florist: 'Цветочный', tk_clinic: 'Поликлиника', tk_dogpark: 'Площадка для собак', tk_photo: 'Фотостудия', tk_school: 'Школа', tk_police: 'Полиция', tk_fire: 'Пожарная часть',
   tk_library: 'Библиотека', tk_market: 'Блошиный рынок', tk_training: 'Школа дрессировки', tk_pethotel: 'Отель для питомцев', tk_clocktower: 'Часовая башня', tk_lookout: 'Смотровая башня', tk_chapel: 'Свадебная часовня', tk_shelter: 'Приют для животных', tk_zoo: 'Сафари-зоопарк',
   rescuedShelter: '🆘 Спасено! {name} благополучно доставлен(а) в приют 🛖🐾', rescuedCafe: '🆘 Спасено! {name} благополучно доставлен(а) в игровую комнату кафе ☕🐾',
