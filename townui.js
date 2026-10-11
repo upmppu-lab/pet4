@@ -655,8 +655,10 @@ function clearThumbCache() {
     if (o) { x = o.x; y = o.y; } else if (L) { x = L.x; y = L.y; } else if (lot) { x = lot.x; y = lot.y; } else { const g = World.toGrid(innerWidth / 2, innerHeight / 2 - 40); x = Math.floor(g.x - f.w / 2); y = Math.floor(g.y - f.d / 2); const p = TOWN.canPlace(S, k, x, y, 0) ? TOWN.nearFree(S, k, x, y, 0) : null; if (p) { x = p.x; y = p.y; } }
     const houseTier = tier || (o ? o.tier : 1);
     const curDoor = o ? (o.doorDir != null ? o.doorDir : (o.r || 0) % 4) : (L && L.doorDir != null ? L.doorDir : 0);
-    const dDef = TOWN_DEF[k];
-    const isBatch = !mv && dDef && (dDef.cat === 'tree' || dDef.flower || dDef.cat === 'deco' || k === 'bench' || k === 'lamp' || k === 'fence' || k === 'flowerbed');
+    const dDef = TOWN_DEF[k] || {};
+    const isTreeOrFlower = dDef.cat === 'tree' || dDef.flower;
+    const isDeco = dDef.cat === 'deco' || k === 'bench' || k === 'lamp' || k === 'fence' || k === 'flowerbed';
+    const isBatch = !mv && (isTreeOrFlower || isDeco);
     App.tplace = { k, x, y, r: o ? o.r : (L && L.r != null ? L.r : 0), doorDir: curDoor, mv: mv || null, tier: houseTier };
     if (isBatch) {
       App.tplace.batch = new Map();
@@ -812,9 +814,15 @@ function clearThumbCache() {
       </div>`;
     }
     const p = App.tplace; if (!p) return '';
-    const bad = TOWN.canPlace(S, p.k, p.x, p.y, p.r, p.mv), d = TOWN_DEF[p.k];
-    const isBatch = p.batch != null && !p.mv;
-    const batchCount = isBatch ? p.batch.size : 1;
+    const bad = TOWN.canPlace(S, p.k, p.x, p.y, p.r, p.mv), d = TOWN_DEF[p.k] || {};
+    const isTreeOrFlower = d.cat === 'tree' || d.flower;
+    const isDeco = d.cat === 'deco' || p.k === 'bench' || p.k === 'lamp' || p.k === 'fence' || p.k === 'flowerbed';
+    const isBatch = !p.mv && (isTreeOrFlower || isDeco);
+    if (isBatch && !p.batch) {
+      p.batch = new Map();
+      if (p.x != null && p.y != null) p.batch.set(p.x + ',' + p.y, { x: p.x, y: p.y });
+    }
+    const batchCount = (isBatch && p.batch) ? p.batch.size : 1;
     const cost = p.k === 'zone' ? TOWN.zoneCost(S) : d.cat === 'big' ? d.cost : (d.cat === 'house' && !p.mv) ? TOWN.houseTierBuyCost(S, p.tier || 1) : TOWN.kindCost(S, p.k);
     const totalCost = cost * batchCount;
     const turn = TOWN.maxR(p.k) > 1;
@@ -835,7 +843,11 @@ function clearThumbCache() {
         <button class="btn sm ${anyBad || S.coins < totalCost ? 'dis' : 'g'}" data-a="tok" style="font-weight:900;">✔ 🪙${fmt(totalCost)}${batchCount > 1 ? ` (${batchCount}개 심기)` : ''}</button></div>`;
     }
 
-    return `<div class="editbar tplacebar"><div class="grow">📍 ${t('tPlaceHint')}${showDoor ? `<div class="tdoortxt">🚪 ${t('tDoorDir')}: <span style="color:#fde047;font-weight:bold;">${dirNames[curDoor]}</span></div>` : ''}${bad ? `<div class="tbadtxt">⛔ ${t(bad)}</div>` : ''}${d.cat === 'house' && !p.mv && !TOWN.zoneLots(S, p.k).length ? `<div class="tbadtxt">🏘️ ${t('tZoneFull')} <button class="btn g sm" data-a="tpick" data-v="zone">${t('tZoneNew')} 🪙${fmt(TOWN.zoneCost(S))}</button></div>` : ''}</div>
+    const actionVerb = p.mv ? '옮길' : (isTreeOrFlower ? '심을' : (d.cat === 'house' ? '지을' : '배치할'));
+    const targetNoun = isTreeOrFlower ? '위치를' : (d.cat === 'house' ? '집터를' : '위치를');
+    const hintMsg = `📍 <b>${nm(p.k)}</b>: ${actionVerb} ${targetNoun} 선택하세요 (지도를 탭하거나 끌어서 이동)`;
+
+    return `<div class="editbar tplacebar"><div class="grow">${hintMsg}${showDoor ? `<div class="tdoortxt">🚪 ${t('tDoorDir')}: <span style="color:#fde047;font-weight:bold;">${dirNames[curDoor]}</span></div>` : ''}${bad ? `<div class="tbadtxt">⛔ ${t(bad)}</div>` : ''}${d.cat === 'house' && !p.mv && !TOWN.zoneLots(S, p.k).length ? `<div class="tbadtxt">🏘️ ${t('tZoneFull')} <button class="btn g sm" data-a="tpick" data-v="zone">${t('tZoneNew')} 🪙${fmt(TOWN.zoneCost(S))}</button></div>` : ''}</div>
       ${showDoor ? `<button class="btn b sm" data-a="tdoordir" title="${t('tChangeDoorDir')}">🚪 ${t('tDoorBtn')}: ${dirShorts[curDoor]} ↻</button>` : ''}
       ${turn ? `<button class="btn g sm" data-a="trotl" title="${t('tRotLeft')}">↺ ${t('tRotLeft')}</button><button class="btn g sm" data-a="trotr" title="${t('tRotRight')}">↻ ${t('tRotRight')}</button>` : ''}<button class="btn r sm" data-a="tcancel">✖</button>
       <button class="btn sm ${bad || (!p.mv && S.coins < cost) ? 'dis' : ''}" data-a="tok">✔ ${p.mv ? t('tMoveHere') : '🪙' + fmt(cost)}</button></div>`;
@@ -1343,7 +1355,8 @@ Object.assign(I18N.ko, {
   salesSaySold: '🎉 {n} 분양 완료!',
   salesSayStoryOk: '✨ 고민 해결해 드렸어요!',
   salesSayStoryLater: '다음에 꼭 도와드릴게요!',
-  salesSayAdopt: '🐶 새 친구 {n} 데려왔어요!'
+  salesSayAdopt: '🐶 새 친구 {n} 데려왔어요!',
+  salesSayRestock: '📦 {n} 물품을 채웠어요!'
 });
 Object.assign(I18N.ru, {
   tTitle: 'Наш городок', tPopNow: 'Жителей', tPopCap: 'мест', tHappy: 'Счастье', tBuildBtn: 'Стройка', tRoadQuickBtn: 'Дороги', tPopN: '{n} жит.',
@@ -1477,5 +1490,6 @@ Object.assign(I18N.ru, {
   salesSaySold: '🎉 {n} обрёл новую семью!',
   salesSayStoryOk: '✨ Проблема гостя решена!',
   salesSayStoryLater: 'В следующий раз обязательно поможем!',
-  salesSayAdopt: '🐶 Новый друг {n} теперь у нас!'
+  salesSayAdopt: '🐶 Новый друг {n} теперь у нас!',
+  salesSayRestock: '📦 Пополнил полку {n}!'
 });

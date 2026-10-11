@@ -174,6 +174,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// Prevent client / iframe caching of application scripts and markup
+app.use((req, res, next) => {
+  const p = req.path;
+  if (p.endsWith('.js') || p.endsWith('.css') || p.endsWith('.html') || p === '/') {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  }
+  next();
+});
+
 // Serve static files from root and assets directory
 app.use(express.static(assetsDir));
 app.use('/assets', express.static(assetsDir));

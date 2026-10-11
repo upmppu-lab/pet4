@@ -273,10 +273,9 @@ return true;
     // 1. 병원 (동쪽 출입문)
     if (S.hosp && S.hosp.built && typeof HOSP_POS === 'function') {
       const hp = HOSP_POS();
-      const connected = TOWN.isEntranceConnected(S, { accessX: hp.x1 + 1, accessY: hp.y + 3 });
       rs.push({
         k: 'hosp', x: hp.x, y: hp.y, w: hp.w, d: hp.d,
-        check: (ix, iy, ox, oy) => connected && ix === hp.x1 && ox === hp.x1 + 1 && (iy === hp.y + 2 || iy === hp.y + 3)
+        check: (ix, iy, ox, oy) => ix === hp.x1 - 1 && ox === hp.x1 && (iy === hp.y + 2 || iy === hp.y + 3 || oy === hp.y + 2 || oy === hp.y + 3)
       });
     }
     // 2. 카페 (동쪽 출입문)
@@ -3710,6 +3709,37 @@ return true;
             addRoadTiles([[gx, gy]]);
             App.troad.lastTile = { gx, gy };
             App.troad.hover = { x: gx, y: gy };
+            g.on = true;
+            drag = null;
+            typeof render === 'function' && render();
+          }
+          if (g.m === 't' && App.tplace && App.tplace.batch != null && !App.tplace.mv && typeof TOWN !== 'undefined') {
+            const { gx, gy } = gridAt(e);
+            const p = App.tplace, f = TOWN.fpOf(p.k, p.r);
+            const tx = gx - Math.floor(f.w / 2), ty = gy - Math.floor(f.d / 2);
+            const key = tx + ',' + ty;
+            if (p.batch.has(key)) {
+              if (p.batch.size > 1) {
+                p.batch.delete(key);
+                const next = p.batch.values().next().value;
+                p.x = next.x; p.y = next.y;
+                if (typeof SND !== 'undefined' && SND.pop) SND.pop();
+              }
+            } else {
+              const bad = TOWN.canPlace(S, p.k, tx, ty, p.r, p.mv);
+              if (!bad) {
+                const unitCost = TOWN.kindCost(S, p.k);
+                if (S.coins >= unitCost * (p.batch.size + 1)) {
+                  p.batch.set(key, { x: tx, y: ty });
+                  p.x = tx; p.y = ty;
+                  if (typeof SND !== 'undefined' && SND.pop) SND.pop();
+                } else if (typeof toast === 'function') {
+                  toast(t('notEnough') || '코인이 부족합니다');
+                }
+              } else if (typeof toast === 'function') {
+                toast('⛔ ' + (t(bad) || '여기에는 심을 수 없어요'));
+              }
+            }
             g.on = true;
             drag = null;
             typeof render === 'function' && render();

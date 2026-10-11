@@ -298,18 +298,67 @@ if (s.book) {
   }
 
   // ---------- adoption offers ----------
-  function mkOffer(s) {
+  function mkOffer(s, optSp) {
     const un = unlocked(s);
     // favour newer species a bit
-    const sp = Math.random() < .4 ? un[Math.max(0, un.length - 1 - rint(0, 3))] : pick(un);
+    const sp = optSp || (Math.random() < .4 ? un[Math.max(0, un.length - 1 - rint(0, 3))] : pick(un));
     const r = Math.random(), stars = r < .05 ? 2 : r < .28 ? 1 : 0;
     const rare = Math.random() < .035; return { id: s.seq++, sp, coat: rare ? rareCoat() : 1 + Math.floor(Math.random() * 1e9), sex: Math.random() < .5 ? 'm' : 'f', stars, cost: Math.round(SPECIES[sp].cost * (1 + .5 * stars) * (rare ? 2.2 : 1)), cd: 0 };
   }
   function ensureOffers(s, force) {
-    if (!force && s.offerDay === s.clock.day && s.offers.length) return;
+    if (!force && s.offerDay === s.clock.day && s.offers && s.offers.length) return;
     s.offerDay = s.clock.day;
-    const n = Math.min(7, 4 + Math.floor(lvE(s) / 4));
-    s.offers = []; for (let i = 0; i < n; i++) s.offers.push(mkOffer(s));
+    const un = unlocked(s);
+    if (!un || !un.length) { s.offers = []; return; }
+
+    // 분양 게시판: 해금된 종들을 카테고리(종류)별로 분류
+    // 개(dog), 고양이(cat), 새(bird), 쥐/소동물(small), 물고기(fish), 파충류(reptile)
+    const catMap = {};
+    for (const sp of un) {
+      const c = (SPECIES[sp] && SPECIES[sp].cat) || 'small';
+      if (!catMap[c]) catMap[c] = [];
+      catMap[c].push(sp);
+    }
+    const availCats = Object.keys(catMap);
+    const pickFromCat = c => {
+      const list = catMap[c];
+      if (!list || !list.length) return null;
+      if (Math.random() < 0.35 && list.length > 1) {
+        return list[Math.max(0, list.length - 1 - rint(0, Math.min(2, list.length - 1)))];
+      }
+      return pick(list);
+    };
+
+    const chosen = [];
+    const usedSpecies = new Set();
+
+    // ★ 유저 요구사항: 분양 게시판에 새 목록 받기(또는 목록 갱신) 시 각 종류별로 1마리씩은 반드시 포함!
+    // 개와 쥐(소동물) 종류가 많아서 새 등이 안 뜨는 현상을 완벽히 해결 (새, 개, 묘, 조류, 어류, 파충류 각 1마리 확정)
+    for (const c of availCats) {
+      const sp = pickFromCat(c);
+      if (sp) {
+        chosen.push(sp);
+        usedSpecies.add(sp);
+      }
+    }
+
+    // 목표 개수 (최소 해금 카테고리 개수, 최대 8마리)
+    const targetCount = Math.max(availCats.length, Math.min(8, 6 + Math.floor(lvE(s) / 4)));
+    const catCycle = [...availCats].sort(() => Math.random() - 0.5);
+    let cycleIdx = 0;
+    while (chosen.length < targetCount && availCats.length > 0) {
+      const c = catCycle[cycleIdx % catCycle.length];
+      cycleIdx++;
+      const list = catMap[c];
+      if (!list || !list.length) continue;
+      const unchosen = list.filter(x => !usedSpecies.has(x));
+      const sp = (unchosen.length > 0) ? pick(unchosen) : pickFromCat(c);
+      chosen.push(sp);
+      usedSpecies.add(sp);
+    }
+
+    chosen.sort(() => Math.random() - 0.5);
+    s.offers = chosen.map(sp => mkOffer(s, sp));
   }
 
   // ---------- customers ----------
@@ -858,13 +907,113 @@ if (s.book) {
           }
         }
       }
-      // 3. Adoption from board when empty homes exist (moves to computer desk)
-      let ob = null, os = -1;
-      for (const o of s.offers || []) {
-        if (tk.has('adopt' + o.id) || s.coins < o.cost * 1.5 + 1000 || !freeSlotsKind(s, kindOf(o.sp)).length) continue;
-        const v = SPECIES[o.sp].sell / Math.max(1, o.cost) + (o.stars || 0) * .3;
-        if (v > os) { os = v; ob = o; }
+      // 3. 진열대 물품 자동 구매 및 재입고 (장난감 진열대, 사료 진열대, 용품 진열대, 의류 진열대 등)
+      for (const sh of s.items) {
+        if (!GOODS[sh.k] || tk.has('restock' + sh.id)) continue;
+        const prs = PRODUCTS.filter(x => x.shelf === sh.k && x.lv <= s.level);
+        if (!prs.length) continue;
+        let totalNeed = 0, totalCost = 0;
+        let worstPr = null, minStock = SHELF_CAP;
+        for (const pr of prs) {
+          const have = (sh.inv && sh.inv[pr.id] != null) ? sh.inv[pr.id] : ((sh.prod === pr.id ? sh.stock : 0) || 0);
+          const needN = Math.max(0, SHELF_CAP - have);
+          totalNeed += needN;
+          totalCost += needN * pr.cost;
+          if (have < minStock) {
+            minStock = have;
+            worstPr = pr;
+          }
+        }
+        if (minStock <= 7 && worstPr) {
+          if (totalCost > 0 && s.coins >= totalCost + 300) {
+            return { k: 'restock', iid: sh.id, prod: 'all', x: sh.x, y: sh.y + (sh.d || 1) };
+          }
+          const singleCost = (SHELF_CAP - minStock) * worstPr.cost;
+          if (s.coins >= singleCost + 200) {
+            return { k: 'restock', iid: sh.id, prod: worstPr.id, x: sh.x, y: sh.y + (sh.d || 1) };
+          }
+        }
       }
+
+      // 4. Adoption from board: 손님들이 자주 찾는 펫 위주 + 자주 찾지 않는 펫도 항상 재고 1~3마리 보유
+      if (!s.offers || !s.offers.length) ensureOffers(s, true);
+      const petCounts = {};
+      for (const p of s.pets) {
+        if (p && p.sp) petCounts[p.sp] = (petCounts[p.sp] || 0) + 1;
+      }
+      for (const d of s.deliveries || []) {
+        if (d && d.sp) petCounts[d.sp] = (petCounts[d.sp] || 0) + 1;
+      }
+
+      // 현재 매장/온라인 손님들이 찾고 있는 펫 수요 분석
+      const waitingDemands = new Map();
+      for (const c of (s.customers || []).concat(s.online || [])) {
+        if (c && c.st === 'want') {
+          if (c.sp) {
+            waitingDemands.set(c.sp, (waitingDemands.get(c.sp) || 0) + 3);
+          } else if (c.cat) {
+            const unCat = unlocked(s).filter(sp => (SPECIES[sp] || {}).cat === c.cat);
+            for (const sp of unCat) {
+              waitingDemands.set(sp, (waitingDemands.get(sp) || 0) + 1);
+            }
+          }
+        }
+      }
+
+      // 대중적으로 손님들이 가장 많이 찾는 인기 품종 (강아지, 고양이 및 대표 소동물)
+      const POPULAR_SPECIES = new Set([
+        'shiba', 'maltese', 'poodle', 'chihuahua', 'retriever', 'husky', 'dalmatian',
+        'korean', 'persian', 'russian', 'siamese', 'ragdoll', 'munchkin',
+        'hamster', 'rabbit'
+      ]);
+
+      let ob = null, os = -999;
+      for (const o of s.offers || []) {
+        if (tk.has('adopt' + o.id) || s.coins < o.cost * 1.5 + 400) continue;
+        const kind = kindOf(o.sp);
+        const freeSlots = freeSlotsKind(s, kind);
+        if (!freeSlots.length) continue;
+
+        const currentStock = petCounts[o.sp] || 0;
+        const isPopular = POPULAR_SPECIES.has(o.sp) || (SPECIES[o.sp] && (SPECIES[o.sp].cat === 'dog' || SPECIES[o.sp].cat === 'cat'));
+        const directCustomerNeed = waitingDemands.get(o.sp) || 0;
+
+        let score = 0;
+        // 1) 매장에 와서 이 펫을 찾고 있는 손님이 있는 경우 최우선 분양!
+        if (directCustomerNeed > 0) {
+          score += 100 + directCustomerNeed * 25;
+        }
+
+        if (isPopular) {
+          // 2) 손님들이 자주 찾는 인기 품종 위주
+          if (currentStock === 0) score += 65;
+          else if (currentStock === 1) score += 40;
+          else if (currentStock === 2) score += 25;
+          else if (currentStock === 3) score += 15;
+          else score += 5;
+        } else {
+          // 3) 자주 찾지 않는 품종: 항상 1~3마리씩 재고를 보유하도록 유지
+          if (currentStock === 0) {
+            score += 55; // 재고가 없으면 우선적으로 1마리 확보
+          } else if (currentStock === 1) {
+            score += 20; // 2마리 보유 유지
+          } else if (currentStock === 2) {
+            score += 10; // 3마리 보유 유지
+          } else {
+            // 이미 3마리 이상 보유 중이면 자주 찾지 않는 품종은 더 이상 들이지 않음!
+            continue;
+          }
+        }
+
+        const profit = SPECIES[o.sp].sell / Math.max(1, o.cost);
+        score += profit * 5 + (o.stars || 0) * 8;
+
+        if (score > os) {
+          os = score;
+          ob = o;
+        }
+      }
+
       if (ob) {
         const desks = s.items.filter(i => PC_ITEMS.includes(i.k));
         const pc = desks[0] || s.items.find(i => i.k === 'counter') || { x: Math.max(1, W - 2), y: Math.max(1, H - 2) };
@@ -902,7 +1051,17 @@ if (s.book) {
         else apply(s, { t: 'unpack', did: j.did }, by); } }
     else if (j.k === 'carry') { const d = s.deliveries.find(x => x.id === j.did); if (d) { d.pk = 0; apply(s, { t: 'unpack', did: j.did }, by); } }
     else if (j.k === 'parcel') apply(s, { t: 'openparcel', id: j.pcid }, by);
-    else if (j.k === 'restock') { const it = s.items.find(i => i.id === j.iid); if (it) apply(s, { t: 'restock', iid: it.id, prod: j.prod || it.prod }, by); }
+    else if (j.k === 'restock') {
+      const it = s.items.find(i => i.id === j.iid);
+      if (it) {
+        apply(s, { t: 'restock', iid: it.id, prod: j.prod || it.prod }, by);
+        if (role === 'sales') {
+          const shName = it.k === 'toyshelf' ? '장난감 진열대' : it.k === 'shelf' ? '사료 진열대' : it.k === 'supshelf' ? '용품 진열대' : '진열대';
+          m.say = (typeof t === 'function' ? t('salesSayRestock', { n: shName }) : null) || `📦 ${shName} 물품을 채웠어요!`;
+          m.sayT = 4.0;
+        }
+      }
+    }
     else if (j.k === 'online') { const c = (s.online || []).find(x => x.id === j.cid); if (c) { if (c.st === 'oshop') onlineShip(s, c, 'staff'); else { const p = (j.pid && s.pets.find(q => q && q.id === j.pid && matches(c, q))) || onlineBest(s, c); if (p) onlineSell(s, c, p, 'staff'); } } }
     else if (j.k === 'pay') { const c = s.customers.find(c => c.id === j.cid && c.st === 'pay'); if (c) pay(s, c, 'staff', false); }
     else if (j.k === 'feed') { const p = findPet(s, j.pid); if (p) { const line = dietOf(p.sp);
@@ -966,6 +1125,7 @@ if (s.book) {
         apply(s, { t: 'adopt', oid: j.oid, lang: s.lang }, by);
         m.say = t('salesSayAdopt', { n: spName(j.sp) });
         m.sayT = 4.5;
+        if (!s.offers.length) ensureOffers(s, true);
       }
     }
     else if (j.k === 'sell') { const p = findPet(s, j.pid), c = s.customers.find(x => x.id === j.cid && x.st === 'want'); if (p && c && matches(c, p)) apply(s, { t: 'sell', pid: p.id, cid: c.id }, by); }
