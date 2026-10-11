@@ -38,7 +38,16 @@ const CAFE_DOOR = () => cafeW() - 1;
 // where people enter the village: the far (north) end of the sidewalk, so they WALK down the
 // street to the gate instead of popping into existence mid-road
 const VILLAGE_N = -34, villageS = () => (typeof VILLAGE_S_MAX === 'function' ? VILLAGE_S_MAX() - 2 : (S && S.room ? S.room.h : 8) + 34);
-const CAFE_SPAWN = () => { const cp = (typeof CAFE_POS === 'function') ? CAFE_POS() : null; if (cp && cp.x < 500) return { x: cp.x + cp.w + 1.8, y: cp.y + cp.d + 1.5 }; return { x: ((typeof S !== 'undefined' && S && S.room && S.room.w) || 8) + 2.2, y: -8 }; };
+function villageEdgePoint(seed, nearY) {
+  const w = (typeof S !== 'undefined' && S && S.room && S.room.w) || 8;
+  const vN = (typeof VILLAGE_N !== 'undefined') ? VILLAGE_N : -34;
+  const vS = (typeof villageS === 'function') ? villageS() : 60;
+  const fromTop = nearY != null ? (nearY < (vN + vS) / 2) : ((seed || 0) % 2 === 0);
+  const roadX = w + 1.5 + (((seed || 0) % 2) ? 1 : 0);
+  return { x: roadX, y: fromTop ? vN : vS };
+}
+if (typeof window !== 'undefined') window.villageEdgePoint = villageEdgePoint;
+const CAFE_SPAWN = (seed, nearY) => villageEdgePoint(seed, nearY);
 const CAFE_ENTRY = () => { const cp = CAFE_POS(); return { x: cafeW() + 1.6, y: cp.y + cp.d - .5 }; };
 // the reserved lot for the future pet hospital: same footprint as the café's biggest tier, WEST of the shop
 const VILLAGE_X0 = -60, VILLAGE_Y0 = -60, VILLAGE_XE = 70; // PET TOWN: a much bigger town (west edge, north edge, east edge = shop width + 70); // west edge of the walkable village (the pet hospital lot + a border of grass lie between it and the shop)

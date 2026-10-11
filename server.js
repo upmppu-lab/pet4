@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 const assetsDir = path.join(__dirname, 'assets');
 const RAW_BASE = 'https://raw.githubusercontent.com/upmppu-lab/pet4-assets/main';
 const hasLocalAssets = fs.existsSync(path.join(assetsDir, 'pets')) || fs.existsSync(path.join(__dirname, 'pets'));

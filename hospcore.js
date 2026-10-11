@@ -369,7 +369,7 @@ const HOSP = (() => {
   const stationPos = (L, key) => { const x = L.stations.find(q => String(q.id) === key); return x ? { x: x.sx, y: x.sy } : L.wait[0] || { x: L.reception.x, y: L.reception.y }; };
   function finishStage(s, hp, p, L) {
     const st = hospStage(p), tx = hospTx(st);
-    if (st === 'pay') { const c = Math.round(p.bill); s.coins += c; H.addXp(s, 4); p.paid = c; p.ph = 'leaving'; p.tm = 14; p.stn = null; hp.treated++; if (typeof TOWN !== 'undefined') TOWN.mood(s, .6); if (H.addRep) H.addRep(s, 1); return; }
+    if (st === 'pay') { const c = Math.round(p.bill); s.coins += c; H.addXp(s, 4); p.paid = c; p.ph = 'leaving'; p.tm = 120; p.stn = null; hp.treated++; if (typeof TOWN !== 'undefined') TOWN.mood(s, .6); if (H.addRep) H.addRep(s, 1); return; }
     p.bill += st === 'reg' ? hospTxFee(tx, 1) : hospTxFee(tx, tx.mini ? p.q : 1); H.addXp(s, tx.mini ? 8 : 3);
     const from = p.stn ? stationPos(L, p.stn) : null; p.k++; p.stn = null; nextStep(s, hp, p, L, from);
   }
@@ -382,12 +382,12 @@ const HOSP = (() => {
       p.tm = (p.tm || 0) - dt;
       switch (p.ph) {
         case 'walkin': if (p.tm <= 0) { if (p.full) { p.ph = 'full'; p.tm = 3.5; } else p.ph = 'deskwait'; } break; // p.full: the benches are taken -> look in, say so, leave
-        case 'full': if (p.tm <= 0) { p.ph = 'leaving'; p.tm = 14; p.turned = 1; if (typeof TOWN !== 'undefined') TOWN.mood(s, -.8, 'hosp'); } break; // PET TOWN: turned away
+        case 'full': if (p.tm <= 0) { p.ph = 'leaving'; p.tm = 120; p.turned = 1; if (typeof TOWN !== 'undefined') TOWN.mood(s, -.8, 'hosp'); } break; // PET TOWN: turned away
         case 'deskserve': if (p.tm <= 0) finishStage(s, hp, p, L); break;
         case 'toDesk': if (p.tm <= 0) p.ph = 'deskwait'; break;
         case 'toStn': if (p.tm <= 0) p.ph = 'atStn'; break;
         case 'treat': if (p.tm <= 0) finishStage(s, hp, p, L); break;
-        case 'leaving': if (p.tm <= 0) p.gone = 1; break;
+        case 'leaving': if (p.tm <= 0 || p.gone) p.gone = 1; break;
       }
     }
     hp.patients = hp.patients.filter(p => !p.gone);

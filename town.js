@@ -923,6 +923,39 @@ const TOWN = (() => {
       }
     }
 
+    // 대각선으로 맞닿은 길 타일들이 코너에서 끊기지 않도록 안전한 직각 경유 타일 추가
+    // 대각선으로 모서리만 닿아있는 길도 안전한(호수 물/건물 본체가 아닌) 직각 타일을 통해 "쭉갔다가 옆으로 돌고 쭉가고" 이동할 수 있도록 연결
+    const isSolidCornerTile = (tx, ty) => {
+      if (inActualBuilding(s, tx, ty)) return true;
+      if (s.village && s.village.lake && typeof VILLAGE !== 'undefined' && typeof VILLAGE.LAKE === 'function') {
+        const lp = VILLAGE.LAKE();
+        if (lp && tx >= lp.x && tx < lp.x + lp.w && ty >= lp.y && ty < lp.y + lp.d) {
+          const vs = (typeof VILLAGE.solid === 'function') ? VILLAGE.solid() : null;
+          if (vs && vs.has(tx + ',' + ty)) return true;
+        }
+      }
+      return false;
+    };
+    const diagDirs = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+    for (const rk of R) {
+      const comma = rk.indexOf(',');
+      const rx = +rk.slice(0, comma), ry = +rk.slice(comma + 1);
+      for (const [dx, dy] of diagDirs) {
+        const diagK = (rx + dx) + ',' + (ry + dy);
+        if (R.has(diagK)) {
+          const c1x = rx + dx, c1y = ry, c1k = c1x + ',' + c1y;
+          const c2x = rx, c2y = ry + dy, c2k = c2x + ',' + c2y;
+          if (!baseSet.has(c1k) && !baseSet.has(c2k)) {
+            if (!isSolidCornerTile(c1x, c1y)) {
+              baseSet.add(c1k);
+            } else if (!isSolidCornerTile(c2x, c2y)) {
+              baseSet.add(c2k);
+            }
+          }
+        }
+      }
+    }
+
     if (typeof TRAIN !== 'undefined' && TRAIN.STAT_X && TRAIN.STAT_Y) {
       const sx = TRAIN.STAT_X(s), sy = TRAIN.STAT_Y(s);
       for (let tx = sx; tx <= sx + 3; tx++) {

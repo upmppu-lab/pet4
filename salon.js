@@ -27,7 +27,7 @@ const SALON = (() => {
       else if (c.ph === 'groom') { const m = c.by !== 'me' ? sl.staff.find(x => 'm' + x.id === c.by) : null, k = m ? 1 + .35 * (m.lv - 1) : 2.0; c.t -= dt * k;
         if (c.t <= 0) { c.stg++; if (c.stg >= SALON_STAGES.length) { c.ph = 'pay'; c.t = 0; if (m) { m.cid = null; m.done = (m.done | 0) + 1; } } else c.t = SALON_STAGES[c.stg].t; } }
       else if (c.ph === 'pay') { c.t += dt; if (c.t > 6 && !c.paid) { const pay = Math.round(payOf(c.sp) * (1 + .06 * sl.staff.reduce((a, m) => a + m.lv, 0))); s.coins += pay; c.paid = pay; sl.served = (sl.served | 0) + 1; if (s.today) s.today.earned = (s.today.earned || 0) + pay; } if (c.t > 9) { c.ph = 'out'; c.t = 0; } }
-      else if (c.ph === 'out' || c.ph === 'angry') { c.t += dt; if (c.t > 25) sl.q = sl.q.filter(x => x !== c); }
+      else if (c.ph === 'out' || c.ph === 'angry') { c.t += dt; if (c.t > 120 || c.gone) sl.q = sl.q.filter(x => x !== c); }
     }
     // free groomers take the next waiting guest to a free table
     for (const m of sl.staff) {
@@ -134,12 +134,12 @@ const SALON = (() => {
   function sync(dt, W) {
     if (!built()) return;
     const sl = S.salon, p = SALON_POS(), door = { x: p.x + p.w + .5, y: p.y + p.d - 1.5 }, host = !(typeof Net !== 'undefined' && Net.mode === 'guest');
-    const street = { x: door.x + 2, y: door.y };
+    const edgePoint = (seed, nearY) => (typeof villageEdgePoint === 'function') ? villageEdgePoint(seed, nearY) : { x: ((typeof S !== 'undefined' && S && S.room && S.room.w) || 8) + 1.5, y: -34 };
     const waiting = sl.q.filter(c => c.ph === 'in' || c.ph === 'wait');
     for (const c of sl.q) {
       const id = 'sc' + c.id; W.alive.add(id);
       let a = W.actors.get(id);
-      if (!a) { a = W.mkActor(id, 'patient', street.x, street.y, { look: ART.randomHuman(c.seed), speed: 3.2 }); a.salon = true; }
+      if (!a) { const sp = edgePoint(c.seed || c.id); a = W.mkActor(id, 'patient', sp.x, sp.y, { look: ART.randomHuman(c.seed), speed: 3.2 }); a.salon = true; }
       a.hold = (c.ph === 'groom') ? null : { sp: c.sp, coat: c.coat, grow: 1 };
       let tx, ty, fx = null, fy = null;
       if (c.ph === 'in' || c.ph === 'wait') {
@@ -151,10 +151,10 @@ const SALON = (() => {
         a.sit = false; a.seatAt = null;
         if (c.ph === 'groom') { const tb = TABLES[c.st] || TABLES[0], s0 = SEATS[c.st] || SEATS[0]; tx = p.x + s0.u; ty = p.y + s0.v; fx = p.x + tb.u + 1; fy = p.y + tb.v; }
         else if (c.ph === 'pay') { tx = p.x + COUNTER.u + 1; ty = p.y + COUNTER.v + 1.6; fx = tx; fy = ty - 2; }
-        else { tx = street.x; ty = street.y; }
+        else { const ex = edgePoint(c.seed || c.id, a.y); tx = ex.x; ty = ex.y; }
       }
       const key = Math.floor(tx) + ',' + Math.floor(ty);
-      if (a.tkey !== key) { a.tkey = key; a.arrived = false; const via = (c.ph === 'in') && Math.hypot(a.x - door.x, a.y - door.y) > 3; const go = () => W.goTo(a, tx, ty, () => { a.arrived = true; if (fx != null) W.faceTo(a, fx, fy); if (c.ph === 'in' && host) c.arr = true; }); if (via) W.goTo(a, door.x, door.y, go); else go(); }
+      if (a.tkey !== key) { a.tkey = key; a.arrived = false; const via = (c.ph === 'in') && Math.hypot(a.x - door.x, a.y - door.y) > 3; const go = () => W.goTo(a, tx, ty, () => { a.arrived = true; if (c.ph === 'out' || c.ph === 'angry') { c.gone = true; W.actors.delete(id); sl.q = sl.q.filter(x => x !== c); return; } if (fx != null) W.faceTo(a, fx, fy); if (c.ph === 'in' && host) c.arr = true; }); if (via) W.goTo(a, door.x, door.y, go); else go(); }
       a.angry = c.ph === 'angry'; a.happyT = c.ph === 'pay' || c.ph === 'out' ? 1 : 0;
       a.salonPaid = c.ph === 'pay' && c.paid ? c.paid : 0; a.salonWait = c.ph === 'wait' && a.arrived; a.cid = c.id;
     }

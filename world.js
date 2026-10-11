@@ -426,6 +426,10 @@ return true;
     return rs;
   }
   function wallStep(rs, ax, ay, bx, by) {
+    if (typeof TOWN !== 'undefined' && TOWN.isRoadTile &&
+        TOWN.isRoadTile(S, ax, ay) && TOWN.isRoadTile(S, bx, by)) {
+      return false; // 플레이어가 설치한 실제 길은 시설 외곽선 바운딩 박스로 막지 않음
+    }
     for (const R of rs) {
       const ia = ax >= R.x && ax < R.x + R.w && ay >= R.y && ay < R.y + R.d;
       const ib = bx >= R.x && bx < R.x + R.w && by >= R.y && by < R.y + R.d;
@@ -920,7 +924,7 @@ return true;
         // arrive from the far end of the street (not out of thin air mid-road) and either keep
         // the pet at the table or drop it in the play yard first (o.petMode, random per guest)
         if (!a) {
-          const look = ART.randomHuman(o.buyerSeed != null ? o.buyerSeed : o.id), sp = CAFE_SPAWN();
+          const look = ART.randomHuman(o.buyerSeed != null ? o.buyerSeed : o.id), sp = CAFE_SPAWN(o.buyerSeed != null ? o.buyerSeed : o.id);
           a = mkActor(id, 'cafeguest', sp.x, sp.y, { look, speed: 2.3, buyerSp: o.buyerSp, petMode: o.petMode });
           const sit = () => goTo(a, seat.sx, seat.sy, () => { faceTo(a, seat.x + 1, seat.y + 1); const vx = seat.x + 1 - seat.sx, vy = seat.y + 1 - seat.sy, vl = Math.hypot(vx, vy) || 1; a.front = { x: seat.sx, y: seat.sy }; a.seatAt = { x: seat.sx + vx / vl * .55, y: seat.sy + vy / vl * .55 }; a.tbl = { x: seat.x + 1, y: seat.y + 1 }; if (a.order && !a.served) a.order.sat = true; if (a.afterSit) { const f3 = a.afterSit; a.afterSit = null; f3(); } }); // walk to the chair, then sit down at the table
           const next = () => { if (o.petMode === 'pen' && o.buyerSp) goTo(a, L.penGate.x, L.penGate.y, () => { a.petIn = true; sit(); }); else sit(); };
@@ -948,17 +952,17 @@ return true;
     // hospital: patients and staff are real actors that walk between the street, the reception, the lobby benches and the rooms
     if (S.hosp && S.hosp.built) {
       const L = HOSP_LAYOUT(), hp = S.hosp, P = hp.patients || [];
-      const spawn = (L.rect && L.rect.x < 500) ? { x: L.rect.x1 + 2.5, y: L.rect.y + 3 } : CAFE_SPAWN();
+      const getHospEdge = (seed, nearY) => (typeof villageEdgePoint === 'function') ? villageEdgePoint(seed, nearY) : { x: W() + 1.5, y: (typeof VILLAGE_N !== 'undefined') ? VILLAGE_N : -34 };
       const deskQ = P.filter(p => p.ph === 'walkin' || p.ph === 'deskwait' || p.ph === 'deskserve' || p.ph === 'toDesk').sort((a, b) => ((a.ph === 'deskserve') ? 0 : 1) - ((b.ph === 'deskserve') ? 0 : 1) || a.id - b.id);
       const benchQ = P.filter(p => p.ph === 'bench').sort((a, b) => a.qt - b.qt), rc = L.reception;
       for (const p of P) {
         const id = 'hp' + p.id; alive.add(id);
         let a = actors.get(id);
-        if (!a) { a = mkActor(id, 'patient', spawn.x, spawn.y, { look: ART.randomHuman(p.seed), speed: 2.3, baseSpeed: 2.3 }); if (p.ph !== 'walkin' && L.wait[0]) { a.x = L.wait[0].x; a.y = L.wait[0].y; } }
+        if (!a) { const sp = getHospEdge(p.seed || p.id); a = mkActor(id, 'patient', sp.x, sp.y, { look: ART.randomHuman(p.seed), speed: 2.3, baseSpeed: 2.3 }); if (p.ph !== 'walkin' && L.wait[0]) { a.x = L.wait[0].x; a.y = L.wait[0].y; } }
         a.pat = p;
         let tx = null, ty = null, fx = null, fy = null;
         let seat = null;
-        if (p.ph === 'leaving') { tx = spawn.x; ty = spawn.y; }
+        if (p.ph === 'leaving') { const ex = getHospEdge(p.seed || p.id, a.y); tx = ex.x; ty = ex.y; }
         else if (p.ph === 'full' || (p.full && p.ph === 'walkin')) { tx = L.door.x - .5; ty = L.door.ys[0] + .5; fx = tx - 3; fy = ty; } // just inside the door: peeks in, sees the benches taken
         else if (p.ph === 'bench') {
           const i = benchQ.indexOf(p);
@@ -979,6 +983,11 @@ return true;
           if (a.seatAt) { a.x = a.seatAt.ox; a.y = a.seatAt.oy; a.seatAt = null; } // stand up: step off the bench first
           goTo(a, tx, ty, () => {
             a.arrived = true;
+            if (p.ph === 'leaving') {
+              p.gone = 1;
+              actors.delete(id);
+              return;
+            }
             if (seat) {
               a.seatAt = seat;
               a.face = seat.faceSouth ? 0 : 1; // User Request 4: Always face outward into the room, never facing the wall!
@@ -1229,7 +1238,7 @@ return true;
   function cafeStand(a) { if (a.seatAt) { a.x = a.front.x; a.y = a.front.y; a.seatAt = null; a.sit = false; } }
   function cafeDepart(a) {
     cafeStand(a); a.eating = 0; a.playing = false; a.afterSit = null; a.ordT = 0; a.afterOrd = null; a.afterEat = null;
-    const sp = CAFE_SPAWN(), away = () => goTo(a, sp.x, sp.y, () => { actors.delete(a.id); }); // back up the street to where they came from
+    const sp = CAFE_SPAWN(a.id ? a.id.length : 1, a.y), away = () => goTo(a, sp.x, sp.y, () => { actors.delete(a.id); }); // back up the street to where they came from
     if (a.petIn) { const g = CAFE_LAYOUT().penGate; goTo(a, g.x, g.y, () => { a.petIn = false; away(); }); } else away();
   }
   function cafeMeal(a) { // eat at the table, then pay at the cashier's desk (gold amount bubble), then play or go home
