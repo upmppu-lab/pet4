@@ -457,6 +457,23 @@ return true;
     g.set(key(sx, sy), 0); push([Math.hypot(tx - sx, ty - sy), sx, sy, seq++]);
     let n = 0;
     const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+    const isSolidObstacle = (ox, oy) => {
+      if (ox >= 0 && ox < W() && oy >= 0 && oy < H()) {
+        return !walk(ox, oy, allowDelivery);
+      }
+      if (typeof inActualBuilding === 'function' && inActualBuilding(S, ox, oy)) return true;
+      if (typeof TOWN !== 'undefined' && TOWN.inBig && TOWN.inBig(ox, oy)) {
+        if (typeof inActualBuilding === 'function' && inActualBuilding(S, ox, oy)) return true;
+      }
+      const k0 = ox + ',' + oy;
+      if (wctx) {
+        if (wctx.park && wctx.park.has(k0)) return true;
+        if (wctx.vil && wctx.vil.has(k0)) return true;
+        if (wctx.hou && wctx.hou.has(k0)) return true;
+        if (wctx.sal && wctx.sal.has(k0)) return true;
+      }
+      return false;
+    };
     let closestNode = null, closestDist = Math.hypot(tx - sx, ty - sy);
     while (heap.length && n < 8000) {
       const [, x, y] = pop(), kc = key(x, y);
@@ -475,7 +492,14 @@ return true;
       for (const [dx, dy] of DIRS) {
         const nx = x + dx, ny = y + dy, kn = key(nx, ny);
         if (closed.has(kn) || !wk(nx, ny)) continue;
-        if (dx && dy && (!wk(x + dx, y) || !wk(x, y + dy))) continue;
+        // v2026-10-11: 대각선 모서리 이동 허용 -- 단순 잔디밭 모서리를 사이에 두고 대각선으로 맞닿은 길 사이는
+        // 통행을 차단하지 않고 자연스럽게 이동할 수 있게 허용. 실제 벽/건물 본체 모서리를 뚫을 때만 차단.
+        if (dx && dy) {
+          const s1 = isSolidObstacle(x + dx, y);
+          const s2 = isSolidObstacle(x, y + dy);
+          if (s1 && s2) continue; // 양쪽 모두 벽체이면 대각선 관통 불가
+          if ((s1 || s2) && (!wk(x + dx, y) && !wk(x, y + dy))) continue; // 한쪽이 벽체인데 다른 쪽이 길이 아니면 불가
+        }
         if (wr.length && wallStep(wr, x, y, nx, ny)) continue;
         // v2026-10-08 (되돌림): 대각선 비용을 2.05로 올렸더니 "이제 다 대각선으로만 걸어"라는
         // 정반대의 결과가 나왔음 -- 원인은 이 게임의 등각(isometric) 화면에서는 격자 한 축으로만

@@ -601,8 +601,8 @@ const TOWN = (() => {
             ents.push({ id: 'zoo_e1', x: obj.x + 19, y: obj.y + 11, accessX: obj.x + 20, accessY: obj.y + 11, fac: 'zoo' });
             ents.push({ id: 'zoo_e2', x: obj.x + 19, y: obj.y + 12, accessX: obj.x + 20, accessY: obj.y + 12, fac: 'zoo' });
           } else if (dir === 1) {
-            ents.push({ id: 'zoo_in', x: obj.x + 5, y: obj.y + 22, accessX: obj.x + 5, accessY: obj.y + 23, fac: 'zoo' });
-            ents.push({ id: 'zoo_in2', x: obj.x + 6, y: obj.y + 22, accessX: obj.x + 6, accessY: obj.y + 23, fac: 'zoo' });
+            ents.push({ id: 'zoo_in', x: obj.x + 13, y: obj.y + 22, accessX: obj.x + 13, accessY: obj.y + 23, fac: 'zoo' });
+            ents.push({ id: 'zoo_in2', x: obj.x + 14, y: obj.y + 22, accessX: obj.x + 14, accessY: obj.y + 23, fac: 'zoo' });
           } else if (dir === 2) {
             ents.push({ id: 'zoo_w1', x: obj.x, y: obj.y + 11, accessX: obj.x - 1, accessY: obj.y + 11, fac: 'zoo' });
             ents.push({ id: 'zoo_w2', x: obj.x, y: obj.y + 12, accessX: obj.x - 1, accessY: obj.y + 12, fac: 'zoo' });
@@ -610,8 +610,8 @@ const TOWN = (() => {
             ents.push({ id: 'zoo_out', x: obj.x + 14, y: obj.y - 1, accessX: obj.x + 14, accessY: obj.y - 2, fac: 'zoo' });
             ents.push({ id: 'zoo_out2', x: obj.x + 15, y: obj.y - 1, accessX: obj.x + 15, accessY: obj.y - 2, fac: 'zoo' });
           }
-          // 기본 IN 입구 및 OUT 출구 연결성 상시 유지
-          ents.push({ id: 'zoo_base_in', x: obj.x + 5, y: obj.y + 22, accessX: obj.x + 5, accessY: obj.y + 23, fac: 'zoo' });
+          // 기본 IN 입구 및 OUT 출구 연결성 상시 유지 (정문 CAMP SAFARI ZOO 중앙)
+          ents.push({ id: 'zoo_base_in', x: obj.x + 13, y: obj.y + 22, accessX: obj.x + 13, accessY: obj.y + 23, fac: 'zoo' });
           ents.push({ id: 'zoo_base_out', x: obj.x + 14, y: obj.y - 1, accessX: obj.x + 14, accessY: obj.y - 2, fac: 'zoo' });
         } else {
           const pt = rotPt(obj, Math.floor(d.w / 2), d.d, d.w, d.d);
@@ -700,8 +700,8 @@ const TOWN = (() => {
             }
           } else if (dir === 1) {
             for (let ty = o.y + 20; ty <= o.y + 23; ty++) {
-              list.push({ x: o.x + 5, y: ty, st: 'dirt' });
-              list.push({ x: o.x + 6, y: ty, st: 'dirt' });
+              list.push({ x: o.x + 13, y: ty, st: 'dirt' });
+              list.push({ x: o.x + 14, y: ty, st: 'dirt' });
             }
           } else if (dir === 2) {
             for (let tx = o.x - 2; tx <= o.x + 1; tx++) {
@@ -934,7 +934,7 @@ const TOWN = (() => {
 
     for (const o of (T && T.objs) || []) {
       if (o.k === 'zoo') {
-        for (let zx = o.x + 3; zx <= o.x + 6; zx++) for (let zy = o.y + 18; zy <= o.y + 21; zy++) baseSet.add(zx + ',' + zy);
+        for (let zx = o.x + 11; zx <= o.x + 16; zx++) for (let zy = o.y + 18; zy <= o.y + 23; zy++) baseSet.add(zx + ',' + zy);
         for (let zx = o.x + 12; zx <= o.x + 15; zx++) for (let zy = o.y - 6; zy <= o.y - 3; zy++) baseSet.add(zx + ',' + zy);
       }
     }
@@ -999,7 +999,7 @@ const TOWN = (() => {
         for (let bx = o.x; bx < o.x + g.w; bx++) {
           for (let by = o.y; by < o.y + g.d; by++) {
             if (o.k === 'zoo') {
-              if (bx >= o.x + 3 && bx <= o.x + 6 && by >= o.y + 18 && by <= o.y + 21) continue;
+              if (bx >= o.x + 11 && bx <= o.x + 16 && by >= o.y + 18 && by <= o.y + 23) continue;
               if (bx >= o.x + 12 && bx <= o.x + 15 && by >= o.y - 6 && by <= o.y - 3) continue;
             }
             out.add(bx + ',' + by);
@@ -1062,8 +1062,10 @@ const TOWN = (() => {
     for (const bk of ['ranch', 'park', 'lake', 'monu']) {
       const L = LAY(bk, s), bd = D[bk];
       const ins = BLOCK_INSET[bk] || 0;
+      // v2026-10-11: 목장 동쪽 외곽은 1.5:1 그림 특성상 약 2.8칸의 빈 잔디가 남아있으므로 차단 영역을 줄여 길 설치 허용
+      const insEast = bk === 'ranch' ? 2.8 : ins;
       if (L && bd && !bd.noPlace && bigBuilt(s, bk) &&
-        x >= L.x + ins && x < L.x + bd.w - ins &&
+        x >= L.x + ins && x < L.x + bd.w - insEast &&
         y >= L.y + ins && y < L.y + bd.d - ins) {
         if (gates.has(x + ',' + y)) continue;
         return true;
@@ -1071,7 +1073,7 @@ const TOWN = (() => {
     }
     // 10. 기차역 건물 (역사 벽체 위는 도로 설치 차단, 철길 구간은 도로 및 건널목 설치 허용)
     if (typeof TRAIN !== 'undefined' && typeof TRAIN.solid === 'function' && TRAIN.solid(x, y)) return true;
-    // 10.5 주택 실제 건물 본체(4x3)만 차단 — 앞마당과 입구 앞길은 길 깔기 허용
+    // 10.5 주택 실제 건물 본체(중앙 3x3)만 차단 — 앞마당과 입구 앞길(흙길)은 다른 길로 바꾸기 허용
     for (const o of (s && s.town && s.town.objs) || []) {
       const d = D[o.k];
       if (d && d.cat === 'house') {
@@ -1083,8 +1085,21 @@ const TOWN = (() => {
     if (getCivicHouseBlockedSet(s).has(k) && !gates.has(k)) return true;
     return false;
   }
+  const isHouseEntranceTile = (o, x, y) => {
+    const curDoor = ((o && o.doorDir != null ? o.doorDir : o.r) % 4 + 4) % 4;
+    if (curDoor === 0) return (x === o.x + 4 && y === o.y + 2) || (x === o.x + 5 && y === o.y + 2);
+    if (curDoor === 1) return (x === o.x + 2 && y === o.y + 4) || (x === o.x + 2 && y === o.y + 5);
+    if (curDoor === 2) return (x === o.x && y === o.y + 2) || (x === o.x - 1 && y === o.y + 2) || (x === o.x - 2 && y === o.y + 2);
+    if (curDoor === 3) return (x === o.x + 2 && y === o.y) || (x === o.x + 2 && y === o.y - 1) || (x === o.x + 2 && y === o.y - 2);
+    return false;
+  };
   const houseBuildingHasTile = (o, x, y) => {
-    for (let u = 0; u < 4; u++) for (let v = 0; v < 3; v++) { const p = rotPt(o, u, v, 5, 5); if (p.x === x && p.y === y) return true; }
+    // 입구 진입로 및 마당 타일은 건물 본체가 아니므로 언제든 다른 길 깔기 허용
+    if (isHouseEntranceTile(o, x, y)) return false;
+    for (let u = 1; u <= 3; u++) for (let v = 1; v <= 3; v++) {
+      const p = rotPt(o, u, v, 5, 5);
+      if (p.x === x && p.y === y) return true;
+    }
     return false;
   };
   // 길 깔기: 건물 안과 큰도로 차도를 제외한 어디든 자유롭게 깔 수 있게 허용 (집과 인도 사이, 앞마당 등 모두 가능!)
@@ -3692,12 +3707,16 @@ function getFlowerSprite(kind) {
       [ISO.wx(h.x + .15, h.y + 4.85), ISO.wy(h.x + .15, h.y + 4.85)]
     ], 'rgba(125,190,75,.42)');
 
-    // 1-1. 집 입구 방향에 맞춰 마당 진입로 흙길 타일 렌더링 (앞, 좌, 뒤, 우 모든 방향에서 실제 길 표시)
+    // 1-1. 집 입구 방향에 맞춰 마당 진입로 흙길 타일 렌더링 (플레이어가 그 위에 도로를 깔지 않은 경우에만 기본 흙길 표시)
     const curDoor = ((h.o && h.o.doorDir != null ? h.o.doorDir : h.r) % 4 + 4) % 4;
-    if (curDoor === 0) { drawRoadTile(h.x + 4, h.y + 2, 'dirt', c); drawRoadTile(h.x + 5, h.y + 2, 'dirt', c); }
-    else if (curDoor === 1) { drawRoadTile(h.x + 2, h.y + 4, 'dirt', c); drawRoadTile(h.x + 2, h.y + 5, 'dirt', c); }
-    else if (curDoor === 2) { drawRoadTile(h.x, h.y + 2, 'dirt', c); drawRoadTile(h.x - 1, h.y + 2, 'dirt', c); drawRoadTile(h.x - 2, h.y + 2, 'dirt', c); }
-    else if (curDoor === 3) { drawRoadTile(h.x + 2, h.y, 'dirt', c); drawRoadTile(h.x + 2, h.y - 1, 'dirt', c); drawRoadTile(h.x + 2, h.y - 2, 'dirt', c); }
+    const R_house = roadSet(T && T.s ? T.s : (typeof S !== 'undefined' ? S : null));
+    const drawHouseEnt = (tx, ty) => {
+      if (!R_house.has(tx + ',' + ty)) drawRoadTile(tx, ty, 'dirt', c);
+    };
+    if (curDoor === 0) { drawHouseEnt(h.x + 4, h.y + 2); drawHouseEnt(h.x + 5, h.y + 2); }
+    else if (curDoor === 1) { drawHouseEnt(h.x + 2, h.y + 4); drawHouseEnt(h.x + 2, h.y + 5); }
+    else if (curDoor === 2) { drawHouseEnt(h.x, h.y + 2); drawHouseEnt(h.x - 1, h.y + 2); drawHouseEnt(h.x - 2, h.y + 2); }
+    else if (curDoor === 3) { drawHouseEnt(h.x + 2, h.y); drawHouseEnt(h.x + 2, h.y - 1); drawHouseEnt(h.x + 2, h.y - 2); }
 
     // 2. 5x5 부지의 정중앙 3x3 (cx-1.5 ~ cx+1.5, cy-1.5 ~ cy+1.5) 집 밑바닥 기초/마루
     poly(c, [
@@ -5891,7 +5910,7 @@ function getFlowerSprite(kind) {
       for (const o of ((s.town && s.town.objs) || [])) {
         const d = D[o.k];
         if (o.k === 'zoo' && !isFacilityAccessible(s, o)) {
-          warnList.push({ name: nmFunc(o.k), x: o.x + 4.5, y: o.y + 19.5, h: 32 });
+          warnList.push({ name: nmFunc(o.k), x: o.x + 13.5, y: o.y + 21.5, h: 32 });
         } else if (o.k === 'shelter' && !isFacilityAccessible(s, o)) {
           warnList.push({ name: nmFunc(o.k), x: o.x + d.w / 2, y: o.y + d.d / 2, h: (d.h || 26) + 10 });
         } else if (d && d.cat === 'house' && !isHouseAccessible(s, o)) {
@@ -6129,9 +6148,9 @@ function getFlowerSprite(kind) {
       for (const o of s.town.objs) {
         if (o.k === 'zoo') {
           const dir = (o.doorDir != null ? o.doorDir : 1) % 4;
-          let sx = o.x + 3.8, sy = o.y + 22.3;
+          let sx = o.x + 11.8, sy = o.y + 22.3;
           if (dir === 0) { sx = o.x + 20.2; sy = o.y + 13.2; }
-          else if (dir === 1) { sx = o.x + 3.8; sy = o.y + 22.3; }
+          else if (dir === 1) { sx = o.x + 11.8; sy = o.y + 22.3; }
           else if (dir === 2) { sx = o.x - 1.2; sy = o.y + 9.8; }
           else if (dir === 3) { sx = o.x + 16.2; sy = o.y - 1.2; }
           addFacilitySign(out, c, sx, sy, '🦁 동물원', 'zoo', o.id, addHit, cb);
@@ -6365,7 +6384,7 @@ function getFlowerSprite(kind) {
     if (o.k === 'zoo') {
       // Real villagers walk along zoo viewing walkways and admire animals
       const spots = [
-        [5, 19],  // 동물원 IN 입구 돌출 계단 광장
+        [13, 20],  // 동물원 IN 정문 광장
         [13, -4], // 동물원 OUT 출구 아치문 관람로
         [20, 18], // 중앙 진입 보도
         [15, 13], // 중앙 분수대 광장

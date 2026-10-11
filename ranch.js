@@ -232,12 +232,12 @@ const RANCH = (() => {
   }
   const PEN = L0 => ({
     cow: { x: L0.x + 1.4, y: L0.y + 3.6, w: 4.0, d: 4.8 },
-    pig: { x: L0.x + 6.4, y: L0.y + 5.0, w: 3.8, d: 3.5 },
-    box: { x: L0.x + 3.5, y: L0.y + 3.8 },
+    pig: { x: L0.x + 7.2, y: L0.y + 3.6, w: 3.3, d: 2.8 },
+    // v2026-10-11: 보관상자 남 4, 동 6 이동 (기존 3.5, 3.8 -> 9.5, 7.8)
+    box: { x: L0.x + 9.5, y: L0.y + 7.8 },
     hay: { x: L0.x + 10.0, y: L0.y + 2.0 },
-    // v2026-10-10: 건초 먹이통 -- 실제 게임 화면에 맞춰(World.toScreen으로 직접 대조) 새 그림의
-    // 헛간 옆 건초 여물통 위치로 재배치(1.8, 2.2) 후, 요청한 대로 오른쪽으로 1, 위로 1 만큼 미세 조정.
-    haybox: { x: L0.x + 1.9, y: L0.y + 2.1 },
+    // v2026-10-11: 건초 먹이통 서쪽 4, 남쪽 3 이동 -> 좌측 울타리 원목 여물통 위로 배치
+    haybox: { x: L0.x + 0.9, y: L0.y + 5.1 },
     // v2026-10-10: 돼지 먹이통 -- 실제 게임 화면에 맞춰(World.toScreen으로 직접 대조) 새 그림의
     // 창고 옆 먹이통 위치로 재배치(9.4, 2.8) 후, 요청한 대로 오른쪽으로 10, 위로 5 만큼 미세 조정.
     pigbox: { x: L0.x + 10.4, y: L0.y + 2.3 }
@@ -255,10 +255,10 @@ const RANCH = (() => {
         return [L0.x + chosenU, L0.y + chosenV];
       }
       if (L0) {
-        // 돼지: 흙바닥에서만 머물도록 상단 잔디와 울타리를 피해 진흙 우리 영역 내부로만 제한
-        const vMin = 5.0, vMax = 8.5;
+        // 돼지: 입구 아치/정문 앞으로 나가지 않고 흙바닥 울타리(진흙 우리) 내부로만 엄격 제한
+        const vMin = 3.6, vMax = 6.4;
         const chosenV = vMin + Math.random() * (vMax - vMin);
-        const uMin = ranchDivX(chosenV) + 0.65, uMax = 10.2;
+        const uMin = Math.max(7.2, ranchDivX(chosenV) + 0.8), uMax = 10.5;
         const chosenU = uMin + Math.random() * Math.max(0.4, uMax - uMin);
         return [L0.x + chosenU, L0.y + chosenV];
       }
@@ -273,9 +273,9 @@ const RANCH = (() => {
         return;
       }
       if (L0) {
-        const relV = Math.max(5.0, Math.min(8.5, spt.y - L0.y));
+        const relV = Math.max(3.6, Math.min(6.4, spt.y - L0.y));
         spt.y = L0.y + relV;
-        const uMin = ranchDivX(relV) + 0.65, uMax = Math.max(uMin + 0.3, 10.2);
+        const uMin = Math.max(7.2, ranchDivX(relV) + 0.8), uMax = Math.max(uMin + 0.3, 10.5);
         spt.x = Math.max(L0.x + uMin, Math.min(L0.x + uMax, spt.x));
         return;
       }
