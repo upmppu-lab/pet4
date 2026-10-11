@@ -232,7 +232,10 @@ PANELS.salon = () => {
   let h = `<div class="m">${t('salonInfo')}</div><div class="card"><div class="m">${t('salonStats', { n: sl.served | 0, m: sl.lost | 0, w })}</div></div>`;
   h += `<button class="btn ${ng ? '' : 'dis'} block" data-a="salongroomall">${t('salonGroomAll', { n: ng, c: SALON_GROOM_ALL })}</button>`;
   h += `<div class="card"><div class="t">${t('salonStaffT')}</div>`;
-  for (const m of sl.staff) h += `<div class="li"><div class="ic">✂️</div><div class="grow"><div class="t">${esc(m.name || '')} · Lv${m.lv}</div><div class="m">💰 ${t('salonWage', { c: fmt(salonStaffWage(m.lv)) })} · ✅ ${m.done | 0}</div></div>${m.lv < 10 ? `<button class="btn o sm" data-a="salonup" data-v="${m.id}">⬆ 🪙${fmt(700 * m.lv)}</button>` : ''}<button class="btn r sm" data-a="salonfire" data-v="${m.id}">✕</button></div>`;
+  for (const m of sl.staff) {
+    const spd = Math.round((1 + 0.35 * (m.lv - 1)) * 100);
+    h += `<div class="li"><div class="ic">✂️</div><div class="grow"><div class="t">${esc(m.name || '')} · Lv${m.lv} <span style="color:#d9506f;font-weight:bold;font-size:11px">⚡ 속도 ${spd}%</span></div><div class="m">💰 ${t('salonWage', { c: fmt(salonStaffWage(m.lv)) })} · ✅ ${m.done | 0}</div></div>${m.lv < 10 ? `<button class="btn o sm" data-a="salonup" data-v="${m.id}">⬆ 🪙${fmt(700 * m.lv)}</button>` : ''}<button class="btn r sm" data-a="salonfire" data-v="${m.id}">✕</button></div>`;
+  }
   if (sl.staff.length < SALON_STAFF_MAX) h += `<button class="btn block" data-a="salonhire">${t('salonHire', { c: fmt(SALON_STAFF.hire), w: fmt(salonStaffWage(1)) })}</button>`;
   return frameHTML(t('salonTitle'), h + '</div>');
 };

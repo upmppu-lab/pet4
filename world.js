@@ -209,7 +209,10 @@ return true;
     }
     if (S.village && S.village.lake && typeof VILLAGE !== 'undefined' && typeof VILLAGE.LAKE === 'function') {
       const lp0 = VILLAGE.LAKE();
-      if (x >= lp0.x && x < lp0.x + lp0.w && y >= lp0.y && y < lp0.y + lp0.d) return true; // 호수 부지 전체(선착장/낚시 포인트 포함)를 걸을 수 있게
+      if (x >= lp0.x && x < lp0.x + lp0.w && y >= lp0.y && y < lp0.y + lp0.d) {
+        const k0 = x + ',' + y;
+        return !C.vil || !C.vil.has(k0);
+      }
     }
     for (const o0 of (S.town && S.town.objs) || []) {
       if (o0.k === 'zoo' && x >= o0.x && x < o0.x + 24 && y >= o0.y && y < o0.y + 22) return true;
@@ -373,14 +376,15 @@ return true;
       if (o.k === 'zoo') {
         const dir = (o.doorDir != null ? o.doorDir : 1) % 4;
         rs.push({
-          k: 'zoo', x: o.x, y: o.y, w: 20, d: 22,
+          k: 'zoo', x: o.x, y: o.y, w: 24, d: 22,
           check: (ix, iy, ox, oy) => {
             if (dir === 0) {
               return (iy >= o.y + 10 && iy <= o.y + 13) && (oy >= o.y + 10 && oy <= o.y + 13) &&
                      (ix >= o.x + 18 && ox >= o.x + 19);
             }
-            if (dir === 1) {
-              return (ix >= o.x + 4 && ix <= o.x + 7) && (ox >= o.x + 4 && ox <= o.x + 7) &&
+            // 정문 (CAMP SAFARI ZOO): x = o.x + 12..15, y = o.y + 20..22 정문 출입구 통과 허용
+            if (dir === 1 || ((ix >= o.x + 12 && ix <= o.x + 15) && (ox >= o.x + 12 && ox <= o.x + 15) && (iy >= o.y + 20 && oy >= o.y + 21))) {
+              return (ix >= o.x + 12 && ix <= o.x + 15) && (ox >= o.x + 12 && ox <= o.x + 15) &&
                      (iy >= o.y + 20 && oy >= o.y + 21);
             }
             if (dir === 2) {
@@ -492,14 +496,10 @@ return true;
       for (const [dx, dy] of DIRS) {
         const nx = x + dx, ny = y + dy, kn = key(nx, ny);
         if (closed.has(kn) || !wk(nx, ny)) continue;
-        // v2026-10-11: 대각선 모서리 이동 허용 -- 단순 잔디밭 모서리를 사이에 두고 대각선으로 맞닿은 길 사이는
-        // 통행을 차단하지 않고 자연스럽게 이동할 수 있게 허용. 실제 벽/건물 본체 모서리를 뚫을 때만 차단.
-        if (dx && dy) {
-          const s1 = isSolidObstacle(x + dx, y);
-          const s2 = isSolidObstacle(x, y + dy);
-          if (s1 && s2) continue; // 양쪽 모두 벽체이면 대각선 관통 불가
-          if ((s1 || s2) && (!wk(x + dx, y) && !wk(x, y + dy))) continue; // 한쪽이 벽체인데 다른 쪽이 길이 아니면 불가
-        }
+        // User request: 대각선으로 이동을 못하고 직각으로 이동을 해야 함.
+        // 길을 지웠을 때 호수나 잔디밭 모서리를 가로지르지 못하도록 엄격한 코너 체크 적용:
+        // 대각선 이동 시 양옆(직각 방향) 두 타일이 모두 이동 가능(wk)해야만 대각선 이동 허용.
+        if (dx && dy && (!wk(x + dx, y) || !wk(x, y + dy))) continue;
         if (wr.length && wallStep(wr, x, y, nx, ny)) continue;
         // v2026-10-08 (되돌림): 대각선 비용을 2.05로 올렸더니 "이제 다 대각선으로만 걸어"라는
         // 정반대의 결과가 나왔음 -- 원인은 이 게임의 등각(isometric) 화면에서는 격자 한 축으로만
@@ -947,7 +947,8 @@ return true;
     }
     // hospital: patients and staff are real actors that walk between the street, the reception, the lobby benches and the rooms
     if (S.hosp && S.hosp.built) {
-      const L = HOSP_LAYOUT(), hp = S.hosp, P = hp.patients || [], spawn = CAFE_SPAWN();
+      const L = HOSP_LAYOUT(), hp = S.hosp, P = hp.patients || [];
+      const spawn = (L.rect && L.rect.x < 500) ? { x: L.rect.x1 + 2.5, y: L.rect.y + 3 } : CAFE_SPAWN();
       const deskQ = P.filter(p => p.ph === 'walkin' || p.ph === 'deskwait' || p.ph === 'deskserve' || p.ph === 'toDesk').sort((a, b) => ((a.ph === 'deskserve') ? 0 : 1) - ((b.ph === 'deskserve') ? 0 : 1) || a.id - b.id);
       const benchQ = P.filter(p => p.ph === 'bench').sort((a, b) => a.qt - b.qt), rc = L.reception;
       for (const p of P) {
@@ -1062,7 +1063,16 @@ return true;
         if (a.served && a.mealStarted) { if (a.mealDone) cafeDepart(a); /* else the meal flow is running and ends in cafeDepart */ }
         else if (a.served) { a.mealStarted = true; if (a.seatAt) cafeMeal(a); else a.afterSit = () => cafeMeal(a); }
         else cafeDepart(a);
-      } else if (a.type === 'patient' || a.type === 'hstaff') { actors.delete(id); } else actors.delete(id);
+      } else if (a.type === 'patient') {
+        if (!a.leaving) {
+          a.leaving = true;
+          a.sit = false; a.seatAt = null;
+          const exitTgt = a.salon ? { x: a.x + 3.5, y: a.y } : { x: a.x + 3.5, y: a.y };
+          goTo(a, exitTgt.x, exitTgt.y, () => actors.delete(id));
+        } else {
+          actors.delete(id);
+        }
+      } else if (a.type === 'hstaff') { actors.delete(id); } else actors.delete(id);
     }
     for (const a of actors.values()) if (a.type === 'cafeguest') a.sit = !!a.seatAt && Math.hypot(a.seatAt.x - a.x, a.seatAt.y - a.y) < .06;
     commute(dt); // v9.95: staff walk home after closing and walk back in when the shop opens
@@ -2690,19 +2700,19 @@ return true;
         break; }
       case 'desk': { B(.05, .15, .9, .7, 26, '#c9a27a', 0, '#e6cfaa'); B(.3, .25, .4, .3, 8, '#3a4a55', 26, '#57687a'); emoji('🧑‍⚕️', P3(.5, .95, 44), 12); hit('hospcabinet', 60); break; }
       case 'monitor': { B(.1, .1, .8, .8, 30, '#4a5a68', 0, '#6b7c8a'); quad([P3(.1, .9, 34), P3(.9, .9, 34), P3(.9, .9, 62), P3(.1, .9, 62)], '#0e1a24', '#8aa'); emoji('🩻', P3(.5, .9, 44), 14); break; }
-      case 'bench': { // User Request 4: 병원 긴의자는 반대 방향(오픈된 로비 쪽)을 보게 배치 (벽에 등받이를 대고 앞/남쪽을 봄)
-        // Tall backrest on the north edge (against the wall)
-        B(.04, .06, it.w - .08, .12, 34, '#4d5863', 0, '#6a7784');
-        B(.04, .08, it.w - .08, .08, 32, '#aab2ba', 0, '#cbd5e1');
+      case 'bench': { // User request: 병원 긴의자는 반대로 돌려 접수대(북쪽)를 바라보게 배치 (남쪽에 등받이, 북쪽을 봄)
+        // Tall backrest on the south edge
+        B(.04, .82, it.w - .08, .12, 34, '#4d5863', 0, '#6a7784');
+        B(.04, .84, it.w - .08, .08, 32, '#aab2ba', 0, '#cbd5e1');
         // Metal frame legs
         for (const lx of [.08, it.w - .2]) {
-          B(lx, .12, .12, .05, 6, '#aab2ba', 0);
-          B(lx, .72, .12, .05, 6, '#aab2ba', 0);
+          B(lx, .14, .12, .05, 6, '#aab2ba', 0);
+          B(lx, .76, .12, .05, 6, '#aab2ba', 0);
         }
-        // Padded seat cushion facing SOUTH into open lobby
+        // Padded seat cushion facing NORTH towards reception desk
         for (let k = 0; k < it.w; k++) {
-          B(k + .06, .20, .88, .64, 8, '#5a6672', 6, '#7d8a97');
-          B(k + .08, .78, .84, .06, 6, '#475569', 6, '#64748b');
+          B(k + .06, .14, .88, .64, 8, '#5a6672', 6, '#7d8a97');
+          B(k + .08, .14, .84, .06, 6, '#475569', 6, '#64748b');
         }
         break; }
       case 'exam': { B(.1, .1, .8, .8, 28, '#dfe9ee', 0, '#f8fbfd'); B(.14, .14, .72, .72, 4, '#7ec8e3', 28, '#9ad8ee'); break; }

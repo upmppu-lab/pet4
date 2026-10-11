@@ -221,23 +221,24 @@ function hospBuildLayout(hp, Rm, lv) {
     if (wait.length > 1 && Math.floor(wait[0].x) === Math.floor(recv.px) && Math.floor(wait[0].y) === Math.floor(recv.py)) wait.shift();
     recv.sx = wait.length ? wait[0].x : recv.x + .5; recv.sy = wait.length ? wait[0].y : recv.y + 1.5;
   }
-  // bench seats: facing outward into the open lobby room (never facing a wall!)
+  // bench seats: facing outward into the open lobby room towards reception (never facing the wall!)
   const seats = [];
   for (const b of items) if (b.k === 'bench') {
     for (let i = 0; i < b.w; i++) {
       const bx = Math.floor(b.x + i);
       const southOk = reach.has(bx + ',' + (b.y + b.d));
       const northOk = reach.has(bx + ',' + (b.y - 1));
-      const faceSouth = southOk || !northOk;
-      const oy = faceSouth ? b.y + b.d + .2 : b.y - .5;
-      const sy = faceSouth ? b.y + .65 : b.y + .35;
+      // User request: 병원로비 의자는 반대로 돌려놓아 접수대를 바라보게 설정 (남쪽 등받이, 북쪽 접수대 방향)
+      const faceNorth = northOk || !southOk;
+      const oy = faceNorth ? b.y - .5 : b.y + b.d + .2;
+      const sy = faceNorth ? b.y + .35 : b.y + .65;
       seats.push({
         dep: b.x + b.w + b.y + b.d - 1.02 + .01,
         x: b.x + i + .5,
         y: sy,
         ox: b.x + i + .5,
         oy,
-        faceSouth: !!faceSouth,
+        faceSouth: !faceNorth,
         bench: b.id
       });
     }
@@ -354,7 +355,7 @@ const HOSP = (() => {
     let tot = 0; opts.forEach(a => tot += a.w); let r = Math.random() * tot, ail = opts[0] || HOSP_AIL[0];
     for (const a of opts) { r -= a.w; if (r <= 0) { ail = a; break; } }
     const plan = opts.length ? ail.plan.slice() : ['exam'];
-    return { id: hp.seq++, seed: 1 + Math.floor(Math.random() * 1e6), sp, ail: ail.id, plan, k: -1, ph: 'walkin', tm: 14, stn: null, bill: 0, q: 1, qt: 0, rv: .6 + Math.random() * 1.1, pv: .6 + Math.random() * .9, dv: plan.map(() => .6 + Math.random() * .95) };
+    return { id: hp.seq++, seed: 1 + Math.floor(Math.random() * 1e6), sp, ail: ail.id, plan, k: -1, ph: 'walkin', tm: 45, stn: null, bill: 0, q: 1, qt: 0, rv: .6 + Math.random() * 1.1, pv: .6 + Math.random() * .9, dv: plan.map(() => .6 + Math.random() * .95) };
   }
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   // which station (by key) a patient at `from` should use for this kind: a free one (nobody reserved it)
@@ -407,8 +408,8 @@ const HOSP = (() => {
     hp.spawnT -= dt;
     if (hp.spawnT > 0) return;
     if (!hospTxAvail().length || !L.wait.length) { hp.spawnT = 10; return; }
-    if (needSeat >= seatsN && hp.patients.filter(q => q.full).length >= 2) { hp.spawnT = 6; return; }
-    const np = newPatient(s, hp); if (needSeat >= seatsN) np.full = 1;
+    if (needSeat >= seatsN + 4 && hp.patients.filter(q => q.full).length >= 2) { hp.spawnT = 6; return; }
+    const np = newPatient(s, hp); if (needSeat >= seatsN + 4) np.full = 1;
     hp.patients.push(np);
     hp.spawnT = 20 + Math.random() * 28;
   }

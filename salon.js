@@ -24,9 +24,9 @@ const SALON = (() => {
     for (const c of sl.q.slice()) {
       if (c.ph === 'in' && (c.arr || c.age > 30)) { c.ph = 'wait'; c.wt = 0; }
       else if (c.ph === 'wait') { c.wt += dt; if (c.wt > 110) { c.ph = 'angry'; c.t = 0; sl.lost = (sl.lost | 0) + 1; TOWN.mood(s, -1.2, 'salon'); } }
-      else if (c.ph === 'groom') { const m = c.by !== 'me' ? sl.staff.find(x => 'm' + x.id === c.by) : null, k = m ? 1 + .06 * (m.lv - 1) : 1; c.t -= dt * k;
+      else if (c.ph === 'groom') { const m = c.by !== 'me' ? sl.staff.find(x => 'm' + x.id === c.by) : null, k = m ? 1 + .35 * (m.lv - 1) : 2.0; c.t -= dt * k;
         if (c.t <= 0) { c.stg++; if (c.stg >= SALON_STAGES.length) { c.ph = 'pay'; c.t = 0; if (m) { m.cid = null; m.done = (m.done | 0) + 1; } } else c.t = SALON_STAGES[c.stg].t; } }
-      else if (c.ph === 'pay') { c.t += dt; if (c.t > 6 && !c.paid) { const pay = Math.round(payOf(c.sp) * (1 + .04 * sl.staff.reduce((a, m) => a + m.lv, 0))); s.coins += pay; c.paid = pay; sl.served = (sl.served | 0) + 1; if (s.today) s.today.earned = (s.today.earned || 0) + pay; } if (c.t > 9) { c.ph = 'out'; c.t = 0; } }
+      else if (c.ph === 'pay') { c.t += dt; if (c.t > 6 && !c.paid) { const pay = Math.round(payOf(c.sp) * (1 + .06 * sl.staff.reduce((a, m) => a + m.lv, 0))); s.coins += pay; c.paid = pay; sl.served = (sl.served | 0) + 1; if (s.today) s.today.earned = (s.today.earned || 0) + pay; } if (c.t > 9) { c.ph = 'out'; c.t = 0; } }
       else if (c.ph === 'out' || c.ph === 'angry') { c.t += dt; if (c.t > 25) sl.q = sl.q.filter(x => x !== c); }
     }
     // free groomers take the next waiting guest to a free table
@@ -134,7 +134,7 @@ const SALON = (() => {
   function sync(dt, W) {
     if (!built()) return;
     const sl = S.salon, p = SALON_POS(), door = { x: p.x + p.w + .5, y: p.y + p.d - 1.5 }, host = !(typeof Net !== 'undefined' && Net.mode === 'guest');
-    const street = { x: (S.room.w || 8) + 1.5, y: (S.room.h || 8) + 6 };
+    const street = { x: door.x + 2, y: door.y };
     const waiting = sl.q.filter(c => c.ph === 'in' || c.ph === 'wait');
     for (const c of sl.q) {
       const id = 'sc' + c.id; W.alive.add(id);
@@ -142,10 +142,17 @@ const SALON = (() => {
       if (!a) { a = W.mkActor(id, 'patient', street.x, street.y, { look: ART.randomHuman(c.seed), speed: 3.2 }); a.salon = true; }
       a.hold = (c.ph === 'groom') ? null : { sp: c.sp, coat: c.coat, grow: 1 };
       let tx, ty, fx = null, fy = null;
-      if (c.ph === 'in' || c.ph === 'wait') { const i = Math.min(SEATS.length - 1, Math.max(0, waiting.indexOf(c))), s0 = SEATS[i]; tx = p.x + s0.u; ty = p.y + s0.v; fx = tx + 1; fy = ty; }
-      else if (c.ph === 'groom') { const tb = TABLES[c.st] || TABLES[0], s0 = SEATS[c.st] || SEATS[0]; tx = p.x + s0.u; ty = p.y + s0.v; fx = p.x + tb.u + 1; fy = p.y + tb.v; }
-      else if (c.ph === 'pay') { tx = p.x + COUNTER.u + 1; ty = p.y + COUNTER.v + 1.6; fx = tx; fy = ty - 2; }
-      else { tx = street.x; ty = street.y; }
+      if (c.ph === 'in' || c.ph === 'wait') {
+        const i = Math.min(SEATS.length - 1, Math.max(0, waiting.indexOf(c))), s0 = SEATS[i];
+        tx = p.x + s0.u; ty = p.y + s0.v; fx = tx + 1; fy = ty;
+        a.sit = a.arrived || Math.hypot(a.x - tx, a.y - ty) < 0.45;
+        if (a.sit) a.seatAt = { x: tx, y: ty };
+      } else {
+        a.sit = false; a.seatAt = null;
+        if (c.ph === 'groom') { const tb = TABLES[c.st] || TABLES[0], s0 = SEATS[c.st] || SEATS[0]; tx = p.x + s0.u; ty = p.y + s0.v; fx = p.x + tb.u + 1; fy = p.y + tb.v; }
+        else if (c.ph === 'pay') { tx = p.x + COUNTER.u + 1; ty = p.y + COUNTER.v + 1.6; fx = tx; fy = ty - 2; }
+        else { tx = street.x; ty = street.y; }
+      }
       const key = Math.floor(tx) + ',' + Math.floor(ty);
       if (a.tkey !== key) { a.tkey = key; a.arrived = false; const via = (c.ph === 'in') && Math.hypot(a.x - door.x, a.y - door.y) > 3; const go = () => W.goTo(a, tx, ty, () => { a.arrived = true; if (fx != null) W.faceTo(a, fx, fy); if (c.ph === 'in' && host) c.arr = true; }); if (via) W.goTo(a, door.x, door.y, go); else go(); }
       a.angry = c.ph === 'angry'; a.happyT = c.ph === 'pay' || c.ph === 'out' ? 1 : 0;
@@ -164,7 +171,7 @@ const SALON = (() => {
 Object.assign(I18N.ko, {
   salonName: '펫 미용실', salonLot: '펫 미용실 부지', salonBuildConfirm: '펫 미용실을 지을까요? 🪙{c}\n주민들이 펫을 데려오면 목욕 → 드라이 → 커트 → 리본으로 예쁘게 꾸며주고 돈을 받아요.', salonBuildBtn: '짓기', salonBuilt: '✂️ 펫 미용실이 문을 열었어요!',
   salonStart: '✂️ 미용 시작!', salonBusy: '미용대가 모두 사용 중이에요', salonNoneToGroom: '미용할 가게 펫이 없어요 (모두 미용 완료)', salonGroomedAll: '가게 펫 {n}마리를 예쁘게 미용했어요! 판매가 +20% ✨',
-  salonTitle: '✂️ 펫 미용실', salonInfo: '주민들이 펫을 맡기면 목욕 → 드라이 → 커트 → 리본 순서로 꾸며 줘요. 기다리는 손님을 누르면 사장님이 직접 미용해요.', salonStats: '오늘까지 미용 {n}마리 · 그냥 간 손님 {m}명 · 기다리는 손님 {w}명',
+  salonTitle: '✂️ 펫 미용실', salonInfo: '주민들이 펫을 맡기면 목욕 → 드라이 → 커트 → 리본 순서로 꾸며 줘요. 미용사 레벨이 높아질수록 미용 속도가 대폭 빨라지고 수익도 늘어납니다! 기다리는 손님을 누르면 사장님이 직접 미용해요.', salonStats: '오늘까지 미용 {n}마리 · 그냥 간 손님 {m}명 · 기다리는 손님 {w}명',
   salonGroomAll: '🐩 가게 펫 모두 미용하기 ({n}마리 × 🪙{c})', salonStaffT: '✂️ 미용사', salonHire: '미용사 고용 🪙{c} · 일급 {w}', salonWage: '일급 {c}', salonTapGuest: '✂️ 누르면 미용 시작', salonWaitB: '🛁',
   fwhy_salon: ''
 });

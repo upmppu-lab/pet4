@@ -38,7 +38,7 @@ const CAFE_DOOR = () => cafeW() - 1;
 // where people enter the village: the far (north) end of the sidewalk, so they WALK down the
 // street to the gate instead of popping into existence mid-road
 const VILLAGE_N = -34, villageS = () => (typeof VILLAGE_S_MAX === 'function' ? VILLAGE_S_MAX() - 2 : (S && S.room ? S.room.h : 8) + 34);
-const CAFE_SPAWN = () => ({ x: ((typeof S !== 'undefined' && S && S.room && S.room.w) || 8) + 2.2, y: VILLAGE_N }); // down the main street
+const CAFE_SPAWN = () => { const cp = (typeof CAFE_POS === 'function') ? CAFE_POS() : null; if (cp && cp.x < 500) return { x: cp.x + cp.w + 1.8, y: cp.y + cp.d + 1.5 }; return { x: ((typeof S !== 'undefined' && S && S.room && S.room.w) || 8) + 2.2, y: -8 }; };
 const CAFE_ENTRY = () => { const cp = CAFE_POS(); return { x: cafeW() + 1.6, y: cp.y + cp.d - .5 }; };
 // the reserved lot for the future pet hospital: same footprint as the café's biggest tier, WEST of the shop
 const VILLAGE_X0 = -60, VILLAGE_Y0 = -60, VILLAGE_XE = 70; // PET TOWN: a much bigger town (west edge, north edge, east edge = shop width + 70); // west edge of the walkable village (the pet hospital lot + a border of grass lie between it and the shop)
@@ -46,7 +46,7 @@ const VILLAGE_X0 = -60, VILLAGE_Y0 = -60, VILLAGE_XE = 70; // PET TOWN: a much b
 
 const CAFE_ORDER_GAP = [18, 40]; // seconds between new orders
 // v9.76: how long a guest waits for the food (seconds since the order was placed) before walking out angry
-const CAFE_WAIT_NOFOOD = 60, CAFE_WAIT_OK = 150;
+const CAFE_WAIT_NOFOOD = 120, CAFE_WAIT_OK = 240;
 // v9.87: a guest needs ~20s to walk in, order at the desk and sit down; the server waits for that before bringing the food
 const CAFE_SEATED_AGE = 24; // nothing to cook it with / food exists but nobody brings it
 // the kinds of guests: how much they pay for their meal, how likely they head for a slot machine afterwards, and how much they spend there

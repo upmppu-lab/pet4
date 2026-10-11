@@ -6370,16 +6370,35 @@ function getFlowerSprite(kind) {
     }
     if (o.k === 'cafe') {
       const cp = (typeof CAFE_POS === 'function' && typeof S !== 'undefined') ? CAFE_POS(S) : { x: o.x, y: o.y, w: 10, d: 8 };
-      const cw = (typeof cafeW === 'function' && typeof S !== 'undefined') ? cafeW(S) : (cp.x + cp.w);
-      return [{ x: cw + 1, y: cp.y + cp.d - 1 }, true];
+      if (typeof CAFE_LAYOUT === 'function') {
+        const L = CAFE_LAYOUT();
+        if (L && L.tables && L.tables.length) {
+          const t = L.tables[Math.floor(Math.random() * L.tables.length)];
+          if (t && t.sx != null) return [{ x: t.sx, y: t.sy, sit: true, tbl: { x: t.x + 1, y: t.y + 1 } }, false];
+        }
+      }
+      return [{ x: cp.x + cp.w - 3, y: cp.y + cp.d - 3, sit: false }, false];
     }
     if (o.k === 'hosp') {
       const hp = (typeof HOSP_POS === 'function' && typeof S !== 'undefined') ? HOSP_POS(S) : { x1: o.x, y: o.y };
-      return [{ x: hp.x1 + 1, y: hp.y + 3 }, true];
+      if (typeof HOSP_LAYOUT === 'function') {
+        const L = HOSP_LAYOUT();
+        if (L && L.seats && L.seats.length) {
+          const seat = L.seats[Math.floor(Math.random() * L.seats.length)];
+          if (seat && seat.ox != null) return [{ x: seat.ox, y: seat.oy, sit: true, seat }, false];
+        }
+        if (L && L.wait && L.wait.length) {
+          const w = L.wait[0];
+          return [{ x: w.x, y: w.y, sit: false }, false];
+        }
+      }
+      return [{ x: hp.x1 - 2, y: hp.y + 3, sit: false }, false];
     }
     if (o.k === 'salon') {
-      const sp = (typeof SALON_POS === 'function') ? SALON_POS() : { x: o.x, y: o.y, w: 6, d: 6 };
-      return [{ x: sp.x + sp.w + 1, y: sp.y + sp.d - 2 }, true];
+      const sp = (typeof SALON_POS === 'function') ? SALON_POS() : { x: o.x, y: o.y, w: 10, d: 8 };
+      const SEATS = [{ u: 1.3, v: 3.8 }, { u: 1.3, v: 4.9 }, { u: 1.3, v: 6 }, { u: 2.6, v: 6.6 }];
+      const s0 = SEATS[Math.floor(Math.random() * SEATS.length)];
+      return [{ x: sp.x + s0.u, y: sp.y + s0.v, sit: true, fx: sp.x + s0.u + 1, fy: sp.y + s0.v }, false];
     }
     if (o.k === 'zoo') {
       // Real villagers walk along zoo viewing walkways and admire animals
@@ -6615,9 +6634,29 @@ function getFlowerSprite(kind) {
       a.dstK = dst.k;
       goTo(a, spot.x, spot.y, () => {
         a.st = 'in';
-        a.tt = dst.k === 'zoo' ? 22 + Math.random() * 14 : dst.k === 'park' ? 5 + Math.random() * 15 : dst.k === 'lake' ? 10 + Math.random() * 16 : 6 + Math.random() * 6;
+        a.tt = dst.k === 'zoo' ? 22 + Math.random() * 14 : dst.k === 'park' ? 5 + Math.random() * 15 : dst.k === 'lake' ? 10 + Math.random() * 16 : 8 + Math.random() * 8;
         a.hidden = a.inside;
         if (!a.inside) a.emoT = 7;
+        if (spot && spot.sit) {
+          a.sit = true;
+          a.seatAt = { x: spot.x, y: spot.y };
+          if (spot.seat) {
+            a.seatAt = spot.seat;
+            a.face = spot.seat.faceSouth ? 0 : 1;
+            a.faceBack = !spot.seat.faceSouth;
+          } else if (spot.tbl && typeof faceTo === 'function') {
+            faceTo(a, spot.tbl.x, spot.tbl.y);
+          } else if (spot.fx != null && typeof faceTo === 'function') {
+            faceTo(a, spot.fx, spot.fy);
+          }
+        }
+        if (dst.k === 'cafe') {
+          a.emo = rpick(['☕', '🍰', '🍪', '🥤', '✨']); a.emoT = a.tt;
+        } else if (dst.k === 'hosp') {
+          a.emo = rpick(['🏥', '💊', '✨', '😌']); a.emoT = a.tt;
+        } else if (dst.k === 'salon') {
+          a.emo = rpick(['✂️', '🐩', '✨', '🎀', '🛁']); a.emoT = a.tt;
+        }
         if (dst.k === 'zoo') {
           a.zooOrigin = { x: dst.x, y: dst.y };
           a.zooSayT = 1.0 + Math.random() * 2.0;
