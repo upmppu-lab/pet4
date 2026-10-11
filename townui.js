@@ -475,22 +475,95 @@ function clearThumbCache() {
   function roadPreviewSvg(id) {
     const w = 46, h = 26;
     if (id === 'dirt') {
-      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polygon points="23,2 44,13 23,24 2,13" fill="#c4925e" stroke="#8a5a33" stroke-width="1.2"/><circle cx="15" cy="11" r="1.3" fill="#784420"/><circle cx="28" cy="14" r="1.4" fill="#784420"/><circle cx="21" cy="18" r="1.1" fill="#dfab7a"/><circle cx="31" cy="9" r="1.2" fill="#784420"/></svg>`;
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#be8a56" stroke="#7a4b22" stroke-width="1.2"/>
+        <polygon points="23,5 38,13 23,21 8,13" fill="#a87442" opacity="0.45"/>
+        <ellipse cx="16" cy="11" rx="2.5" ry="1.5" fill="#e8d3be" stroke="#5a3414" stroke-width="0.5"/>
+        <ellipse cx="29" cy="15" rx="3.0" ry="1.8" fill="#caa47b" stroke="#5a3414" stroke-width="0.5"/>
+        <ellipse cx="22" cy="17" rx="2.0" ry="1.2" fill="#e2c8af"/>
+        <ellipse cx="32" cy="10" rx="1.8" ry="1.1" fill="#7d4e22"/>
+        <circle cx="12" cy="14" r="1.0" fill="#523011"/>
+        <path d="M5,12 Q6,8 8,10 M4,14 Q3,9 6,11" stroke="#4d7c0f" stroke-width="1.1" fill="none"/>
+      </svg>`;
     } else if (id === 'brick') {
-      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polygon points="23,2 44,13 23,24 2,13" fill="#c45842" stroke="#873224" stroke-width="1.2"/><path d="M12,8 L33,18 M18,5 L39,15 M15,14 L19,16 M29,20 L33,22 M22,9 L26,11" stroke="#ecd8c6" stroke-width="0.9" opacity="0.8"/></svg>`;
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#ded4c5" stroke="#7a2e1b" stroke-width="1.2"/>
+        <polygon points="23,4 33,9 23,14 13,9" fill="#c8543a" stroke="#7a2e1b" stroke-width="0.6"/>
+        <polygon points="12,10 22,15 12,20 2,15" fill="#b5442b" stroke="#7a2e1b" stroke-width="0.6"/>
+        <polygon points="34,10 44,15 34,20 24,15" fill="#d2664b" stroke="#7a2e1b" stroke-width="0.6"/>
+        <polygon points="23,15 33,20 23,24 13,19" fill="#a43b24" stroke="#7a2e1b" stroke-width="0.6"/>
+        <path d="M14,9 L23,4 L32,9 M3,15 L12,10 L21,15 M25,15 L34,10 L43,15" stroke="#fff" stroke-width="0.6" opacity="0.6"/>
+      </svg>`;
     } else if (id === 'block') {
-      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polygon points="23,2 44,13 23,24 2,13" fill="#d1cbbf" stroke="#78716c" stroke-width="1.2"/><path d="M12,8 L34,18 M23,2 L23,24" stroke="#a8a29e" stroke-width="1"/><rect x="18" y="10" width="10" height="6" fill="none" stroke="#e7e5e4" stroke-width="0.8" opacity="0.6"/></svg>`;
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#6d655a" stroke="#48423a" stroke-width="1.2"/>
+        <polygon points="23,3 38,10.5 23,18 8,10.5" fill="#ded7cc" stroke="#544e46" stroke-width="0.6"/>
+        <path d="M23,3 L8,10.5" stroke="#ffffff" stroke-width="0.8" opacity="0.75"/>
+        <path d="M23,3 L23,18" stroke="#544e46" stroke-width="0.7"/>
+        <polygon points="8,12 23,19.5 15.5,23.2 0.5,15.7" fill="#c7c0b4" stroke="#544e46" stroke-width="0.5"/>
+        <polygon points="38,12 45.5,15.7 30.5,23.2 23,19.5" fill="#b9b2a6" stroke="#544e46" stroke-width="0.5"/>
+        <circle cx="20" cy="9" r="0.7" fill="#ffffff"/>
+        <circle cx="26" cy="12" r="0.7" fill="#403a32"/>
+      </svg>`;
     } else if (id === 'step') {
-      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polygon points="23,2 44,13 23,24 2,13" fill="#84cc16" stroke="#4d7c0f" stroke-width="1.2"/><ellipse cx="16" cy="11" rx="5" ry="3" fill="#f1f5f9" stroke="#94a3b8" stroke-width="0.8"/><ellipse cx="30" cy="15" rx="6" ry="3.5" fill="#f1f5f9" stroke="#94a3b8" stroke-width="0.8"/><circle cx="23" cy="7" r="1.5" fill="#fde047"/></svg>`;
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#5fa81b" stroke="#3b6e10" stroke-width="1.2"/>
+        <ellipse cx="16" cy="10" rx="5.5" ry="3.2" fill="#ede5d8" stroke="#524332" stroke-width="0.7"/>
+        <path d="M11,10 Q16,7.5 21,10" stroke="#ffffff" stroke-width="0.7" fill="none" opacity="0.7"/>
+        <ellipse cx="30" cy="15" rx="6.5" ry="3.8" fill="#dfd5c4" stroke="#524332" stroke-width="0.7"/>
+        <path d="M24,15 Q30,12 36,15" stroke="#ffffff" stroke-width="0.7" fill="none" opacity="0.7"/>
+        <ellipse cx="20" cy="19" rx="3.5" ry="2" fill="#f4ece2" stroke="#524332" stroke-width="0.5"/>
+        <circle cx="26" cy="8" r="1.4" fill="#ffffff"/>
+        <circle cx="26" cy="8" r="0.6" fill="#f59e0b"/>
+      </svg>`;
     } else if (id === 'stone') {
-      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polygon points="23,2 44,13 23,24 2,13" fill="#f8fafc" stroke="#d4af37" stroke-width="1.4"/><polygon points="23,6 36,13 23,20 10,13" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="0.8"/><polygon points="23,9 30,13 23,17 16,13" fill="#fef08a" stroke="#eab308" stroke-width="0.7"/></svg>`;
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#f5f1e8" stroke="#b89230" stroke-width="1.3"/>
+        <polygon points="23,5 39,13 23,21 7,13" fill="#faf6f0" stroke="#d4af37" stroke-width="0.8"/>
+        <polygon points="23,8 33,13 23,18 13,13" fill="#d4af37" fill-opacity="0.22" stroke="#d4af37" stroke-width="0.7"/>
+        <circle cx="23" cy="13" r="1.8" fill="#facc15" stroke="#b45309" stroke-width="0.5"/>
+        <circle cx="22.6" cy="12.6" r="0.6" fill="#ffffff"/>
+        <circle cx="7" cy="13" r="1" fill="#fef08a"/>
+        <circle cx="39" cy="13" r="1" fill="#fef08a"/>
+      </svg>`;
     } else if (id === 'tile') {
-      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polygon points="23,2 44,13 23,24 2,13" fill="#fefce8" stroke="#c2410c" stroke-width="1.2"/><polygon points="23,5 37,13 23,21 9,13" fill="#ffffff" stroke="#ea580c" stroke-width="0.8"/><polygon points="23,8 31,13 23,18 15,13" fill="#0284c7" opacity="0.7"/><circle cx="23" cy="13" r="2" fill="#d97706"/></svg>`;
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#fffaf2" stroke="#c2410c" stroke-width="1.2"/>
+        <polygon points="23,4.5 40,13 23,21.5 6,13" stroke="#ea580c" stroke-width="0.6" fill="none"/>
+        <polygon points="23,6 36,13 23,20 10,13" fill="#1e40af" stroke="#1e3a8a" stroke-width="0.6"/>
+        <polygon points="17,10 29,10 29,16 17,16" fill="#d97706" stroke="#92400e" stroke-width="0.5"/>
+        <polygon points="23,10 27,13 23,16 19,13" fill="#fffbeb"/>
+        <circle cx="23" cy="13" r="1.8" fill="#ea580c"/>
+        <circle cx="22.5" cy="12.5" r="0.6" fill="#ffffff"/>
+        <path d="M12,12 L30,20" stroke="#ffffff" stroke-width="0.8" opacity="0.6"/>
+      </svg>`;
     } else if (id === 'yellow') {
-      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polygon points="23,2 44,13 23,24 2,13" fill="#facc15" stroke="#d97706" stroke-width="1.3"/><polygon points="23,6 36,13 23,20 10,13" fill="#fef08a" stroke="#ca8a04" stroke-width="0.8"/><circle cx="23" cy="13" r="2.2" fill="#fffbeb" stroke="#d97706" stroke-width="0.7"/></svg>`;
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#f59e0b" stroke="#b45309" stroke-width="1.2"/>
+        <path d="M23,2 L23,24 M2,13 L44,13" stroke="#b45309" stroke-width="0.8"/>
+        <circle cx="16" cy="9" r="1.6" fill="#fde047" stroke="#b45309" stroke-width="0.4"/>
+        <circle cx="15.6" cy="8.6" r="0.6" fill="#ffffff"/>
+        <circle cx="30" cy="9" r="1.6" fill="#fde047" stroke="#b45309" stroke-width="0.4"/>
+        <circle cx="29.6" cy="8.6" r="0.6" fill="#ffffff"/>
+        <circle cx="16" cy="17" r="1.6" fill="#fde047" stroke="#b45309" stroke-width="0.4"/>
+        <circle cx="15.6" cy="16.6" r="0.6" fill="#ffffff"/>
+        <circle cx="30" cy="17" r="1.6" fill="#fde047" stroke="#b45309" stroke-width="0.4"/>
+        <circle cx="29.6" cy="16.6" r="0.6" fill="#ffffff"/>
+        <ellipse cx="23" cy="13" rx="3.5" ry="2" fill="#fffbeb" stroke="#b45309" stroke-width="0.7"/>
+      </svg>`;
     }
-    // Default cobble
-    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><polygon points="23,2 44,13 23,24 2,13" fill="#94a3b8" stroke="#475569" stroke-width="1.2"/><circle cx="17" cy="10" r="3.2" fill="#cbd5e1" stroke="#64748b" stroke-width="0.7"/><circle cx="29" cy="13" r="3.6" fill="#e2e8f0" stroke="#64748b" stroke-width="0.7"/><circle cx="20" cy="17" r="3" fill="#cbd5e1" stroke="#64748b" stroke-width="0.7"/></svg>`;
+    // Default cobble: nested river cobblestones
+    return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+      <polygon points="23,2 44,13 23,24 2,13" fill="#6d5f50" stroke="#483c30" stroke-width="1.2"/>
+      <ellipse cx="23" cy="8" rx="4.5" ry="2.6" fill="#ded5c6" stroke="#483c30" stroke-width="0.6"/>
+      <ellipse cx="14" cy="12" rx="4.2" ry="2.5" fill="#beb2a0" stroke="#483c30" stroke-width="0.6"/>
+      <ellipse cx="23" cy="14" rx="5.2" ry="3.0" fill="#ede5d8" stroke="#483c30" stroke-width="0.6"/>
+      <ellipse cx="32" cy="12" rx="4.5" ry="2.6" fill="#c7bba9" stroke="#483c30" stroke-width="0.6"/>
+      <ellipse cx="18" cy="18" rx="4.6" ry="2.7" fill="#d5cbbe" stroke="#483c30" stroke-width="0.6"/>
+      <ellipse cx="28" cy="19" rx="4.8" ry="2.8" fill="#aba08f" stroke="#483c30" stroke-width="0.6"/>
+      <ellipse cx="22" cy="13.2" rx="3" ry="1.2" fill="#ffffff" opacity="0.55"/>
+      <ellipse cx="13" cy="11.4" rx="2.4" ry="1" fill="#ffffff" opacity="0.55"/>
+    </svg>`;
   }
 
   function bar_() {
@@ -505,21 +578,25 @@ function clearThumbCache() {
       const cards = rts.map(rt => {
         const isSel = !rd.erase && curStyle === rt.id;
         const name = t('road_' + rt.id) || rt.id;
+        const pngUrl = (typeof assetUrl === 'function') ? assetUrl('spr/roads/' + rt.id + '.png') : ('spr/roads/' + rt.id + '.png');
         return `<button class="road-card ${isSel ? 'active' : ''}" data-a="troadstyle" data-v="${rt.id}">
-          <div class="road-card-prev">${roadPreviewSvg(rt.id)}</div>
+          <div class="road-card-prev">
+            <img class="road-prev-img" src="${pngUrl}" width="46" height="26" alt="${rt.id}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" style="display:block;max-width:44px;max-height:24px;image-rendering:pixelated;" />
+            <div class="road-prev-svg-fallback" style="display:none">${roadPreviewSvg(rt.id)}</div>
+          </div>
           <div class="road-card-title">${name}</div>
           <div class="road-card-cost">🪙${rt.cost}</div>
         </button>`;
       }).join('');
-      return `<div class="editbar tplacebar road-palette-bar" style="position:relative;">
+      return `<div class="editbar tplacebar road-palette-bar">
         <button type="button" class="road-close-x-btn" data-a="troadclose" title="닫기" style="position:absolute;top:6px;right:8px;z-index:30;width:30px;height:30px;border-radius:50%;background:#e11d48;border:2px solid #ffffff;color:#ffffff;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.35);line-height:1;padding:0;">✕</button>
         <div class="road-cards-scroll" style="padding-right:44px;">${cards}</div>
         <div class="road-bot-row">
-          <div class="grow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <div class="grow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:#ffffff;">
             <span>${rd.erase ? '🧽' : curRt.ic} <b>${rd.erase ? (t('tRoadErase') || '길 철거') : (t('tRoadPave') || '길 깔기')}</b>
-              <span class="m">· ${pendingCount > 0 ? (rd.erase ? `선택 <b>${pendingCount}칸</b> (완료 시 철거)` : `선택 <b>${pendingCount}칸</b> 🪙${fmt(totalCost)}`) : '화면을 손가락으로 드래그하여 길을 그으세요'}</span>
+              <span class="m" style="color:rgba(255,255,255,0.85);">· ${pendingCount > 0 ? (rd.erase ? `선택 <b>${pendingCount}칸</b> (완료 시 철거)` : `선택 <b>${pendingCount}칸</b> 🪙${fmt(totalCost)}`) : '화면을 손가락으로 드래그하여 길을 그으세요'}</span>
             </span>
-            <button type="button" class="btn sm road-double-btn ${isDouble ? 'g' : ''}" data-a="troaddouble" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none;font-weight:700;font-size:12px;padding:3px 9px;border-radius:12px;background:${isDouble ? 'rgba(34,197,94,0.24)' : 'rgba(255,255,255,0.22)'};border:1px solid ${isDouble ? '#22c55e' : 'rgba(255,255,255,0.38)'};">
+            <button type="button" class="btn sm road-double-btn ${isDouble ? 'g' : ''}" data-a="troaddouble" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none;font-weight:700;font-size:12px;padding:3px 9px;border-radius:12px;background:${isDouble ? 'rgba(34,197,94,0.32)' : 'rgba(255,255,255,0.18)'};border:1px solid ${isDouble ? '#22c55e' : 'rgba(255,255,255,0.35)'};color:#ffffff;">
               <span class="road-chk-box" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:3px;background:${isDouble ? '#22c55e' : '#ffffff'};border:1.5px solid ${isDouble ? '#16a34a' : '#94a3b8'};color:#fff;font-size:11px;font-weight:900;line-height:1;box-shadow:inset 0 1px 2px rgba(0,0,0,0.12);">${isDouble ? '✔' : ''}</span>
               <span>2개타일동시</span>
             </button>

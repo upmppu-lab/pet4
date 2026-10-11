@@ -4803,98 +4803,380 @@ function getFlowerSprite(kind) {
   // any paved tile near the shop's walls? (then world.js repaints the walls over the road)
   let _rn = null, _rnKey = '';
   const roadNearShop = () => { const R = roadSet(S), k = R.size + ':' + (S.town && S.town.rv) + ':' + Wd() + 'x' + Hd(); if (k !== _rnKey) { _rnKey = k; const W = Wd(), H = Hd(); _rn = false; for (const q of R) { const [x, y] = q.split(',').map(Number); if (x >= -12 && x <= W + 2 && y >= -12 && y <= H + 2) { _rn = true; break; } } } return _rn; };
+  // Road tile PNG sprite cache & loader
+  const ROAD_PNG_SPR = {};
+  const getRoadPng = (st, variant = 0) => {
+    const k = st + (variant ? '_' + variant : '');
+    if (ROAD_PNG_SPR[k]) return ROAD_PNG_SPR[k];
+    const path = 'spr/roads/' + k + '.png';
+    const url = (typeof assetUrl === 'function') ? assetUrl(path) : path;
+    const img = (typeof ASSET_CACHE !== 'undefined') ? ASSET_CACHE.load(url) : ((typeof Image !== 'undefined') ? new Image() : null);
+    if (img && !img.src) {
+      img.crossOrigin = 'anonymous';
+      img.src = url;
+    }
+    ROAD_PNG_SPR[k] = img;
+    return img;
+  };
+
   // Helper to draw a road tile at (x, y) with the chosen road style
   const drawRoadTile = (x, y, style, targetC) => {
     const curC = targetC || (typeof c !== 'undefined' ? c : null);
     if (!curC) return;
     const st = style === 'wood' ? 'block' : style === 'marble' ? 'stone' : style === 'pink' ? 'tile' : (style || 'cobble');
+    // Fast deterministic pseudo-random hash
+    const rh = (ox, oy, s = 0) => {
+      const v = Math.sin((ox + s * 1.31) * 12.9898 + (oy + s * 2.73) * 78.233) * 43758.5453;
+      return v - Math.floor(v);
+    };
+
+    // If PNG sprite exists and is loaded, draw the high-quality PNG image!
+    const varIdx = Math.floor(rh(x, y, 9) * 2);
+    const pngImg = getRoadPng(st, varIdx) || getRoadPng(st, 0);
+    if (pngImg && pngImg.complete && pngImg.naturalWidth > 0) {
+      // Isometric tile diamond top-left screen position:
+      // Diamond center is at ISO.wx(x + 0.5, y + 0.5), ISO.wy(x + 0.5, y + 0.5)
+      // Tile top vertex is at Q(x, y) = [sx, sy]
+      // Tile width is 64, height is 32. Diamond bounding box is [sx - 32, sy, 64, 32].
+      const pTop = Q(x, y);
+      curC.drawImage(pngImg, pTop[0] - 32, pTop[1], 64, 32);
+      return;
+    }
+
     if (st === 'dirt') {
-      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#c28e5c');
-      const dots = [[0.2, 0.25], [0.65, 0.3], [0.35, 0.7], [0.75, 0.75], [0.5, 0.5]];
-      for (let i = 0; i < dots.length; i++) {
-        const [ux, vy] = dots[i];
+      // 1. Packed warm earth base
+      const h0 = rh(x, y, 1);
+      const baseCol = h0 > 0.5 ? '#be8a56' : '#b6814e';
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], baseCol, '#7e4d25', 0.8);
+
+      // 2. Central trodden path track (subtle foot & cart rut)
+      const pTrack = [
+        Q(x + 0.18, y + 0.12),
+        Q(x + 0.85, y + 0.18),
+        Q(x + 0.82, y + 0.88),
+        Q(x + 0.15, y + 0.82)
+      ];
+      poly(curC, pTrack, 'rgba(148, 92, 44, 0.35)');
+
+      // 3. Embedded gravel pebbles & soil granules with micro-shadows & highlights
+      const pebbles = [
+        [0.22, 0.28, 2.2, 1.4, '#d8bc98', '#68401c'],
+        [0.72, 0.25, 2.8, 1.6, '#caa67c', '#5e3615'],
+        [0.38, 0.65, 3.2, 1.8, '#ecd7bd', '#68401c'],
+        [0.78, 0.72, 2.0, 1.3, '#be9a70', '#542f12'],
+        [0.50, 0.46, 2.6, 1.5, '#debfa0', '#68401c'],
+        [0.28, 0.82, 1.8, 1.1, '#caa47a', '#542f12'],
+        [0.82, 0.48, 2.4, 1.4, '#e6ceb2', '#68401c'],
+        [0.48, 0.18, 1.6, 1.0, '#ba946c', '#542f12']
+      ];
+      for (let i = 0; i < pebbles.length; i++) {
+        const [ux, vy, rx, ry, col, shCol] = pebbles[i];
         const p = Q(x + ux, y + vy);
-        const col = ['#a26c3d', '#d49d68', '#8f5c30'][(x + y + i) % 3];
-        ART.ell(curC, p[0], p[1], 1.6, 1.1, col);
+        ART.ell(curC, p[0] + 0.6, p[1] + 0.8, rx, ry, 'rgba(60, 35, 15, 0.35)');
+        ART.ell(curC, p[0], p[1], rx, ry, col, shCol, 0.6);
+        ART.ell(curC, p[0] - 0.4, p[1] - 0.4, rx * 0.45, ry * 0.45, 'rgba(255, 255, 255, 0.6)');
+      }
+
+      // 4. Subtle wheel / foot tread grooves
+      curC.strokeStyle = 'rgba(125, 78, 36, 0.28)';
+      curC.lineWidth = 1.0;
+      const t1a = Q(x + 0.3, y + 0.15), t1b = Q(x + 0.35, y + 0.85);
+      curC.beginPath(); curC.moveTo(t1a[0], t1a[1]); curC.lineTo(t1b[0], t1b[1]); curC.stroke();
+      const t2a = Q(x + 0.7, y + 0.15), t2b = Q(x + 0.65, y + 0.85);
+      curC.beginPath(); curC.moveTo(t2a[0], t2a[1]); curC.lineTo(t2b[0], t2b[1]); curC.stroke();
+
+      // 5. Delicate grass sprouts at corners/edges blending naturally into the landscape
+      const sprSeed = Math.floor(rh(x, y, 7) * 4);
+      if (sprSeed === 0 || sprSeed === 2) {
+        const gp = Q(x + 0.08, y + 0.5);
+        curC.strokeStyle = '#5a8e24'; curC.lineWidth = 1.3;
+        curC.beginPath();
+        curC.moveTo(gp[0], gp[1]); curC.lineTo(gp[0] - 3, gp[1] - 4);
+        curC.moveTo(gp[0], gp[1]); curC.lineTo(gp[0] + 1, gp[1] - 5);
+        curC.stroke();
+      }
+      if (sprSeed === 1 || sprSeed === 2) {
+        const gp2 = Q(x + 0.88, y + 0.12);
+        curC.strokeStyle = '#4e7e1d'; curC.lineWidth = 1.2;
+        curC.beginPath();
+        curC.moveTo(gp2[0], gp2[1]); curC.lineTo(gp2[0] + 3, gp2[1] - 4);
+        curC.moveTo(gp2[0], gp2[1]); curC.lineTo(gp2[0] - 1, gp2[1] - 5);
+        curC.stroke();
       }
     } else if (st === 'brick') {
-      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#b85842');
-      const bricks = [
-        [0.04, 0.04, 0.48, 0.30], [0.52, 0.04, 0.96, 0.30],
-        [0.04, 0.36, 0.30, 0.64], [0.34, 0.36, 0.74, 0.64], [0.78, 0.36, 0.96, 0.64],
-        [0.04, 0.70, 0.48, 0.96], [0.52, 0.70, 0.96, 0.96]
+      // 1. Warm mortar bed
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#ded4c5', '#8a422b', 0.9);
+
+      // 2. Interlocking staggered running-bond terracotta bricks
+      const rows = [
+        [[0.03, 0.47], [0.51, 0.97]],
+        [[0.03, 0.22], [0.26, 0.73], [0.77, 0.97]],
+        [[0.03, 0.47], [0.51, 0.97]],
+        [[0.03, 0.22], [0.26, 0.73], [0.77, 0.97]]
       ];
-      for (let i = 0; i < bricks.length; i++) {
-        const [u0, v0, u1, v1] = bricks[i];
-        const col = ['#cf6a4e', '#c2593f', '#d9785b', '#b54e35'][(x + y + i) % 4];
-        poly(curC, [Q(x + u0, y + v0), Q(x + u1, y + v0), Q(x + u1, y + v1), Q(x + u0, y + v1)], col, 'rgba(240,225,210,.5)', .7);
+      const yRanges = [[0.03, 0.24], [0.28, 0.49], [0.53, 0.74], [0.78, 0.97]];
+      const brickColors = ['#c8543a', '#b6442b', '#d2664b', '#a43b24', '#bf4e34', '#cb5c41', '#ad4028'];
+
+      let bCount = 0;
+      for (let r = 0; r < rows.length; r++) {
+        const [v0, v1] = yRanges[r];
+        for (const [u0, u1] of rows[r]) {
+          bCount++;
+          const col = brickColors[(x * 3 + y * 5 + bCount) % brickColors.length];
+          const pts = [Q(x + u0, y + v0), Q(x + u1, y + v0), Q(x + u1, y + v1), Q(x + u0, y + v1)];
+          poly(curC, pts, col);
+
+          // Chamfered 3D bevel: top-left sunlit rim
+          const tl0 = pts[0], tl1 = pts[1], bl = pts[3];
+          curC.beginPath();
+          curC.moveTo(bl[0], bl[1]); curC.lineTo(tl0[0], tl0[1]); curC.lineTo(tl1[0], tl1[1]);
+          curC.strokeStyle = 'rgba(255, 235, 220, 0.55)';
+          curC.lineWidth = 1.0;
+          curC.stroke();
+
+          // Bottom-right recessed mortar shadow
+          const br = pts[2];
+          curC.beginPath();
+          curC.moveTo(tl1[0], tl1[1]); curC.lineTo(br[0], br[1]); curC.lineTo(bl[0], bl[1]);
+          curC.strokeStyle = 'rgba(60, 20, 10, 0.42)';
+          curC.lineWidth = 1.1;
+          curC.stroke();
+
+          // Clay speckle texture
+          const cp = Q(x + (u0 + u1) / 2, y + (v0 + v1) / 2);
+          ART.ell(curC, cp[0], cp[1], 1.4, 0.9, 'rgba(80, 25, 12, 0.22)');
+        }
       }
     } else if (st === 'block') {
-      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#cac3b7');
-      const blocks = [
-        [0.03, 0.03, 0.48, 0.48], [0.52, 0.03, 0.97, 0.48],
-        [0.03, 0.52, 0.48, 0.97], [0.52, 0.52, 0.97, 0.97]
+      // 1. Granite sidewalk mortar bed
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#787168', '#544e46', 1.0);
+
+      // 2. Interlocking city sidewalk pavers
+      const pavers = [
+        [0.03, 0.03, 0.47, 0.31], [0.51, 0.03, 0.97, 0.31],
+        [0.03, 0.35, 0.31, 0.63], [0.35, 0.35, 0.79, 0.63], [0.83, 0.35, 0.97, 0.63],
+        [0.03, 0.67, 0.51, 0.97], [0.55, 0.67, 0.97, 0.97]
       ];
-      for (let i = 0; i < 4; i++) {
-        const [u0, v0, u1, v1] = blocks[i];
-        const col = ['#dcd5cb', '#c5beb1', '#d4cdc2', '#bcb5a7'][(x + y + i) % 4];
-        poly(curC, [Q(x + u0, y + v0), Q(x + u1, y + v0), Q(x + u1, y + v1), Q(x + u0, y + v1)], col, 'rgba(100,90,80,.35)', .8);
+      const pCols = ['#ded7cc', '#c7c0b4', '#e6dfd4', '#b9b2a6', '#d2cbc0', '#ccc5ba'];
+
+      for (let i = 0; i < pavers.length; i++) {
+        const [u0, v0, u1, v1] = pavers[i];
+        const col = pCols[(x * 2 + y * 3 + i) % pCols.length];
+        const pts = [Q(x + u0, y + v0), Q(x + u1, y + v0), Q(x + u1, y + v1), Q(x + u0, y + v1)];
+        poly(curC, pts, col);
+
+        // Sunlit top-left chamfer
+        curC.beginPath();
+        curC.moveTo(pts[3][0], pts[3][1]); curC.lineTo(pts[0][0], pts[0][1]); curC.lineTo(pts[1][0], pts[1][1]);
+        curC.strokeStyle = 'rgba(255, 255, 255, 0.65)'; curC.lineWidth = 1.0; curC.stroke();
+
+        // Recessed joint shadow on bottom-right
+        curC.beginPath();
+        curC.moveTo(pts[1][0], pts[1][1]); curC.lineTo(pts[2][0], pts[2][1]); curC.lineTo(pts[3][0], pts[3][1]);
+        curC.strokeStyle = 'rgba(50, 45, 40, 0.4)'; curC.lineWidth = 1.0; curC.stroke();
+
+        // Granite mineral speckles (quartz and dark mica)
+        const cp = Q(x + (u0 + u1) / 2, y + (v0 + v1) / 2);
+        ART.ell(curC, cp[0] - 2, cp[1], 0.9, 0.7, '#ffffff');
+        ART.ell(curC, cp[0] + 2, cp[1] + 1, 0.9, 0.7, '#504a42');
       }
     } else if (st === 'step') {
-      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], 'rgba(132,204,22,.65)');
-      for (const [ux, vy, rx, ry, col] of [[.32, .34, 7.5, 4.2, '#ede4d5'], [.70, .68, 8.2, 4.5, '#dfd6c5'], [.28, .76, 4.5, 2.5, '#f4ece0']]) {
+      // 1. Lush vibrant garden lawn
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#5fa81b', '#3b6e10', 0.9);
+
+      // Fine grass blade texture
+      curC.strokeStyle = 'rgba(40, 80, 15, 0.35)'; curC.lineWidth = 1.0;
+      const g1 = Q(x + 0.15, y + 0.8);
+      curC.beginPath(); curC.moveTo(g1[0], g1[1]); curC.lineTo(g1[0] - 2, g1[1] - 4); curC.stroke();
+      const g2 = Q(x + 0.85, y + 0.2);
+      curC.beginPath(); curC.moveTo(g2[0], g2[1]); curC.lineTo(g2[0] + 2, g2[1] - 4); curC.stroke();
+
+      // 2. Natural flagstone stepping slabs
+      const slabs = [
+        [0.30, 0.32, 9.5, 5.5, '#ede5d8'],
+        [0.72, 0.65, 10.5, 6.0, '#dfd5c4'],
+        [0.26, 0.78, 6.5, 3.8, '#f4ece2'],
+        [0.76, 0.24, 6.0, 3.6, '#cfc5b4']
+      ];
+
+      for (let i = 0; i < slabs.length; i++) {
+        const [ux, vy, rx, ry, col] = slabs[i];
         const p = Q(x + ux, y + vy);
-        ART.ell(curC, p[0], p[1] + 1, rx, ry, 'rgba(40,55,20,.22)');
-        ART.ell(curC, p[0], p[1], rx, ry, col, 'rgba(90,75,55,.45)', .8);
+        ART.ell(curC, p[0] + 0.8, p[1] + 1.6, rx + 0.5, ry + 0.5, 'rgba(25, 45, 10, 0.42)');
+        ART.ell(curC, p[0], p[1], rx, ry, col, 'rgba(75, 62, 48, 0.45)', 0.9);
+        curC.beginPath();
+        curC.ellipse(p[0] - 0.8, p[1] - 0.8, rx * 0.7, ry * 0.6, 0, Math.PI * 0.95, Math.PI * 1.95);
+        curC.strokeStyle = 'rgba(255, 255, 255, 0.65)'; curC.lineWidth = 1.1; curC.stroke();
+        ART.ell(curC, p[0] + 0.5, p[1] + 0.3, rx * 0.25, ry * 0.25, 'rgba(100, 85, 70, 0.25)');
       }
-      if ((x * 3 + y * 5) % 3 === 0) {
-        const fp = Q(x + .75, y + .26);
-        ART.ell(curC, fp[0], fp[1], 2.2, 1.8, '#ffd166');
+
+      // 3. Scattered garden wildflowers
+      const flowers = [
+        [0.82, 0.84, '#ffffff', '#f59e0b'],
+        [0.15, 0.18, '#ffffff', '#f59e0b'],
+        [0.52, 0.12, '#f472b6', '#fef08a']
+      ];
+      for (const [fx, fy, petCol, coreCol] of flowers) {
+        const fp = Q(x + fx, y + fy);
+        ART.ell(curC, fp[0] - 1.2, fp[1], 1.2, 0.8, petCol);
+        ART.ell(curC, fp[0] + 1.2, fp[1], 1.2, 0.8, petCol);
+        ART.ell(curC, fp[0], fp[1] - 1.0, 0.8, 1.2, petCol);
+        ART.ell(curC, fp[0], fp[1] + 1.0, 0.8, 1.2, petCol);
+        ART.ell(curC, fp[0], fp[1], 1.0, 0.8, coreCol);
       }
     } else if (st === 'stone') {
-      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#f6f1e8');
-      poly(curC, [Q(x + .05, y + .05), Q(x + .95, y + .05), Q(x + .95, y + .95), Q(x + .05, y + .95)], (x + y) % 2 ? '#faf6ee' : '#efe9de', '#d4af37', 1);
-      poly(curC, [Q(x + .5, y + .22), Q(x + .78, y + .5), Q(x + .5, y + .78), Q(x + .22, y + .5)], 'rgba(212,175,55,.22)', 'rgba(185,148,40,.45)', .7);
-    } else if (st === 'tile') {
-      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#fbf6ee');
-      poly(curC, [Q(x + .06, y + .06), Q(x + .94, y + .06), Q(x + .94, y + .94), Q(x + .06, y + .94)], '#fff9f0', '#c86a48', 1);
-      poly(curC, [Q(x + .5, y + .15), Q(x + .85, y + .5), Q(x + .5, y + .85), Q(x + .15, y + .5)], 'rgba(58,124,165,.25)', '#3a7ca5', .8);
-      ART.ell(curC, Q(x + .5, y + .5)[0], Q(x + .5, y + .5)[1], 2.5, 1.8, '#d97706');
-    } else if (st === 'yellow') {
-      // v2026-10-09: 시설 입구·출구 자동 안내용 및 도로 포장용 고급 노란길
-      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#f59e0b', '#d97706', 1.2);
-      const blocks = [
-        [0.05, 0.05, 0.47, 0.47], [0.53, 0.05, 0.95, 0.47],
-        [0.05, 0.53, 0.47, 0.95], [0.53, 0.53, 0.95, 0.95]
+      // 1. Polished imperial limestone / marble base
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#f5f1e8', '#b89230', 1.0);
+
+      // 2. Framed ashlar border
+      const pOuter = [Q(x + 0.05, y + 0.05), Q(x + 0.95, y + 0.05), Q(x + 0.95, y + 0.95), Q(x + 0.05, y + 0.95)];
+      poly(curC, pOuter, (x + y) % 2 ? '#faf6f0' : '#efe9de', '#d4af37', 1.2);
+
+      // Inner beveled rim
+      const pInnerBorder = [Q(x + 0.12, y + 0.12), Q(x + 0.88, y + 0.12), Q(x + 0.88, y + 0.88), Q(x + 0.12, y + 0.88)];
+      poly(curC, pInnerBorder, null, 'rgba(180, 145, 40, 0.35)', 0.8);
+
+      // 3. Central grand diamond flagstone medallion
+      const pDia = [Q(x + 0.5, y + 0.16), Q(x + 0.84, y + 0.5), Q(x + 0.5, y + 0.84), Q(x + 0.16, y + 0.5)];
+      poly(curC, pDia, 'rgba(212, 175, 55, 0.18)', '#d4af37', 1.0);
+
+      const pDiaCore = [Q(x + 0.5, y + 0.30), Q(x + 0.70, y + 0.5), Q(x + 0.5, y + 0.70), Q(x + 0.30, y + 0.5)];
+      poly(curC, pDiaCore, '#fffdfa', 'rgba(180, 140, 30, 0.55)', 0.8);
+
+      // 4. Gold brass insets at the 4 outer corners & diamond tips
+      const insets = [
+        [0.08, 0.08], [0.92, 0.08], [0.92, 0.92], [0.08, 0.92],
+        [0.5, 0.16], [0.84, 0.5], [0.5, 0.84], [0.16, 0.5]
       ];
-      for (let i = 0; i < 4; i++) {
-        const [u0, v0, u1, v1] = blocks[i];
-        const col = ['#fde047', '#facc15', '#fef08a', '#eab308'][(x + y + i) % 4];
-        poly(curC, [Q(x + u0, y + v0), Q(x + u1, y + v0), Q(x + u1, y + v1), Q(x + u0, y + v1)], col, 'rgba(180,100,10,.35)', .8);
-        const h0 = Q(x + u0 + .03, y + v0 + .03), h1 = Q(x + u1 - .03, y + v0 + .03);
-        curC.beginPath(); curC.moveTo(h0[0], h0[1]); curC.lineTo(h1[0], h1[1]);
-        curC.strokeStyle = 'rgba(255,255,255,.65)'; curC.lineWidth = .9; curC.stroke();
+      for (const [ix, iy] of insets) {
+        const ip = Q(x + ix, y + iy);
+        ART.ell(curC, ip[0], ip[1] + 0.3, 1.6, 1.0, 'rgba(80, 50, 10, 0.35)');
+        ART.ell(curC, ip[0], ip[1], 1.6, 1.0, '#fef08a', '#b45309', 0.6);
+        ART.ell(curC, ip[0] - 0.3, ip[1] - 0.2, 0.6, 0.4, '#ffffff');
       }
-      const cp = Q(x + .5, y + .5);
-      ART.ell(curC, cp[0], cp[1], 3.2, 2.0, '#fffbeb', '#d97706', 0.9);
-      ART.ell(curC, cp[0], cp[1], 1.5, 1.0, '#f59e0b');
-    } else {
-      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#d8ccb8');
-      const stones = [
-        [0.05, 0.05, 0.45, 0.45],
-        [0.55, 0.05, 0.95, 0.45],
-        [0.05, 0.55, 0.45, 0.95],
-        [0.55, 0.55, 0.95, 0.95]
+
+      // Center gold rosette
+      const cp = Q(x + 0.5, y + 0.5);
+      ART.ell(curC, cp[0], cp[1] + 0.4, 2.6, 1.5, 'rgba(100, 60, 10, 0.35)');
+      ART.ell(curC, cp[0], cp[1], 2.6, 1.5, '#facc15', '#b45309', 0.8);
+      ART.ell(curC, cp[0], cp[1], 1.2, 0.7, '#ffffff');
+    } else if (st === 'tile') {
+      // 1. Ceramic porcelain base
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#fbf7f0', '#b85832', 1.0);
+
+      // 2. Glazed terracotta & ceramic frame
+      const pOuter = [Q(x + 0.05, y + 0.05), Q(x + 0.95, y + 0.05), Q(x + 0.95, y + 0.95), Q(x + 0.05, y + 0.95)];
+      poly(curC, pOuter, '#fffaf2', '#c2410c', 1.1);
+
+      // 3. Mediterranean 8-point mosaic star / medallion
+      const pStar1 = [Q(x + 0.5, y + 0.12), Q(x + 0.88, y + 0.5), Q(x + 0.5, y + 0.88), Q(x + 0.12, y + 0.5)];
+      poly(curC, pStar1, '#1e40af', '#1e3a8a', 0.9);
+
+      const pStar2 = [Q(x + 0.28, y + 0.28), Q(x + 0.72, y + 0.28), Q(x + 0.72, y + 0.72), Q(x + 0.28, y + 0.72)];
+      poly(curC, pStar2, '#d97706', '#92400e', 0.9);
+
+      const pCore = [Q(x + 0.5, y + 0.26), Q(x + 0.74, y + 0.5), Q(x + 0.5, y + 0.74), Q(x + 0.26, y + 0.5)];
+      poly(curC, pCore, '#fffbeb', '#b45309', 0.8);
+
+      const cTriangles = [
+        [Q(x + 0.06, y + 0.06), Q(x + 0.25, y + 0.06), Q(x + 0.06, y + 0.25)],
+        [Q(x + 0.94, y + 0.06), Q(x + 0.75, y + 0.06), Q(x + 0.94, y + 0.25)],
+        [Q(x + 0.94, y + 0.94), Q(x + 0.75, y + 0.94), Q(x + 0.94, y + 0.75)],
+        [Q(x + 0.06, y + 0.94), Q(x + 0.25, y + 0.94), Q(x + 0.06, y + 0.75)]
       ];
-      for (let sIdx = 0; sIdx < 4; sIdx++) {
-        const [u0, v0, u1, v1] = stones[sIdx];
-        const hash = Math.abs(Math.sin((x + u0) * 17.1 + (y + v0) * 31.7) * 43758.5453);
-        const col = ['#e4d9c6', '#d6c8b4', '#dfd3c0', '#cfc2ad'][(Math.floor(hash * 10)) % 4];
+      for (const tri of cTriangles) {
+        poly(curC, tri, '#0284c7', '#0369a1', 0.7);
+      }
+
+      // Center glossy jewel cabochon
+      const cp = Q(x + 0.5, y + 0.5);
+      ART.ell(curC, cp[0], cp[1] + 0.4, 3.2, 1.9, 'rgba(80, 25, 5, 0.4)');
+      ART.ell(curC, cp[0], cp[1], 3.2, 1.9, '#ea580c', '#9a3412', 0.8);
+      ART.ell(curC, cp[0], cp[1], 1.6, 1.0, '#fef08a');
+      ART.ell(curC, cp[0] - 0.5, cp[1] - 0.4, 0.8, 0.5, '#ffffff');
+
+      // Glaze sheen reflection streak across tile
+      curC.strokeStyle = 'rgba(255, 255, 255, 0.45)'; curC.lineWidth = 1.2;
+      const sh1 = Q(x + 0.15, y + 0.35), sh2 = Q(x + 0.65, y + 0.85);
+      curC.beginPath(); curC.moveTo(sh1[0], sh1[1]); curC.lineTo(sh2[0], sh2[1]); curC.stroke();
+    } else if (st === 'yellow') {
+      // 1. Warm amber plaza base
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#f59e0b', '#b45309', 1.2);
+
+      // 2. Four large interlocking plaza flagstones
+      const quadrants = [
+        [0.04, 0.04, 0.47, 0.47], [0.53, 0.04, 0.96, 0.47],
+        [0.04, 0.53, 0.47, 0.96], [0.53, 0.53, 0.96, 0.96]
+      ];
+      const paverCols = ['#fde047', '#facc15', '#fef08a', '#eab308'];
+
+      for (let i = 0; i < 4; i++) {
+        const [u0, v0, u1, v1] = quadrants[i];
+        const col = paverCols[(x + y + i) % 4];
         const pts = [Q(x + u0, y + v0), Q(x + u1, y + v0), Q(x + u1, y + v1), Q(x + u0, y + v1)];
-        poly(curC, pts, col, 'rgba(55,38,20,.38)', .9);
-        const h0 = Q(x + u0 + .02, y + v0 + .02), h1 = Q(x + u1 - .02, y + v0 + .02);
-        curC.beginPath(); curC.moveTo(h0[0], h0[1]); curC.lineTo(h1[0], h1[1]);
-        curC.strokeStyle = 'rgba(255,255,255,.32)'; curC.lineWidth = .9; curC.stroke();
+        poly(curC, pts, col, 'rgba(180, 95, 10, 0.4)', 0.8);
+
+        // Sunlit top-left chamfer
+        curC.beginPath();
+        curC.moveTo(pts[3][0], pts[3][1]); curC.lineTo(pts[0][0], pts[0][1]); curC.lineTo(pts[1][0], pts[1][1]);
+        curC.strokeStyle = 'rgba(255, 255, 255, 0.72)'; curC.lineWidth = 1.0; curC.stroke();
+
+        // 3D tactile studs
+        for (let su = 0.22; su <= 0.78; su += 0.28) {
+          for (let sv = 0.22; sv <= 0.78; sv += 0.28) {
+            const stuX = u0 + (u1 - u0) * su;
+            const stvY = v0 + (v1 - v0) * sv;
+            const sp = Q(x + stuX, y + stvY);
+            ART.ell(curC, sp[0] + 0.4, sp[1] + 0.6, 1.8, 1.1, 'rgba(150, 70, 5, 0.45)');
+            ART.ell(curC, sp[0], sp[1], 1.8, 1.1, '#fde047', '#ca8a04', 0.6);
+            ART.ell(curC, sp[0] - 0.3, sp[1] - 0.3, 0.7, 0.5, '#ffffff');
+          }
+        }
+      }
+
+      // Plaza center brass medallion
+      const cp = Q(x + 0.5, y + 0.5);
+      ART.ell(curC, cp[0], cp[1] + 0.4, 3.8, 2.2, 'rgba(120, 55, 5, 0.4)');
+      ART.ell(curC, cp[0], cp[1], 3.8, 2.2, '#fffbeb', '#b45309', 1.0);
+      ART.ell(curC, cp[0], cp[1], 1.8, 1.1, '#f59e0b');
+    } else {
+      // Default cobble: nested natural river cobblestones with 3D relief
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#7a6c5b', '#524536', 1.0);
+
+      const stones = [
+        [0.22, 0.20, 6.2, 3.8, '#d4c8b6'],
+        [0.54, 0.16, 7.0, 4.0, '#beb2a0'],
+        [0.82, 0.22, 5.5, 3.5, '#e2d8c9'],
+        [0.18, 0.46, 6.8, 4.2, '#b2a592'],
+        [0.48, 0.44, 7.8, 4.8, '#ded4c4'],
+        [0.80, 0.48, 6.4, 4.0, '#c7baa8'],
+        [0.20, 0.74, 6.0, 3.8, '#dfd5c5'],
+        [0.50, 0.72, 7.2, 4.4, '#bcb09e'],
+        [0.80, 0.76, 6.2, 3.8, '#d7ccbc'],
+        [0.34, 0.32, 4.5, 2.8, '#a69986'],
+        [0.66, 0.32, 4.8, 3.0, '#e5dcd0'],
+        [0.35, 0.58, 4.6, 2.9, '#a29582'],
+        [0.65, 0.60, 4.8, 3.0, '#cac0b0']
+      ];
+
+      for (let i = 0; i < stones.length; i++) {
+        const [ux, vy, rx, ry, col] = stones[i];
+        const p = Q(x + ux, y + vy);
+        ART.ell(curC, p[0] + 0.8, p[1] + 1.2, rx, ry, 'rgba(40, 30, 20, 0.42)');
+        ART.ell(curC, p[0], p[1], rx, ry, col, 'rgba(65, 52, 40, 0.55)', 0.8);
+        curC.beginPath();
+        curC.ellipse(p[0] - 0.6, p[1] - 0.7, rx * 0.65, ry * 0.6, 0, Math.PI * 1.0, Math.PI * 1.9);
+        curC.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+        curC.lineWidth = 1.0;
+        curC.stroke();
+        ART.ell(curC, p[0] + 0.4, p[1] + 0.3, 1.0, 0.7, 'rgba(80, 65, 50, 0.22)');
+      }
+
+      // Grit grains nestled between stones
+      const grits = [[0.36, 0.18], [0.68, 0.22], [0.32, 0.45], [0.65, 0.48], [0.34, 0.82], [0.68, 0.80]];
+      for (const [gx, gy] of grits) {
+        const gp = Q(x + gx, y + gy);
+        ART.ell(curC, gp[0], gp[1], 1.2, 0.8, '#584938');
       }
     }
   };
@@ -5257,7 +5539,7 @@ function getFlowerSprite(kind) {
       const st = rstyles[k] || 'cobble';
       drawRoadTile(x, y, st, curC);
       if (st !== 'step') {
-        curC.strokeStyle = st === 'tile' ? 'rgba(175,95,120,.55)' : st === 'stone' ? 'rgba(185,148,40,.65)' : st === 'dirt' ? 'rgba(120,70,30,.45)' : 'rgba(100,75,45,.65)';
+        curC.strokeStyle = st === 'tile' ? 'rgba(194,65,12,.75)' : st === 'stone' ? 'rgba(180,142,35,.85)' : st === 'yellow' ? 'rgba(180,83,9,.85)' : st === 'brick' ? 'rgba(122,46,27,.80)' : st === 'block' ? 'rgba(84,78,70,.75)' : st === 'dirt' ? 'rgba(122,75,34,.65)' : 'rgba(72,60,48,.75)';
         curC.lineWidth = 1.3;
         if (!R.has(x + ',' + (y - 1))) { const a = Q(x, y), b2 = Q(x + 1, y); curC.beginPath(); curC.moveTo(a[0], a[1]); curC.lineTo(b2[0], b2[1]); curC.stroke(); }
         if (!R.has(x + ',' + (y + 1))) { const a = Q(x, y + 1), b2 = Q(x + 1, y + 1); curC.beginPath(); curC.moveTo(a[0], a[1]); curC.lineTo(b2[0], b2[1]); curC.stroke(); }
@@ -5307,7 +5589,7 @@ function getFlowerSprite(kind) {
           const lst = rstyles[lx + ',' + ly] || 'cobble';
           drawRoadTile(lx, ly, lst, c);
           if (lst !== 'step') {
-            c.strokeStyle = lst === 'tile' ? 'rgba(175,95,120,.55)' : lst === 'stone' ? 'rgba(185,148,40,.65)' : lst === 'dirt' ? 'rgba(120,70,30,.45)' : 'rgba(100,75,45,.65)';
+            c.strokeStyle = lst === 'tile' ? 'rgba(194,65,12,.75)' : lst === 'stone' ? 'rgba(180,142,35,.85)' : lst === 'yellow' ? 'rgba(180,83,9,.85)' : lst === 'brick' ? 'rgba(122,46,27,.80)' : lst === 'block' ? 'rgba(84,78,70,.75)' : lst === 'dirt' ? 'rgba(122,75,34,.65)' : 'rgba(72,60,48,.75)';
             c.lineWidth = 1.3;
             if (!laneSet.has(lx + ',' + (ly - 1)) && !R.has(lx + ',' + (ly - 1))) { const a = Q(lx, ly), b2 = Q(lx + 1, ly); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b2[0], b2[1]); c.stroke(); }
             if (!laneSet.has(lx + ',' + (ly + 1)) && !R.has(lx + ',' + (ly + 1))) { const a = Q(lx, ly + 1), b2 = Q(lx + 1, ly + 1); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b2[0], b2[1]); c.stroke(); }

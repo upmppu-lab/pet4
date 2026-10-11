@@ -88,6 +88,7 @@ if (typeof setTimeout === 'function') {
       var essentials = [
         'spr/home.png', 'spr/ui/title_bg.jpg', 'spr/ui/icon_rotate.png',
         'spr/park.png', 'spr/lake/lake.png', 'spr/ranch/ranch.png', 'spr/train.png', 'spr/zoo/zoo.png', 'spr/station_1.png',
+        'spr/roads/block.png', 'spr/roads/block_1.png', 'spr/roads/cobble.png', 'spr/roads/brick.png', 'spr/roads/dirt.png', 'spr/roads/yellow.png', 'spr/roads/step.png', 'spr/roads/stone.png', 'spr/roads/tile.png',
         'spr/shelf.png', 'spr/counter.png', 'spr/toyshelf.png', 'spr/plant.png', 'spr/bench.png', 'spr/table.png',
         'spr/tree_oak.png', 'spr/house/house_1.png', 'spr/house/house_2.png'
       ];
