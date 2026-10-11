@@ -1789,9 +1789,9 @@ function onWorldTap(h) {
   if (h.kind === 'salonsign') { const sg = SALON_SIGN(); World.walkNear(sg.x, sg.y, () => { if (SALON.built()) return; askPrompt({ title: '✂️ ' + t('salonName'), text: t('salonBuildConfirm', { c: fmt(SALON_COST) }), okText: t('salonBuildBtn'), ok: () => { const r = actR({ t: 'buildsalon' }); if (r && r.ok) { SND.level(); fxAt(innerWidth / 2, innerHeight / 2, '✂️'); } } }); }); return; }
   if (h.kind === 'salon') { openPanel({ type: 'salon' }); return; }
   if (h.kind === 'vmonu') { toast(t('vmonuHi', { t: (S.village && S.village.monuText) || '♥' })); return; }
-  if (h.kind === 'cafestove') { const st = CAFE_STOVE(); World.walkNear(st.x, st.y, () => openPanel({ type: 'cafecook' })); return; }
-  if (h.kind === 'cafefridge') { const fr = CAFE_FRIDGE(); World.walkNear(fr.x, fr.y, () => openPanel({ type: 'cafefridge' })); return; }
-  if (h.kind === 'cafecounter') { const st = CAFE_STOVE(); World.walkNear(st.x, st.y, () => openPanel({ type: 'cafe' })); return; }
+  if (h.kind === 'cafestove') { openPanel({ type: 'cafecook' }); return; }
+  if (h.kind === 'cafefridge') { openPanel({ type: 'cafefridge' }); return; }
+  if (h.kind === 'cafecounter') { openPanel({ type: 'cafe' }); return; }
   if (h.kind === 'pet' && h.actor.pet.escaped) { const a = h.actor; World.goTo(World.me, Math.floor(a.x), Math.floor(a.y)); act({ t: 'catch', pid: a.pet.id }); return; }
   if (h.kind === 'cafeguest') { const a = h.actor; if (a && a.ordT > 0) { a.ordT = .05; toast(t('cafeOrderTaken')); } return; } // taking an order at the cashier's desk
   if (h.kind === 'coop') { openPanel({ type: 'farm' }); return; }
@@ -1801,7 +1801,7 @@ function onWorldTap(h) {
   if (h.kind === 'ranchbox') { openPanel({ type: 'ranchbox' }); return; }
   if (h.kind === 'ranch') { openPanel({ type: 'ranch' }); return; }
   if (h.kind === 'habclean') { const it = h.item; World.walkNear(it.x, it.y + 1, () => { World.broom(1.1); setTimeout(() => { const r = actR({ t: 'habclean', iid: it.id }); if (r && r.ok) fxAt(innerWidth / 2, innerHeight / 2 - 40, '🧽'); }, 1100); }); return; }
-  if (h.kind === 'farmbox') { const fb = FARM_BOX_POS(); if (fb) World.walkNear(fb.x, fb.y + 1, () => openPanel({ type: 'farmbox' })); return; }
+  if (h.kind === 'farmbox') { openPanel({ type: 'farmbox' }); return; }
   if (h.kind === 'insp') { toast(t('inspecting')); return; }
   if (h.kind === 'thief') { const a = h.actor; World.walkNear(Math.floor(a.x), Math.floor(a.y), () => act({ t: 'chase' })); return; }
   if (h.kind === 'staff') { openPanel({ type: 'staff' }); return; }

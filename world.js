@@ -275,7 +275,7 @@ return true;
       const hp = HOSP_POS();
       rs.push({
         k: 'hosp', x: hp.x, y: hp.y, w: hp.w, d: hp.d,
-        check: (ix, iy, ox, oy) => ix === hp.x1 - 1 && ox === hp.x1 && (iy === hp.y + 2 || iy === hp.y + 3 || oy === hp.y + 2 || oy === hp.y + 3)
+        check: (ix, iy, ox, oy) => (ix === hp.x1 - 1) && (ox === hp.x1 || ox === hp.x1 + 1) && (iy === hp.y + 2 || iy === hp.y + 3 || oy === hp.y + 2 || oy === hp.y + 3)
       });
     }
     // 2. 카페 (동쪽 출입문)
@@ -2408,21 +2408,15 @@ return true;
   // pet café: a locked sign until Bronze rep, then a build prompt; once built, the actual
   // terrace structure lives in drawCafeGround() and this just carries the tap target
   function collectCafeSign() {
-    const built = S.cafe && S.cafe.built, cp = built ? CAFE_POS() : null;
-    const sg = CAFE_SIGN(), gx = built ? cp.x + cp.w / 2 : sg.x, gy = built ? cp.y + cp.d / 2 : sg.y;
-    return [{ depth: gx + gy + .98, fn: drawCafeSign }];
+    const built = S.cafe && S.cafe.built;
+    if (built) return [];
+    const sg = CAFE_SIGN();
+    return [{ depth: sg.x + sg.y + .98, fn: drawCafeSign }];
   }
   function drawCafeSign() {
     c.save();
     const cf = S.cafe, built = cf && cf.built;
-    if (built) {
-      // the actual terrace structure is drawn in drawCafeGround() (ground-level, always behind
-      // props/actors standing under it -- see that function's comment for why); this call is
-      // now just the tap target for the sign/name area, matching where that structure sits
-      const cp = CAFE_POS();
-      const [ccx, ccy] = [ISO.wx(cp.x + cp.w / 2, cp.y + cp.d / 2), ISO.wy(cp.x + cp.w / 2, cp.y + cp.d / 2)];
-      hits.push({ kind: 'cafesign', x0: ccx - cp.w * 12, x1: ccx + cp.w * 12, y0: ccy - 140, y1: ccy + 30 });
-    } else {
+    if (!built) {
       const sg = CAFE_SIGN(), sx = ISO.wx(sg.x, sg.y), sy = ISO.wy(sg.x, sg.y);
       c.translate(sx, sy);
       c.fillStyle = '#8a5a33'; c.fillRect(-2, -32, 4, 32);
@@ -2531,7 +2525,6 @@ return true;
       ART.rrect(c, nx - tw / 2, ny - 12, tw, 20, 8); c.fillStyle = '#3fa79b'; c.fill(); c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 1.4; c.stroke();
       c.fillStyle = '#fff'; c.fillText('🏥 ' + nm, nx, ny + 2); c.textAlign = 'start'; }
     c.restore();
-    { const cx = ISO.wx(R.x + R.w / 2, R.y + R.d / 2), cy = ISO.wy(R.x + R.w / 2, R.y + R.d / 2); hits.push({ kind: 'hospsign', x0: cx - R.w * 8, x1: cx + R.w * 8, y0: cy - 120, y1: cy - 30 }); }
   }
   function collectHospSign() {
     if (S.hosp && S.hosp.built) return [];
