@@ -300,31 +300,48 @@ return true;
         check: (ix, iy, ox, oy) => connected && ix === sp.x + sp.w - 1 && ox === sp.x + sp.w && (iy === sp.y + sp.d - 2 || iy === sp.y + sp.d - 1)
       });
     }
-    // 4. 공원 (서쪽 출입구 & 남쪽 출입구 개별 판정)
+    // 4. 공원 (4방향 doorDir 입구 및 연결된 길 판정)
     if (S.park && S.park.built && typeof PARK_POS === 'function') {
       const pp = PARK_POS();
-      const westConn = TOWN.isEntranceConnected(S, { accessX: pp.x - 1, accessY: pp.y + 6 });
-      const southConn = TOWN.isEntranceConnected(S, { accessX: pp.x + 8, accessY: pp.y + pp.d });
+      const pObj = (S.town && S.town.objs && S.town.objs.find(o => o.k === 'park'));
+      const dir = (pObj && pObj.doorDir != null) ? pObj.doorDir : ((S.park && S.park.doorDir != null) ? S.park.doorDir : 1) % 4;
+      const pw = pp.w || 16, pd = pp.d || 14;
       rs.push({
-        k: 'park', x: pp.x, y: pp.y, w: pp.w, d: pp.d,
+        k: 'park', x: pp.x, y: pp.y, w: pw, d: pd,
         check: (ix, iy, ox, oy) => {
-          if (westConn && ix === pp.x && ox === pp.x - 1 && (iy === pp.y + 6 || iy === pp.y + 7)) return true;
-          if (southConn && iy === pp.y + pp.d - 1 && oy === pp.y + pp.d && (ix === pp.x + 8 || ix === pp.x + 9)) return true;
+          // A. 연결된 길 타일이 있으면 어디서든 진입 허용 (북서쪽에 길 깐 경우 즉시 통과)
+          if (typeof TOWN !== 'undefined' && TOWN.isRoadTile && TOWN.isRoadTile(S, ox, oy, true)) return true;
+          // B. 활성 doorDir 입구 방향 통과
+          if (dir === 0 && ox >= pp.x + pw && ix < pp.x + pw) return true; // 남동
+          if (dir === 1 && oy >= pp.y + pd && iy < pp.y + pd) return true; // 남서
+          if (dir === 2 && ox < pp.x && ix >= pp.x) return true;          // 북서
+          if (dir === 3 && oy < pp.y && iy >= pp.y) return true;          // 북동
+          // C. 기본 출입구 연결부
+          if (ox < pp.x && (iy >= pp.y + 5 && iy <= pp.y + 8)) return true;
+          if (oy >= pp.y + pd && (ix >= pp.x + 6 && ix <= pp.x + 10)) return true;
+          if (oy < pp.y && (ix >= pp.x + 6 && ix <= pp.x + 10)) return true;
+          if (ox >= pp.x + pw && (iy >= pp.y + 5 && iy <= pp.y + 8)) return true;
           return false;
         }
       });
     }
-    // 5. 호수 (부두 서쪽 출입구 & 남쪽 산책로 출입구 개별 판정)
+    // 5. 호수 (4방향 doorDir 입구 및 연결된 길 판정)
     if (S.village && S.village.lake && typeof VILLAGE !== 'undefined' && typeof VILLAGE.LAKE === 'function') {
       const lp = VILLAGE.LAKE();
       if (lp && lp.x < 1000) {
-        const dockConn = TOWN.isEntranceConnected(S, { accessX: lp.x - 1, accessY: lp.y + 9 });
-        const southConn = TOWN.isEntranceConnected(S, { accessX: lp.x + 8, accessY: lp.y + 16 });
+        const lw = lp.w || 18, ld = lp.d || 16;
+        const lObj = (S.town && S.town.objs && S.town.objs.find(o => o.k === 'lake'));
+        const dir = (lObj && lObj.doorDir != null) ? lObj.doorDir : ((S.village && S.village.lakeDoorDir != null) ? S.village.lakeDoorDir : (S.lay && S.lay.lake && S.lay.lake.doorDir != null ? S.lay.lake.doorDir : 1)) % 4;
         rs.push({
-          k: 'lake', x: lp.x, y: lp.y, w: 18, d: 16,
+          k: 'lake', x: lp.x, y: lp.y, w: lw, d: ld,
           check: (ix, iy, ox, oy) => {
-            if (dockConn && ix === lp.x && ox === lp.x - 1 && (iy >= lp.y + 8 && iy <= lp.y + 10)) return true;
-            if (southConn && iy === lp.y + 15 && oy === lp.y + 16 && (ix === lp.x + 8 || ix === lp.x + 9)) return true;
+            if (typeof TOWN !== 'undefined' && TOWN.isRoadTile && TOWN.isRoadTile(S, ox, oy, true)) return true;
+            if (dir === 0 && ox >= lp.x + lw && ix < lp.x + lw) return true;
+            if (dir === 1 && oy >= lp.y + ld && iy < lp.y + ld) return true;
+            if (dir === 2 && ox < lp.x && ix >= lp.x) return true;
+            if (dir === 3 && oy < lp.y && iy >= lp.y) return true;
+            if (ox < lp.x && (iy >= lp.y + 7 && iy <= lp.y + 11)) return true;
+            if (oy >= lp.y + ld && (ix >= lp.x + 8 && ix <= lp.x + 12)) return true;
             return false;
           }
         });
@@ -334,10 +351,19 @@ return true;
     const tdef = (typeof TOWN_DEF !== 'undefined' && TOWN_DEF) || (typeof TOWN !== 'undefined' && TOWN.DEF) || (typeof window !== 'undefined' && window.TOWN_DEF) || {};
     for (const o of (S.town && S.town.objs) || []) {
       if (o.k === 'zoo') {
-        const zooConn = TOWN.isEntranceConnected(S, { accessX: o.x + 13, accessY: o.y + 22 });
+        const dir = (o.doorDir != null ? o.doorDir : 1) % 4;
         rs.push({
-          k: 'zoo', x: o.x, y: o.y, w: 24, d: 22,
-          check: (ix, iy, ox, oy) => zooConn && iy === o.y + 21 && oy === o.y + 22 && (ix >= o.x + 12 && ix <= o.x + 14)
+          k: 'zoo', x: o.x, y: o.y, w: 20, d: 22,
+          check: (ix, iy, ox, oy) => {
+            if (typeof TOWN !== 'undefined' && TOWN.isRoadTile && TOWN.isRoadTile(S, ox, oy, true)) return true;
+            if (dir === 0 && ox >= o.x + 20 && ix < o.x + 20) return true;
+            if (dir === 1 && oy >= o.y + 22 && iy < o.y + 22) return true;
+            if (dir === 2 && ox < o.x && ix >= o.x) return true;
+            if (dir === 3 && oy < o.y && iy >= o.y) return true;
+            if (iy >= o.y + 21 && oy >= o.y + 22 && (ix >= o.x + 4 && ix <= o.x + 8)) return true;
+            if (iy <= o.y && oy < o.y && (ix >= o.x + 13 && ix <= o.x + 16)) return true;
+            return false;
+          }
         });
       } else if (tdef[o.k] && tdef[o.k].cat === 'civic') {
         const d = tdef[o.k];
