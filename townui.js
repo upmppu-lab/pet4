@@ -403,8 +403,74 @@ function clearThumbCache() {
     }
     if (o.k === 'shelter') info += `<button class="btn o block" data-a="open" data-v="shelter" style="margin-top:8px">🛖 ${t('tManageShelter')}</button>`;
     if (o.k === 'zoo') info += `<button class="btn o block" data-a="open" data-v="zoo" style="margin-top:8px">🦁 ${t('tManageZoo')}</button>`;
+    const hasDoor = d && (d.cat === 'house' || d.cat === 'civic' || o.k === 'park' || d.cat === 'big');
+    const curR = (o.r || 0);
+    const isFlipped = (curR % 2 !== 0);
+    const curDoor = ((o.doorDir != null ? o.doorDir : curR) % 4 + 4) % 4;
+    const dirNames = [t('dirFront') || '앞쪽 (남동)', t('dirLeft') || '좌측 (남서)', t('dirBack') || '뒤쪽 (북서)', t('dirRight') || '우측 (북동)'];
+    const dirShorts = [t('dirFrontS') || '앞', t('dirLeftS') || '좌', t('dirBackS') || '뒤', t('dirRightS') || '우'];
+
+    const roadPosStyle = [
+      'top:73%; left:67%;', // 0: 앞쪽 (남동) - 하단 우측 진입로
+      'top:73%; left:33%;', // 1: 좌측 (남서) - 하단 좌측 진입로
+      'top:28%; left:33%;', // 2: 뒤쪽 (북서) - 상단 좌측 진입로
+      'top:28%; left:67%;'  // 3: 우측 (북동) - 상단 우측 진입로
+    ];
+
     const houseThumb = d.cat === 'house' ? ((TOWN.getTownHouseImg(L).src) || thumb(o.k)) : thumb(o.k);
-    return frameHTML((d.ic || '') + ' ' + nm(o.k), `<div class="center"><img src="${houseThumb}" style="width:130px"></div>${info}
+
+    const previewCard = `
+      <div class="tpreview-card" style="height:230px;">
+        <!-- Enlarged House Preview Sprite with immediate horizontal flip animation upon rotation -->
+        <img src="${houseThumb}" style="max-width:180px; max-height:165px; object-fit:contain; transition:transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); ${isFlipped ? 'transform:scaleX(-1);' : 'transform:scaleX(1);'} filter:drop-shadow(0 6px 12px rgba(0,0,0,0.18));">
+
+        <!-- Attached Entrance Road Tile directly on the House edge -->
+        ${hasDoor ? `
+          <div style="position:absolute; ${roadPosStyle[curDoor]}; transform:translate(-50%, -50%); z-index:4; display:flex; flex-direction:column; align-items:center; pointer-events:none; transition:all 0.35s cubic-bezier(0.34, 1.4, 0.64, 1);">
+            <div style="background:rgba(15, 23, 42, 0.92); color:#fde047; border:1.5px solid #f59e0b; border-radius:10px; padding:2px 8px; font-size:11px; font-weight:900; white-space:nowrap; box-shadow:0 2px 6px rgba(0,0,0,0.35); display:flex; align-items:center; gap:3px; margin-bottom:2px; animation:tdoorBounce 1.4s infinite ease-in-out;">
+              <span>🚪 입구 길</span>
+              <span style="color:#ffffff; font-weight:bold;">(${dirShorts[curDoor]})</span>
+            </div>
+            <svg width="74" height="42" viewBox="0 0 74 42" style="filter:drop-shadow(0 3px 5px rgba(0,0,0,0.3));">
+              <!-- Isometric Road Diamond -->
+              <polygon points="37,2 71,19 37,36 3,19" fill="#d8b488" stroke="#784d28" stroke-width="2"/>
+              <!-- Inner paved surface -->
+              <polygon points="37,6 65,20 37,32 9,20" fill="#c39d6f" opacity="0.6"/>
+              <!-- Cobblestone pavers -->
+              <path d="M22,14 L37,21 L52,14 M28,24 L37,28 L46,24 M17,18 L26,22 M48,22 L57,18 M37,12 L37,21" stroke="#663c1a" stroke-width="1.3" fill="none" opacity="0.65"/>
+              <!-- Glowing entrance connection edge -->
+              <polygon points="37,2 71,19 37,36 3,19" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-dasharray="7,3"/>
+            </svg>
+          </div>
+        ` : ''}
+
+        <!-- Direction/Status Badge on Top-Left -->
+        <div style="position:absolute; top:8px; left:8px; z-index:5; font-size:11px; font-weight:bold; background:rgba(0,0,0,0.6); color:#fff; padding:3px 9px; border-radius:10px; display:flex; align-items:center; gap:4px; box-shadow:0 1px 4px rgba(0,0,0,0.25);">
+          <span>방향: ${isFlipped ? '반전 (남동)' : '기본 (남서)'}</span>
+          ${hasDoor ? `<span style="color:#fde047;">· 입구 길: ${dirShorts[curDoor]}</span>` : ''}
+        </div>
+
+        <!-- Rotate Direction Button on Bottom-Left of Preview Screen -->
+        ${TOWN.maxR(o.k) > 1 ? `
+          <div style="position:absolute; bottom:8px; left:8px; z-index:5;">
+            <button class="btn g sm" data-a="trotnow" data-v="${o.id}" style="font-weight:900; padding:6px 12px; font-size:12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.25);">
+              🔄 ${t('tRotateDir')}
+            </button>
+          </div>
+        ` : ''}
+
+        <!-- Entrance Change Button on Bottom-Right of Preview Screen -->
+        ${hasDoor ? `
+          <div style="position:absolute; bottom:8px; right:8px; z-index:5;">
+            <button class="btn b sm" data-a="tdoorobj" data-v="${o.id}" style="font-weight:900; padding:6px 12px; font-size:12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.25);">
+              🚪 ${t('tDoorChange')} ↻
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    return frameHTML((d.ic || '') + ' ' + nm(o.k), `${previewCard}${info}
       <div class="row" style="gap:8px;margin-top:10px">${TOWN.maxR(o.k) > 1 ? `<button class="btn b block" data-a="trotnow" data-v="${o.id}">🔄 ${t('tRotateDir')}</button>` : ''}<button class="btn g block" data-a="tmovego" data-v="${o.id}">🔁 ${t('tMove')}</button><button class="btn r block" data-a="tdemo" data-v="${o.id}">🗑️ ${t('tDemo')}${back ? ' +🪙' + fmt(back) : ''}</button></div>`);
   };
 
@@ -466,7 +532,8 @@ function clearThumbCache() {
     const lot = !o && TOWN_DEF[k].cat === 'house' && TOWN.zoneLots(S, k)[0]; // a new house: start on a free lot in a residential zone
     if (o) { x = o.x; y = o.y; } else if (L) { x = L.x; y = L.y; } else if (lot) { x = lot.x; y = lot.y; } else { const g = World.toGrid(innerWidth / 2, innerHeight / 2 - 40); x = Math.floor(g.x - f.w / 2); y = Math.floor(g.y - f.d / 2); const p = TOWN.canPlace(S, k, x, y, 0) ? TOWN.nearFree(S, k, x, y, 0) : null; if (p) { x = p.x; y = p.y; } }
     const houseTier = tier || (o ? o.tier : 1);
-    App.tplace = { k, x, y, r: o ? o.r : 0, mv: mv || null, tier: houseTier };
+    const curDoor = o ? (o.doorDir != null ? o.doorDir : (o.r || 0) % 4) : (L && L.doorDir != null ? L.doorDir : 0);
+    App.tplace = { k, x, y, r: o ? o.r : (L && L.r != null ? L.r : 0), doorDir: curDoor, mv: mv || null, tier: houseTier };
     closePanel(); World.cam.follow = false; World.cam.z = Math.min(World.cam.z, k === 'zone' ? .4 : big ? Math.max(.2, Math.min(.5, 14 / Math.max(f.w, f.d))) : TOWN_DEF[k].cat === 'house' ? .7 : .9);
     const c = ISO.wx(x + f.w / 2, y + f.d / 2), d = ISO.wy(x + f.w / 2, y + f.d / 2); World.cam.x = c; World.cam.y = d;
     render();
@@ -619,7 +686,12 @@ function clearThumbCache() {
     const p = App.tplace; if (!p) return '';
     const bad = TOWN.canPlace(S, p.k, p.x, p.y, p.r, p.mv), d = TOWN_DEF[p.k];
     const cost = p.k === 'zone' ? TOWN.zoneCost(S) : d.cat === 'big' ? d.cost : (d.cat === 'house' && !p.mv) ? TOWN.houseTierBuyCost(S, p.tier || 1) : TOWN.kindCost(S, p.k), turn = TOWN.maxR(p.k) > 1;
-    return `<div class="editbar tplacebar"><div class="grow">📍 ${t('tPlaceHint')}${bad ? `<div class="tbadtxt">⛔ ${t(bad)}</div>` : ''}${d.cat === 'house' && !p.mv && !TOWN.zoneLots(S, p.k).length ? `<div class="tbadtxt">🏘️ ${t('tZoneFull')} <button class="btn g sm" data-a="tpick" data-v="zone">${t('tZoneNew')} 🪙${fmt(TOWN.zoneCost(S))}</button></div>` : ''}</div>
+    const showDoor = d && (d.cat === 'house' || d.cat === 'civic' || p.k === 'park' || d.cat === 'big');
+    const curDoor = ((p.doorDir != null ? p.doorDir : (p.r || 0)) % 4 + 4) % 4;
+    const dirNames = [t('dirFront') || '앞(남동)', t('dirLeft') || '좌(남서)', t('dirBack') || '뒤(북서)', t('dirRight') || '우(북동)'];
+    const dirShorts = [t('dirFrontS') || '앞', t('dirLeftS') || '좌', t('dirBackS') || '뒤', t('dirRightS') || '우'];
+    return `<div class="editbar tplacebar"><div class="grow">📍 ${t('tPlaceHint')}${showDoor ? `<div class="tdoortxt">🚪 ${t('tDoorDir')}: <span style="color:#fde047;font-weight:bold;">${dirNames[curDoor]}</span></div>` : ''}${bad ? `<div class="tbadtxt">⛔ ${t(bad)}</div>` : ''}${d.cat === 'house' && !p.mv && !TOWN.zoneLots(S, p.k).length ? `<div class="tbadtxt">🏘️ ${t('tZoneFull')} <button class="btn g sm" data-a="tpick" data-v="zone">${t('tZoneNew')} 🪙${fmt(TOWN.zoneCost(S))}</button></div>` : ''}</div>
+      ${showDoor ? `<button class="btn b sm" data-a="tdoordir" title="${t('tChangeDoorDir')}">🚪 ${t('tDoorBtn')}: ${dirShorts[curDoor]} ↻</button>` : ''}
       ${turn ? `<button class="btn g sm" data-a="trotl" title="${t('tRotLeft')}">↺ ${t('tRotLeft')}</button><button class="btn g sm" data-a="trotr" title="${t('tRotRight')}">↻ ${t('tRotRight')}</button>` : ''}<button class="btn r sm" data-a="tcancel">✖</button>
       <button class="btn sm ${bad || (!p.mv && S.coins < cost) ? 'dis' : ''}" data-a="tok">✔ ${p.mv ? t('tMoveHere') : '🪙' + fmt(cost)}</button></div>`;
   }
@@ -653,7 +725,8 @@ function clearThumbCache() {
     return false;
   }
   function bigOk(p) {
-    const go = extra => { const r = p.mv ? actR({ t: 'tbigmove', k: p.k, x: p.x, y: p.y }) : actR(Object.assign({ t: 'tbig', k: p.k, x: p.x, y: p.y }, extra || {}));
+    const curDoor = p.doorDir != null ? p.doorDir : ((p.r || 0) % 4);
+    const go = extra => { const r = p.mv ? actR({ t: 'tbigmove', k: p.k, x: p.x, y: p.y, r: p.r, doorDir: curDoor }) : actR(Object.assign({ t: 'tbig', k: p.k, x: p.x, y: p.y, r: p.r, doorDir: curDoor }, extra || {}));
       if (r && r.ok) { SND.level && SND.level(); fxAt(innerWidth / 2, innerHeight / 2 - 60, TOWN_DEF[p.k].ic); App.tplace = null; } render(); };
     if (p.k === 'monu' && !p.mv) { // the monument needs the words carved on it (and the two of us as the statue)
       const others = Object.entries(Net.players || {}).filter(([id]) => id !== CFG.id).map(([, q]) => q), pn = others[0];
@@ -730,20 +803,58 @@ function clearThumbCache() {
     },
     trotnow: v => {
       const o = TOWN.objs().find(q => q.id === +v); if (!o) return;
-      const nextR = ((o.r || 0) + 1) % TOWN.maxR(o.k);
-      const r = actR({ t: 'tmove', id: o.id, x: o.x, y: o.y, r: nextR });
-      if (r && r.ok) { SND.pop && SND.pop(); closePanel(); render(); }
-      else startPlace(o.k, o.id);
+      const m = TOWN.maxR(o.k);
+      const nextR = ((o.r || 0) + 1) % m;
+      const nextDoor = (((o.doorDir != null ? o.doorDir : o.r) + 1) % 4);
+      const r = actR({ t: 'tmove', id: o.id, x: o.x, y: o.y, r: nextR, doorDir: nextDoor });
+      if (r && r.ok) {
+        if (typeof SND !== 'undefined' && SND.pop) SND.pop();
+        if (typeof renderPanel === 'function') renderPanel(true);
+        render();
+      } else startPlace(o.k, o.id);
     },
-    trot: () => { const p = App.tplace; if (!p) return; p.r = ((p.r || 0) + 1) % TOWN.maxR(p.k); render(); },
-    trotl: () => { const p = App.tplace; if (!p) return; const m = TOWN.maxR(p.k); p.r = ((p.r || 0) - 1 + m) % m; render(); },
-    trotr: () => { const p = App.tplace; if (!p) return; const m = TOWN.maxR(p.k); p.r = ((p.r || 0) + 1) % m; render(); },
+    tdoordir: () => {
+      const p = App.tplace; if (!p) return;
+      p.doorDir = (((p.doorDir != null ? p.doorDir : (p.r || 0)) + 1) % 4);
+      if (typeof SND !== 'undefined' && SND.pop) SND.pop();
+      render();
+    },
+    tdoorobj: v => {
+      const o = TOWN.objs().find(q => q.id === +v); if (!o) return;
+      const nextDir = (((o.doorDir != null ? o.doorDir : (o.r || 0)) + 1) % 4);
+      actR({ t: 'tsetdoor', id: +v, doorDir: nextDir });
+      if (typeof SND !== 'undefined' && SND.pop) SND.pop();
+      if (typeof renderPanel === 'function') renderPanel(true);
+      render();
+    },
+    trot: () => {
+      const p = App.tplace; if (!p) return;
+      const m = TOWN.maxR(p.k);
+      p.r = ((p.r || 0) + 1) % m;
+      p.doorDir = (((p.doorDir != null ? p.doorDir : p.r) + 1) % 4);
+      render();
+    },
+    trotl: () => {
+      const p = App.tplace; if (!p) return;
+      const m = TOWN.maxR(p.k);
+      p.r = ((p.r || 0) - 1 + m) % m;
+      p.doorDir = (((p.doorDir != null ? p.doorDir : p.r) - 1 + 4) % 4);
+      render();
+    },
+    trotr: () => {
+      const p = App.tplace; if (!p) return;
+      const m = TOWN.maxR(p.k);
+      p.r = ((p.r || 0) + 1) % m;
+      p.doorDir = (((p.doorDir != null ? p.doorDir : p.r) + 1) % 4);
+      render();
+    },
     tcancel: () => { App.tplace = null; render(); },
     tok: () => {
       const p = App.tplace; if (!p) return;
       if (TOWN_DEF[p.k].cat === 'big') { bigOk(p); return; }
       if (p.k === 'zone') { const r = actR({ t: 'tzone', x: p.x, y: p.y, r: p.r || 0 }); if (r && r.ok) { SND.level && SND.level(); fxAt(innerWidth / 2, innerHeight / 2 - 60, '🏘️'); App.tplace = null; } render(); return; }
-      const r = p.mv ? actR({ t: 'tmove', id: p.mv, x: p.x, y: p.y, r: p.r }) : actR({ t: 'tbuild', k: p.k, tier: p.tier || 1, x: p.x, y: p.y, r: p.r });
+      const curDoor = p.doorDir != null ? p.doorDir : ((p.r || 0) % 4);
+      const r = p.mv ? actR({ t: 'tmove', id: p.mv, x: p.x, y: p.y, r: p.r, doorDir: curDoor }) : actR({ t: 'tbuild', k: p.k, tier: p.tier || 1, x: p.x, y: p.y, r: p.r, doorDir: curDoor });
       if (r && r.ok) {
         const d = TOWN_DEF[p.k];
         fxAt(innerWidth / 2, innerHeight / 2 - 60, d.cat === 'tree' ? '🌱' : d.cat === 'house' ? '🏠' : '✨'); SND.level && SND.level();
@@ -812,8 +923,10 @@ Object.assign(I18N.ko, {
   tk_aquarium_center: '해양 아쿠아리움', tk_pet_themepark: '펫 테마파크 놀이공원', tk_cat_cafe: '힐링 캣카페 라운지', tk_pet_bakery: '수제 펫 베이커리',
   groomerDoneMsg: '강아지의 미용 끝났어요. 이뻐요 ✨',
   ctype_family: '가족 손님', ctype_collector: '수집가', collectorSays: 'Lv3 이상(또는 ⭐) {sp}을(를) 찾고 있어요. 값은 넉넉히 드릴게요!', collectorNo: '수집가는 Lv3 이상(또는 ⭐)인 그 품종만 원해요', familyKit: '🧺 용품 세트 +🪙{c}',
-  road_cobble: '자갈길', road_asphalt: '아스팔트길', road_brick: '붉은 벽돌길', road_wood: '원목 데크길', road_marble: '대리석 산책로', road_dirt: '흙길', road_step: '디딤돌 풀길', road_pink: '벚꽃 꽃길',
   tRotLeft: '좌회전', tRotRight: '우회전', tRotateDir: '방향 회전',
+  tDoorDir: '입구 방향', tDoorBtn: '입구', tChangeDoorDir: '입구 방향 변경', tDoorBadge: '🚪 입구', tDoorChange: '입구 변경', tDoorChanged: '입구 방향이 변경되었습니다',
+  dirFront: '앞쪽 (남동)', dirLeft: '왼쪽 (남서)', dirBack: '뒤쪽 (북서)', dirRight: '오른쪽 (북동)',
+  dirFrontS: '앞', dirLeftS: '좌', dirBackS: '뒤', dirRightS: '우',
   tManageShelter: '유기동물 보관소 관리하기', tManageZoo: '동물원 둘러보기·관리하기',
   stj_rec: '맞이·자동판매', stj_sellpc: '펫·용품 결제', stj_storysolve: '사연 고민 해결',
   salesGreeting1: '어서오세요! 🐾', salesGreeting2: '귀여운 아이들 보러 오세요!', salesSoldMsg: '좋은 가족 만나렴! 💛',
@@ -942,8 +1055,10 @@ Object.assign(I18N.ru, {
   tk_aquarium_center: 'Морской океанариум', tk_pet_themepark: 'Тематический парк развлечений', tk_cat_cafe: 'Котокафе', tk_pet_bakery: 'Пекарня лакомств',
   groomerDoneMsg: 'Стрижка собачки завершена! Такая красота ✨',
   ctype_family: 'Семья', ctype_collector: 'Коллекционер', collectorSays: 'Ищу {sp} ур.3+ (или ⭐). Заплачу щедро!', collectorNo: 'Коллекционеру нужна только эта порода ур.3+ (или ⭐)', familyKit: '🧺 Набор для питомца +🪙{c}',
-  road_cobble: 'Брусчатка', road_asphalt: 'Асфальт', road_brick: 'Кирпичная дорожка', road_wood: 'Деревянный настил', road_marble: 'Мраморная дорожка', road_dirt: 'Грунтовая тропа', road_step: 'Ступени на траве', road_pink: 'Сакура (розовая)',
   tRotLeft: 'Влево', tRotRight: 'Вправо', tRotateDir: 'Повернуть',
+  tDoorDir: 'Направление входа', tDoorBtn: 'Вход', tChangeDoorDir: 'Сменить вход', tDoorBadge: '🚪 Вход', tDoorChange: 'Сменить вход', tDoorChanged: 'Направление входа изменено',
+  dirFront: 'Спереди (ЮВ)', dirLeft: 'Слева (ЮЗ)', dirBack: 'Сзади (СЗ)', dirRight: 'Справа (СВ)',
+  dirFrontS: 'Перед', dirLeftS: 'Лев', dirBackS: 'Зад', dirRightS: 'Прав',
   tManageShelter: 'Управление приютом', tManageZoo: 'Обзор и управление зоопарком',
   stj_rec: 'Встреча и автопродажа', stj_sellpc: 'Оплата питомцев и товаров', stj_storysolve: 'Помощь с особыми историями',
   salesGreeting1: 'Добро пожаловать! 🐾', salesGreeting2: 'Посмотрите на наших милашек!', salesSoldMsg: 'Счастливой жизни в новой семье! 💛',

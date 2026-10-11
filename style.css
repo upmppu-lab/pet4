@@ -307,7 +307,10 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
 .tthumb img{width:100%;height:100%;object-fit:contain}
 .lockli{opacity:.6}
 .tplacebar{flex-wrap:wrap}.tplacebar .grow{min-width:140px}
+.tdoortxt{font-size:11.5px;color:#fef08a;margin-top:2px;font-weight:700}
 .tbadtxt{font-size:12px;color:#ffd0c8;margin-top:2px}
+@keyframes tdoorBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.tpreview-card{position:relative;width:100%;height:230px;margin:0 auto 12px;background:linear-gradient(180deg,#f2faee 0%,#e1f5d9 100%);border:1.5px solid #c3e6b8;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:inset 0 1px 3px rgba(0,0,0,.06)}
 .money .mrow{display:flex;gap:4px;align-items:center;justify-content:flex-end}
 .townrow{position:fixed;left:10px;top:calc(114px + env(safe-area-inset-top));z-index:10}
 .tbigic{display:flex;align-items:center;justify-content:center;font-size:34px}

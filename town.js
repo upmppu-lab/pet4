@@ -268,7 +268,7 @@ const TOWN = (() => {
   const obj = (s, id) => ((s.town && s.town.objs) || []).find(o => o.id === id);
   const fpOf = (k, r) => { const d = D[k] || { w: 1, d: 1 }; return r % 2 && d.cat !== 'big' ? { w: d.d, d: d.w } : { w: d.w, d: d.d }; }; // big buildings don't turn; r = 0 door south, 1 east, 2 north, 3 west
   const rotPt = (o, u, v, W, Dd) => { const r = o.r || 0; if (r >= 2) { u = W - 1 - u; v = Dd - 1 - v; } if (r % 2) { const t = u; u = v; v = t; } return { x: o.x + u, y: o.y + v }; }; // a tile of the unturned lot -> where it is now
-  const maxR = k => (k === 'zoo') ? 1 : (k === 'cottage') ? 2 : D[k] && (D[k].cat === 'house' || D[k].cat === 'civic' || D[k].cat === 'deco' || k === 'zone') ? 4 : 1;
+  const maxR = k => (k === 'zoo') ? 1 : (k === 'park' || k === 'cottage' || (D[k] && (D[k].cat === 'house' || D[k].cat === 'civic' || D[k].cat === 'deco' || k === 'zone'))) ? 4 : 1;
   const normR = (k, r) => ((r | 0) % maxR(k) + maxR(k)) % maxR(k);
   // Railway Track & Train Station boundaries
   function trainZones(s) {
@@ -685,6 +685,10 @@ const TOWN = (() => {
       if (o.k !== 'cottage' && !(d && d.cat === 'house')) continue;
       const hd = doorOf(o);
       out.add(hd.x + ',' + hd.y);
+      if (hd.dir === 2) out.add(o.x + ',' + (o.y + 2));
+      else if (hd.dir === 3) out.add((o.x + 2) + ',' + o.y);
+      else if (hd.dir === 0) out.add((o.x + 4) + ',' + (o.y + 2));
+      else if (hd.dir === 1) out.add((o.x + 2) + ',' + (o.y + 4));
       if (baseWalk(hd.x, hd.y)) continue; // 문 바로 앞이 이미 길/골목이면 끝
       const startKey = hd.x + ',' + hd.y;
       const visited = new Set([startKey]);
@@ -1417,8 +1421,38 @@ const roadTileOk = (s, x, y) => {
   }
   // which house a customer walks out of (weighted by residents); returns the door tile
   function doorOf(o) {
-    const r = ((o.r || 0) % 2 + 2) % 2;
-    return r === 1 ? { x: o.x + 3, y: o.y + 4 } : { x: o.x + 2, y: o.y + 4 };
+    if (!o) return { x: 0, y: 0, dir: 0 };
+    const d = D[o.k] || {};
+    const f = fpOf(o.k, o.r);
+    const w = f.w, dep = f.d;
+    const dir = ((o.doorDir != null ? o.doorDir : (o.r || 0)) % 4 + 4) % 4;
+
+    if (o.k === 'park') {
+      const pw = (typeof PARK_W !== 'undefined') ? PARK_W : 16;
+      const pd = (typeof PARK_D !== 'undefined') ? PARK_D : 14;
+      if (dir === 0) return { x: o.x + pw, y: o.y + 7, dir: 0 };  // Screen Right-Down (Front-East)
+      if (dir === 1) return { x: o.x + 8, y: o.y + pd, dir: 1 };  // Screen Left-Down (South)
+      if (dir === 2) return { x: o.x - 1, y: o.y + 7, dir: 2 };   // Screen Left-Up (West)
+      if (dir === 3) return { x: o.x + 8, y: o.y - 1, dir: 3 };   // Screen Right-Up (North)
+    }
+
+    if (d.cat === 'house') {
+      // 5x5 residential lot:
+      // In isometric screen space: +x is Screen Right-Down, +y is Screen Left-Down, -x is Screen Left-Up, -y is Screen Right-Up
+      if (dir === 0) return { x: o.x + 4, y: o.y + 2, dir: 0 };  // Front (오른쪽 아래 / 앞)
+      if (dir === 1) return { x: o.x + 2, y: o.y + 4, dir: 1 };  // Left (왼쪽 아래 / 좌)
+      if (dir === 2) return { x: o.x - 1, y: o.y + 2, dir: 2 };  // Back (왼쪽 위 / 뒤: 건물 지붕 뒤에 가려지지 않게 외부 연결 타일로 배치)
+      if (dir === 3) return { x: o.x + 2, y: o.y - 1, dir: 3 };  // Right (오른쪽 위 / 우: 건물 지붕 뒤에 가려지지 않게 외부 연결 타일로 배치)
+    }
+
+    if (d.cat === 'civic' || d.cat === 'big') {
+      if (dir === 0) return { x: o.x + w, y: o.y + Math.floor(dep / 2), dir: 0 };  // Front (오른쪽 아래)
+      if (dir === 1) return { x: o.x + Math.floor(w / 2), y: o.y + dep, dir: 1 };  // Left (왼쪽 아래)
+      if (dir === 2) return { x: o.x - 1, y: o.y + Math.floor(dep / 2), dir: 2 };  // Back (왼쪽 위)
+      if (dir === 3) return { x: o.x + Math.floor(w / 2), y: o.y - 1, dir: 3 };    // Right (오른쪽 위)
+    }
+
+    return { x: o.x + w, y: o.y + Math.floor(dep / 2), dir: dir };
   }
   function pickHome(s) {
     const hs = houses_(s).filter(o => o.n > 0), tot = hs.reduce((a, o) => a + o.n, 0); if (!tot) return null;
@@ -1566,15 +1600,18 @@ const roadTileOk = (s, x, y) => {
       if (d.rep && repTier(s.rep || 0) < d.rep) return { err: 'tNeedRep', p: { t: (REP_TIERS[d.rep] || {}).ic || '⭐' } };
       s.lay = s.lay || {};
       if (!d.noPlace) { const e = canPlace(s, a.k, a.x, a.y, 0); if (e) return { err: e }; }
+      const doorDir = a.doorDir != null ? ((a.doorDir % 4 + 4) % 4) : 0;
       if (d.act) {
-        if (!d.noPlace) s.lay[a.k] = { x: a.x, y: a.y };
+        if (!d.noPlace) s.lay[a.k] = { x: a.x, y: a.y, r: a.r || 0, doorDir };
+        if (a.k === 'park') { s.park = s.park || {}; s.park.doorDir = doorDir; }
         const r = G.apply(s, { t: d.act, k: a.k, text: a.text, looks: a.looks, lang: a.lang }, by);
         if (!r || r.err) { if (!d.noPlace) delete s.lay[a.k]; return r || { err: 'gone' }; }
         if (typeof G !== 'undefined' && G.addXpPublic) G.addXpPublic(s, 20);
         return r;
       }
       if (s.coins < d.cost) return { err: 'notEnough' };
-      s.coins -= d.cost; s.lay[a.k] = { x: a.x, y: a.y };
+      s.coins -= d.cost; s.lay[a.k] = { x: a.x, y: a.y, r: a.r || 0, doorDir };
+      if (a.k === 'park') { s.park = s.park || {}; s.park.doorDir = doorDir; }
       if (a.k === 'farm' && typeof FARM !== 'undefined' && FARM.ensure) FARM.ensure(s);
       clearBuildingOverlaps(s);
       if (typeof G !== 'undefined' && G.addXpPublic) G.addXpPublic(s, 10);
@@ -1585,8 +1622,25 @@ const roadTileOk = (s, x, y) => {
       if (d.live && s.clock && s.clock.ph === 'open') return { err: 'tMoveClosed' };
       const e = canPlace(s, a.k, a.x, a.y, 0, a.k); if (e) return { err: e };
       L.x = a.x; L.y = a.y;
+      if (a.r != null) L.r = a.r;
+      if (a.doorDir != null) L.doorDir = ((a.doorDir % 4 + 4) % 4);
+      if (a.k === 'park' && s.park) s.park.doorDir = (a.doorDir != null ? a.doorDir : (a.r != null ? a.r % 4 : s.park.doorDir));
       clearBuildingOverlaps(s);
       return { ok: 1, msg: 'tMoved' };
+    }
+    if (a.t === 'tsetdoor') {
+      if (a.k === 'park') {
+        s.lay = s.lay || {};
+        s.lay.park = s.lay.park || {};
+        s.lay.park.doorDir = ((a.doorDir % 4 + 4) % 4);
+        if (s.park) s.park.doorDir = ((a.doorDir % 4 + 4) % 4);
+        clearBuildingOverlaps(s);
+        return { ok: 1, msg: 'tDoorChanged' };
+      }
+      const o = obj(s, a.id); if (!o) return { err: 'gone' };
+      o.doorDir = ((a.doorDir % 4 + 4) % 4);
+      clearBuildingOverlaps(s);
+      return { ok: 1, msg: 'tDoorChanged' };
     }
     if (a.t === 'tbuild') {
       const d = D[a.k]; if (!d) return { err: 'gone' }; ensure(s);
@@ -1594,6 +1648,7 @@ const roadTileOk = (s, x, y) => {
       // v2026-10-08: 새 집을 "놓는" 것도 레벨로 잠김 -- 돈만 있다고 무한정 집을 늘릴 수 없게 함
       if (d.cat === 'house' && !canPlaceNewHouse(s)) return { err: 'tHouseSlotLock', p: { n: nextHouseSlotLevel(s) } };
       const e = canPlace(s, a.k, a.x, a.y, normR(a.k, a.r)); if (e) return { err: e };
+      const doorDir = a.doorDir != null ? ((a.doorDir % 4 + 4) % 4) : (normR(a.k, a.r) % 4);
 
       if (d.cat === 'house') {
         const tier = a.tier ? Math.min(HOUSE_TIER_MAX, Math.max(1, a.tier | 0)) : 1;
@@ -1603,7 +1658,7 @@ const roadTileOk = (s, x, y) => {
         const tierCost = houseTierBuyCost(s, tier);
         if (s.coins < tierCost) return { err: 'notEnough' };
         s.coins -= tierCost;
-        const o = { id: s.town.seq++, k: 'cottage', x: a.x, y: a.y, r: normR(a.k, a.r), paid: tierCost, tier };
+        const o = { id: s.town.seq++, k: 'cottage', x: a.x, y: a.y, r: normR(a.k, a.r), paid: tierCost, tier, doorDir };
         o.n = Math.min(houseCapOf(o), Math.floor(houseCapOf(o) * occFrac(stats(s).hap) * .5));
         o.cw = Math.floor(Math.random() * 8); o.cr = Math.floor(Math.random() * 8);
         s.town.objs.push(o); s.town.best = Math.max(s.town.best || 0, pop(s)); checkMilestones(s);
@@ -1614,7 +1669,7 @@ const roadTileOk = (s, x, y) => {
 
       const cost = kindCost(s, a.k); if (s.coins < cost) return { err: 'notEnough' };
       s.coins -= cost;
-      const o = { id: s.town.seq++, k: a.k, x: a.x, y: a.y, r: normR(a.k, a.r), paid: cost };
+      const o = { id: s.town.seq++, k: a.k, x: a.x, y: a.y, r: normR(a.k, a.r), paid: cost, doorDir };
       if (a.k === 'zoo') o.bigZoo = 1;
       if (d.cat === 'tree') o.pd = s.clock.day;
       if (d.cat === 'civic') {
@@ -1630,6 +1685,7 @@ const roadTileOk = (s, x, y) => {
       const o = obj(s, a.id); if (!o) return { err: 'gone' };
       const e = canPlace(s, o.k, a.x, a.y, normR(o.k, a.r), o.id); if (e) return { err: e };
       o.x = a.x; o.y = a.y; o.r = normR(o.k, a.r);
+      if (a.doorDir != null) o.doorDir = ((a.doorDir % 4 + 4) % 4);
       if (D[o.k] && D[o.k].cat === 'civic') {
         const bx = { x: o.x, y: o.y, w: fpOf(o.k, o.r).w, d: fpOf(o.k, o.r).d };
         s.town.objs = s.town.objs.filter(q => q === o || !D[q.k] || D[q.k].cat !== 'tree' || !overlap(bx, { x: q.x, y: q.y, w: 1, d: 1 }));
@@ -4771,8 +4827,61 @@ function getFlowerSprite(kind) {
         c.restore();
       }
       const q = Q(g.x + f.w / 2, g.y + f.d / 2); poly(c, [Q(g.x, g.y), Q(g.x + f.w, g.y), Q(g.x + f.w, g.y + f.d), Q(g.x, g.y + f.d)], null, bad ? '#c0302a' : '#2e8a3a', 4);
-      c.font = '64px sans-serif'; c.textAlign = 'center'; c.fillText(D[g.k].ic, q[0], q[1] - 10); c.font = 'bold 26px sans-serif'; c.lineWidth = 6; c.strokeStyle = '#fff'; c.lineJoin = 'round'; c.strokeText(t('tk_' + g.k), q[0], q[1] + 26); c.fillStyle = '#5a3a2a'; c.fillText(t('tk_' + g.k), q[0], q[1] + 26); c.textAlign = 'start';
-    } else { c.globalAlpha = .6; drawObj(c, { k: g.k, x: g.x, y: g.y, r: g.r, cw: 1, cr: 0, pd: -99, tier: g.tier || 1 }, T, true); c.globalAlpha = 1; }
+    } else { c.globalAlpha = .6; drawObj(c, { k: g.k, x: g.x, y: g.y, r: g.r, doorDir: g.doorDir, cw: 1, cr: 0, pd: -99, tier: g.tier || 1 }, T, true); c.globalAlpha = 1; }
+
+    // Visual entrance indicator on ghost for houses, park, civics, and big buildings
+    const dg = D[g.k];
+    if (dg && (dg.cat === 'house' || dg.cat === 'civic' || dg.cat === 'big' || g.k === 'park')) {
+      const hd = doorOf(g);
+      if (hd) {
+        const q0 = Q(hd.x, hd.y), q1 = Q(hd.x + 1, hd.y), q2 = Q(hd.x + 1, hd.y + 1), q3 = Q(hd.x, hd.y + 1);
+        const now = Date.now();
+        const pulse = Math.sin(now / 200) * 0.5 + 0.5;
+        // 1. Glowing entrance tile
+        poly(c, [q0, q1, q2, q3], `rgba(251, 191, 36, ${0.4 + pulse * 0.3})`, '#f59e0b', 2.5);
+
+        // 2. Door direction badge & bouncing arrow
+        const centerQ = Q(hd.x + 0.5, hd.y + 0.5);
+        const bob = Math.sin(now / 160) * 4;
+        const ay = centerQ[1] - 16 + bob;
+
+        c.save();
+        const dirNames = [t('dirFront') || '앞(남동)', t('dirLeft') || '좌(남서)', t('dirBack') || '뒤(북서)', t('dirRight') || '우(북동)'];
+        const curD = hd.dir != null ? hd.dir : ((g.doorDir != null ? g.doorDir : g.r || 0) % 4);
+        const dirLabel = dirNames[curD] || '';
+        const badgeText = (t('tDoorBadge') || '🚪 입구') + ' ' + dirLabel;
+
+        c.font = 'bold 12px sans-serif';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        const tw = c.measureText(badgeText).width;
+
+        // Dark pill background with golden border
+        c.fillStyle = 'rgba(15, 23, 42, 0.92)';
+        c.strokeStyle = '#f59e0b';
+        c.lineWidth = 1.8;
+        const px = centerQ[0], py = ay - 14;
+        c.beginPath();
+        if (c.roundRect) c.roundRect(px - tw / 2 - 8, py - 11, tw + 16, 22, 6);
+        else c.rect(px - tw / 2 - 8, py - 11, tw + 16, 22);
+        c.fill();
+        c.stroke();
+
+        // Text
+        c.fillStyle = '#ffffff';
+        c.fillText(badgeText, px, py);
+
+        // Downward triangle arrow pointing to entrance tile
+        c.fillStyle = '#f59e0b';
+        c.beginPath();
+        c.moveTo(px, ay + 2);
+        c.lineTo(px - 5, ay - 5);
+        c.lineTo(px + 5, ay - 5);
+        c.closePath();
+        c.fill();
+        c.restore();
+      }
+    }
     return !bad;
   }
   // ---------------- the pet that follows its owner around the village ----------------
@@ -5196,8 +5305,12 @@ function getFlowerSprite(kind) {
       if (o.k === 'cottage' || (d && d.cat === 'house')) {
         const hd = doorOf(o);
         const ex = hd.x, ey = hd.y;
-        if (R.has(ex + ',' + ey)) continue;
-        drawRoadTile(ex, ey, 'dirt', curC);
+        if (!R.has(ex + ',' + ey)) drawRoadTile(ex, ey, 'dirt', curC);
+        // Also draw the yard edge connecting tile so the road connects directly to the house
+        if (hd.dir === 2 && !R.has(o.x + ',' + (o.y + 2))) drawRoadTile(o.x, o.y + 2, 'dirt', curC);
+        else if (hd.dir === 3 && !R.has((o.x + 2) + ',' + o.y)) drawRoadTile(o.x + 2, o.y, 'dirt', curC);
+        else if (hd.dir === 0 && !R.has((o.x + 4) + ',' + (o.y + 2))) drawRoadTile(o.x + 4, o.y + 2, 'dirt', curC);
+        else if (hd.dir === 1 && !R.has((o.x + 2) + ',' + (o.y + 4))) drawRoadTile(o.x + 2, o.y + 4, 'dirt', curC);
       }
     }
   };
