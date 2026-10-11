@@ -3677,7 +3677,12 @@ return true;
   }
   function grabAt(e) {
     const { gx, gy } = gridAt(e);
-    if (App.tplace && typeof TOWN !== 'undefined') { const p = App.tplace, f = TOWN.fpOf(p.k, p.r); if (p.x != null && nearBox(gx, gy, p.x, p.y, f.w, f.d)) return { m: 't', ox: p.x - gx, oy: p.y - gy, lx: p.x, ly: p.y }; return null; }
+    if (App.tplace && typeof TOWN !== 'undefined') {
+      const p = App.tplace, f = TOWN.fpOf(p.k, p.r);
+      if (p.batch != null && !p.mv) return { m: 't', ox: 0, oy: 0, lx: gx, ly: gy };
+      if (p.x != null && nearBox(gx, gy, p.x, p.y, f.w, f.d)) return { m: 't', ox: p.x - gx, oy: p.y - gy, lx: p.x, ly: p.y };
+      return null;
+    }
     if (App.troad) return { m: 'road' };
     if (App.hospEdit || App.cafeEdit) { const H = !!App.hospEdit, sel = H ? hospSel : cafeSel; let it = sel != null ? (H ? hospItemById(sel) : cafeItemById(sel)) : null;
       if (!(it && nearBox(gx, gy, it.x, it.y, it.w || 1, it.d || 1))) it = H ? hospItemAt(gx, gy) : cafeItemAt(gx, gy);
@@ -3745,7 +3750,27 @@ return true;
     if (!g.on) { if (Math.hypot(e.clientX - g.sx, e.clientY - g.sy) < 8) return; g.on = true; if (drag) drag.moved = true; if (g.m === 'e' && editSel !== g.id) { editSel = g.id; typeof render === 'function' && render(); } if (g.m === 'tap') { if (g.H) hospSel = g.id; else cafeSel = g.id; typeof render === 'function' && render(); } }
     if (g.m === 'tap') return;
     const { gx, gy } = gridAt(e), nx = gx + g.ox, ny = gy + g.oy;
-    if (g.m === 't') { const p = App.tplace; if (!p) { gdrag = null; return; } if (p.x !== nx || p.y !== ny) { p.x = nx; p.y = ny; typeof render === 'function' && render(); } }
+    if (g.m === 't') {
+      const p = App.tplace;
+      if (!p) { gdrag = null; return; }
+      if (p.batch != null && !p.mv) {
+        const key = nx + ',' + ny;
+        if (!p.batch.has(key)) {
+          const bad = typeof TOWN !== 'undefined' && TOWN.canPlace ? TOWN.canPlace(S, p.k, nx, ny, p.r, p.mv) : null;
+          if (!bad) {
+            const unitCost = typeof TOWN !== 'undefined' && TOWN.kindCost ? TOWN.kindCost(S, p.k) : 100;
+            if (S.coins >= unitCost * (p.batch.size + 1)) {
+              p.batch.set(key, { x: nx, y: ny });
+              p.x = nx; p.y = ny;
+              if (typeof SND !== 'undefined' && SND.pop) SND.pop();
+              typeof render === 'function' && render();
+            }
+          }
+        }
+      } else {
+        if (p.x !== nx || p.y !== ny) { p.x = nx; p.y = ny; typeof render === 'function' && render(); }
+      }
+    }
     if (g.m === 'e') editDrag = { id: g.id, x: nx, y: ny };
   }
   function gdragUp(e) {
@@ -3933,3 +3958,5 @@ return true;
   return { originFor, itemAt, rotate, goDrop, nearStore, goStore, init, reset, walkNear, goTo, walk, strayPos, screenOf, petActor, markSold, markLeft, goCounter, trick, setPartners, joy, cam, center, farmAction, focusCafe, focusFarm, focusTrain, focusZoo,
     toGrid, broom: sec => { if (me) me.broomUntil = T + (sec || 1.1); }, get me() { return me; }, set editSel(v) { editSel = v; }, set cafeSel(v) { cafeSel = v; }, set hospSel(v) { hospSel = v; }, get hospSel() { return hospSel; }, hospItemById, focusHosp, hospPerf, get cafeSel() { return cafeSel; }, cafeItemById, get editSel() { return editSel; }, toScreen, actors, buildOccNow: () => { occKey = ''; buildOcc(); }, pathDist };
 })();
+if (typeof window !== 'undefined') window.WORLD = World;
+

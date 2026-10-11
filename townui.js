@@ -655,7 +655,13 @@ function clearThumbCache() {
     if (o) { x = o.x; y = o.y; } else if (L) { x = L.x; y = L.y; } else if (lot) { x = lot.x; y = lot.y; } else { const g = World.toGrid(innerWidth / 2, innerHeight / 2 - 40); x = Math.floor(g.x - f.w / 2); y = Math.floor(g.y - f.d / 2); const p = TOWN.canPlace(S, k, x, y, 0) ? TOWN.nearFree(S, k, x, y, 0) : null; if (p) { x = p.x; y = p.y; } }
     const houseTier = tier || (o ? o.tier : 1);
     const curDoor = o ? (o.doorDir != null ? o.doorDir : (o.r || 0) % 4) : (L && L.doorDir != null ? L.doorDir : 0);
+    const dDef = TOWN_DEF[k];
+    const isBatch = !mv && dDef && (dDef.cat === 'tree' || dDef.flower || dDef.cat === 'deco' || k === 'bench' || k === 'lamp' || k === 'fence' || k === 'flowerbed');
     App.tplace = { k, x, y, r: o ? o.r : (L && L.r != null ? L.r : 0), doorDir: curDoor, mv: mv || null, tier: houseTier };
+    if (isBatch) {
+      App.tplace.batch = new Map();
+      App.tplace.batch.set(x + ',' + y, { x, y });
+    }
     closePanel(); World.cam.follow = false; World.cam.z = Math.min(World.cam.z, k === 'zone' ? .4 : big ? Math.max(.2, Math.min(.5, 14 / Math.max(f.w, f.d))) : TOWN_DEF[k].cat === 'house' ? .7 : .9);
     const c = ISO.wx(x + f.w / 2, y + f.d / 2), d = ISO.wy(x + f.w / 2, y + f.d / 2); World.cam.x = c; World.cam.y = d;
     render();
@@ -807,11 +813,28 @@ function clearThumbCache() {
     }
     const p = App.tplace; if (!p) return '';
     const bad = TOWN.canPlace(S, p.k, p.x, p.y, p.r, p.mv), d = TOWN_DEF[p.k];
-    const cost = p.k === 'zone' ? TOWN.zoneCost(S) : d.cat === 'big' ? d.cost : (d.cat === 'house' && !p.mv) ? TOWN.houseTierBuyCost(S, p.tier || 1) : TOWN.kindCost(S, p.k), turn = TOWN.maxR(p.k) > 1;
+    const isBatch = p.batch != null && !p.mv;
+    const batchCount = isBatch ? p.batch.size : 1;
+    const cost = p.k === 'zone' ? TOWN.zoneCost(S) : d.cat === 'big' ? d.cost : (d.cat === 'house' && !p.mv) ? TOWN.houseTierBuyCost(S, p.tier || 1) : TOWN.kindCost(S, p.k);
+    const totalCost = cost * batchCount;
+    const turn = TOWN.maxR(p.k) > 1;
     const showDoor = d && (d.cat === 'house' || d.cat === 'civic' || p.k === 'park' || d.cat === 'big');
     const curDoor = ((p.doorDir != null ? p.doorDir : (p.r || 0)) % 4 + 4) % 4;
     const dirNames = [t('dirFront') || '앞(남동)', t('dirLeft') || '좌(남서)', t('dirBack') || '뒤(북서)', t('dirRight') || '우(북동)'];
     const dirShorts = [t('dirFrontS') || '앞', t('dirLeftS') || '좌', t('dirBackS') || '뒤', t('dirRightS') || '우'];
+
+    if (isBatch) {
+      let anyBad = false;
+      for (const pt of p.batch.values()) {
+        if (TOWN.canPlace(S, p.k, pt.x, pt.y, p.r, p.mv)) { anyBad = true; break; }
+      }
+      return `<div class="editbar tplacebar"><div class="grow">🌱 <b>${nm(p.k)}</b>: 지도를 탭하거나 드래그해 여러 곳을 지정하세요 (<b>${batchCount}</b>개 선택됨)<div style="font-size:11px;color:#cbd5e1;">지정한 곳 다시 탭하면 취소 · 다 고른 후 금액 버튼 누르기</div></div>
+        ${turn ? `<button class="btn g sm" data-a="trotl" title="${t('tRotLeft')}">↺</button><button class="btn g sm" data-a="trotr" title="${t('tRotRight')}">↻</button>` : ''}
+        ${batchCount > 1 ? `<button class="btn b sm" data-a="tbatchclear" style="padding:4px 8px;font-size:11px;">↺ 1개만</button>` : ''}
+        <button class="btn r sm" data-a="tcancel">✖</button>
+        <button class="btn sm ${anyBad || S.coins < totalCost ? 'dis' : 'g'}" data-a="tok" style="font-weight:900;">✔ 🪙${fmt(totalCost)}${batchCount > 1 ? ` (${batchCount}개 심기)` : ''}</button></div>`;
+    }
+
     return `<div class="editbar tplacebar"><div class="grow">📍 ${t('tPlaceHint')}${showDoor ? `<div class="tdoortxt">🚪 ${t('tDoorDir')}: <span style="color:#fde047;font-weight:bold;">${dirNames[curDoor]}</span></div>` : ''}${bad ? `<div class="tbadtxt">⛔ ${t(bad)}</div>` : ''}${d.cat === 'house' && !p.mv && !TOWN.zoneLots(S, p.k).length ? `<div class="tbadtxt">🏘️ ${t('tZoneFull')} <button class="btn g sm" data-a="tpick" data-v="zone">${t('tZoneNew')} 🪙${fmt(TOWN.zoneCost(S))}</button></div>` : ''}</div>
       ${showDoor ? `<button class="btn b sm" data-a="tdoordir" title="${t('tChangeDoorDir')}">🚪 ${t('tDoorBtn')}: ${dirShorts[curDoor]} ↻</button>` : ''}
       ${turn ? `<button class="btn g sm" data-a="trotl" title="${t('tRotLeft')}">↺ ${t('tRotLeft')}</button><button class="btn g sm" data-a="trotr" title="${t('tRotRight')}">↻ ${t('tRotRight')}</button>` : ''}<button class="btn r sm" data-a="tcancel">✖</button>
@@ -831,7 +854,41 @@ function clearThumbCache() {
       openPanel({ type: 'zoo_animal', sp: h.sp, name: h.name, desc: h.desc, habitat: h.habitat, isBaby: h.isBaby });
       return true;
     }
-    if (h.kind === 'tplace' && App.tplace) { const p = App.tplace, f = TOWN.fpOf(p.k, p.r); p.x = h.gx - Math.floor(f.w / 2); p.y = h.gy - Math.floor(f.d / 2); render(); return true; }
+    if (h.kind === 'tplace' && App.tplace) {
+      const p = App.tplace, f = TOWN.fpOf(p.k, p.r);
+      const tx = h.gx - Math.floor(f.w / 2);
+      const ty = h.gy - Math.floor(f.d / 2);
+      if (p.batch != null && !p.mv) {
+        const key = tx + ',' + ty;
+        if (p.batch.has(key)) {
+          if (p.batch.size > 1) {
+            p.batch.delete(key);
+            const next = p.batch.values().next().value;
+            p.x = next.x; p.y = next.y;
+            if (typeof SND !== 'undefined' && SND.pop) SND.pop();
+          }
+        } else {
+          const bad = TOWN.canPlace(S, p.k, tx, ty, p.r, p.mv);
+          if (bad) {
+            if (typeof toast === 'function') toast('⛔ ' + (t(bad) || '여기에는 심을 수 없어요'));
+          } else {
+            const unitCost = TOWN.kindCost(S, p.k);
+            if (S.coins < unitCost * (p.batch.size + 1)) {
+              if (typeof toast === 'function') toast(t('notEnough') || '코인이 부족합니다');
+            } else {
+              p.batch.set(key, { x: tx, y: ty });
+              p.x = tx; p.y = ty;
+              if (typeof SND !== 'undefined' && SND.pop) SND.pop();
+            }
+          }
+        }
+      } else {
+        p.x = tx;
+        p.y = ty;
+      }
+      render();
+      return true;
+    }
     if (h.kind === 'tobj') {
       const o = TOWN.objs().find(q => q.id === h.id);
       if (o && o.k === 'shelter' && !App.tplace) { openPanel({ type: 'shelter' }); return true; }
@@ -1099,18 +1156,48 @@ function clearThumbCache() {
       render();
     },
     tcancel: () => { App.tplace = null; render(); },
+    tbatchclear: () => {
+      const p = App.tplace;
+      if (!p || !p.batch) return;
+      const first = p.batch.values().next().value;
+      p.batch.clear();
+      if (first) {
+        p.batch.set(first.x + ',' + first.y, { x: first.x, y: first.y });
+        p.x = first.x; p.y = first.y;
+      }
+      render();
+    },
     tok: () => {
       const p = App.tplace; if (!p) return;
       if (TOWN_DEF[p.k].cat === 'big') { bigOk(p); return; }
       if (p.k === 'zone') { const r = actR({ t: 'tzone', x: p.x, y: p.y, r: p.r || 0 }); if (r && r.ok) { SND.level && SND.level(); fxAt(innerWidth / 2, innerHeight / 2 - 60, '🏘️'); App.tplace = null; } render(); return; }
       const curDoor = p.doorDir != null ? p.doorDir : ((p.r || 0) % 4);
+      if (p.batch != null && !p.mv && p.batch.size > 0) {
+        const spots = Array.from(p.batch.values());
+        const r = actR({ t: 'tbuildbatch', k: p.k, spots, r: p.r, doorDir: curDoor });
+        if (r && r.ok) {
+          const d = TOWN_DEF[p.k];
+          fxAt(innerWidth / 2, innerHeight / 2 - 60, d.cat === 'tree' ? '🌱' : '✨');
+          if (typeof SND !== 'undefined' && SND.level) SND.level();
+          if (typeof toast === 'function') {
+            const cnt = r.count || spots.length;
+            const nmStr = nm(p.k);
+            toast(d.cat === 'tree' ? `${nmStr} ${cnt}그루를 심었어요! 🌱` : `${nmStr} ${cnt}개를 설치했어요! ✨`);
+          }
+          App.tplace = null;
+        } else if (r && r.err === 'notEnough') {
+          if (typeof toast === 'function') toast(t('notEnough') || '코인이 부족합니다');
+        } else if (r && r.err) {
+          if (typeof toast === 'function') toast('⛔ ' + (t(r.err) || '설치할 수 없습니다'));
+        }
+        render();
+        return;
+      }
       const r = p.mv ? actR({ t: 'tmove', id: p.mv, x: p.x, y: p.y, r: p.r, doorDir: curDoor }) : actR({ t: 'tbuild', k: p.k, tier: p.tier || 1, x: p.x, y: p.y, r: p.r, doorDir: curDoor });
       if (r && r.ok) {
         const d = TOWN_DEF[p.k];
         fxAt(innerWidth / 2, innerHeight / 2 - 60, d.cat === 'tree' ? '🌱' : d.cat === 'house' ? '🏠' : '✨'); SND.level && SND.level();
-        // trees, flowers, benches and lamps: stay in planting mode for the next one, one tile over
-        if (!p.mv && (d.cat === 'tree' || p.k === 'bench' || p.k === 'lamp') && S.coins >= TOWN.kindCost(S, p.k)) { const f = TOWN.fpOf(p.k, p.r); p.x += f.w + (d.cat === 'tree' ? 1 : 1); }
-        else App.tplace = null;
+        App.tplace = null;
       }
       render();
     },

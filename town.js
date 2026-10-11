@@ -980,7 +980,7 @@ const TOWN = (() => {
     const out = new Set();
     for (const o of (T && T.objs) || []) {
       const d = D[o.k];
-      if (d && (d.cat === 'civic' || d.cat === 'house')) {
+      if (d && d.cat === 'civic') {
         const g = fpOf(o.k, o.r);
         for (let bx = o.x; bx < o.x + g.w; bx++) {
           for (let by = o.y; by < o.y + g.d; by++) {
@@ -1057,6 +1057,13 @@ const TOWN = (() => {
     }
     // 10. 기차역 건물 (역사 벽체 위는 도로 설치 차단, 철길 구간은 도로 및 건널목 설치 허용)
     if (typeof TRAIN !== 'undefined' && typeof TRAIN.solid === 'function' && TRAIN.solid(x, y)) return true;
+    // 10.5 주택 실제 건물 본체(4x3)만 차단 — 앞마당과 입구 앞길은 길 깔기 허용
+    for (const o of (s && s.town && s.town.objs) || []) {
+      const d = D[o.k];
+      if (d && d.cat === 'house') {
+        if (houseBuildingHasTile(o, x, y)) return true;
+      }
+    }
     // 11. 배치된 시민 건물(동물원, 쉘터, 학교 등) - O(1) Set lookup
     const k = x + ',' + y;
     if (getCivicHouseBlockedSet(s).has(k) && !gates.has(k)) return true;
@@ -1682,13 +1689,24 @@ const roadTileOk = (s, x, y) => {
     const lang = (s && s.lang) || (typeof S !== 'undefined' && S && S.lang) || 'ko';
     const isRu = lang === 'ru';
     let act = null;
-    if (typeof WORLD !== 'undefined' && WORLD.actors) {
-      for (const a of WORLD.actors.values()) {
+    let actCust = null;
+    const actorMap = (typeof World !== 'undefined' && World.actors) ? World.actors : (typeof WORLD !== 'undefined' && WORLD.actors ? WORLD.actors : null);
+    if (actorMap) {
+      for (const a of actorMap.values()) {
         if (a && a.type === 'vil' && a.residentId === rid) {
           act = a;
           break;
         }
+        if (a && a.type === 'cust' && a.cust && a.cust.residentId === rid) {
+          actCust = a;
+        }
       }
+    }
+    if (actCust) {
+      if (actCust.inside) {
+        return isRu ? 'В зоомагазине выбирает питомца 🛍️' : '펫샵에서 쇼핑 중 🛍️';
+      }
+      return isRu ? 'Идёт в зоомагазин 🐶' : '펫샵 가는 중 🐶';
     }
     if (!act) {
       return isRu ? 'Отдыхает дома 🏠' : '집에서 쉬는 중 🏠';
@@ -1698,7 +1716,7 @@ const roadTileOk = (s, x, y) => {
       return isRu ? 'Выходит на улицу 🚪' : '외출 준비 중 (집 앞) 🚪';
     }
     if (st === 'stroll') {
-      return isRu ? 'Гуляет по посёлку 🌸' : '마을 산책로 걷는 중 🌸';
+      return isRu ? 'Гуляет по посёлку 🌸' : '마을 산책 하는 중 🌸';
     }
     if (st === 'rest') {
       return isRu ? 'Отдыхает на улице ☕' : '길가에서 잠시 휴식 중 ☕';
@@ -1708,26 +1726,26 @@ const roadTileOk = (s, x, y) => {
     }
     if (st === 'visit') {
       const k = act.dstK;
-      if (k === 'cafe') return isRu ? 'Идёт в пет-кафе ☕' : '펫 카페로 가는 중 ☕';
-      if (k === 'hosp') return isRu ? 'Идёт в ветклинику 🏥' : '동물병원으로 가는 중 🏥';
-      if (k === 'salon') return isRu ? 'Идёт в груминг-салон ✂️' : '펫 미용실로 가는 중 ✂️';
-      if (k === 'zoo') return isRu ? 'Идёт в зоопарк 🦁' : '동물원으로 가는 중 🦁';
-      if (k === 'park') return isRu ? 'Идёт в парк 🌳' : '공원으로 가는 중 🌳';
-      if (k === 'lake') return isRu ? 'Идёт к озеру 🦢' : '호수로 가는 중 🦢';
-      if (k === 'shelter') return isRu ? 'Идёт в приют 🛖' : '유기동물 보관소로 가는 중 🛖';
+      if (k === 'cafe') return isRu ? 'Идёт в пет-кафе ☕' : '펫 카페 가는 중 ☕';
+      if (k === 'hosp') return isRu ? 'Идёт в ветклинику 🏥' : '동물병원 가는 중 🏥';
+      if (k === 'salon') return isRu ? 'Идёт в груминг-салон ✂️' : '펫 미용실 가는 중 ✂️';
+      if (k === 'zoo') return isRu ? 'Идёт в зоопарк 🦁' : '동물원 가는 중 🦁';
+      if (k === 'park') return isRu ? 'Идёт в парк 🌳' : '공원 가는 중 🌳';
+      if (k === 'lake') return isRu ? 'Идёт к озеру 🦢' : '호수 가는 중 🦢';
+      if (k === 'shelter') return isRu ? 'Идёт в приют 🛖' : '유기동물 보관소 가는 중 🛖';
       return isRu ? 'Идёт на прогулку ✨' : '나들이 가는 중 ✨';
     }
     if (st === 'in') {
       const k = act.dstK;
-      if (k === 'cafe') return isRu ? 'В пет-кафе ☕' : '펫 카페에서 티타임 중 ☕';
+      if (k === 'cafe') return isRu ? 'В пет-кафе пьёт чай ☕' : '펫 카페에서 티타임 중 ☕';
       if (k === 'hosp') return isRu ? 'В ветклинике на осмотре 🏥' : '동물병원에서 진료/검진 중 🏥';
-      if (k === 'salon') return isRu ? 'В груминг-салоне ✂️' : '펫 미용실에서 케어 받는 중 ✂️';
-      if (k === 'zoo') return isRu ? 'В зоопарке любуется животными 🦁' : '동물원에서 동물들 구경 중 🦁';
-      if (k === 'park') return isRu ? 'Гуляет и отдыхает в парке 🌳' : '공원에서 힐링 산책 중 🌳';
+      if (k === 'salon') return isRu ? 'В груминг-салоне на уходе ✂️' : '펫 미용실에서 케어 받는 중 ✂️';
+      if (k === 'zoo') return isRu ? 'В зоопарке любуется животными 🦁' : '동물원에서 동물 구경 중 🦁';
+      if (k === 'park') return isRu ? 'Гуляет в парке 🌳' : '공원에서 산책 하는 중 🌳';
       if (k === 'lake') {
         return act.lakeAct === 'fish'
           ? (isRu ? 'Рыбачит на озере 🎣' : '호수에서 낚시하는 중 🎣')
-          : (isRu ? 'Отдыхает у озера 🦢' : '호숫가에서 쉬는 중 🦢');
+          : (isRu ? 'Гуляет у озера 🦢' : '호수에서 산책 하는 중 🦢');
       }
       if (k === 'shelter') return isRu ? 'В приюте для животных 🛖' : '유기동물 보관소에서 동물들 만나는 중 🛖';
       return isRu ? 'В здании ✨' : '시설 이용 중 ✨';
@@ -1736,6 +1754,15 @@ const roadTileOk = (s, x, y) => {
       return isRu ? 'Возвращается домой 🏠' : '집으로 돌아가는 중 🏠';
     }
     if (st === 'idle') {
+      if (act.parkOrigin || act.dstK === 'park') {
+        return isRu ? 'Гуляет в парке 🌳' : '공원에서 산책 하는 중 🌳';
+      }
+      if (act.lakeOrigin || act.dstK === 'lake') {
+        return isRu ? 'Гуляет у озера 🦢' : '호수에서 산책 하는 중 🦢';
+      }
+      if (act.pet) {
+        return isRu ? 'Гуляет с питомцем 🐾' : '반려동물과 산책 중 🐾';
+      }
       return isRu ? 'Отдыхает на свежем воздухе 🍃' : '길가에서 쉬는 중 🍃';
     }
     return isRu ? 'Отдыхает дома 🏠' : '집에서 쉬는 중 🏠';
@@ -1885,6 +1912,36 @@ const roadTileOk = (s, x, y) => {
       clearBuildingOverlaps(s);
       if (typeof G !== 'undefined' && G.addXpPublic) G.addXpPublic(s, d.cat === 'deco' ? 2 : 0);
       return { ok: 1, fx: 'coin', msg: d.cat === 'tree' ? 'tPlanted' : 'tBuilt' };
+    }
+    if (a.t === 'tbuildbatch') {
+      const d = D[a.k]; if (!d) return { err: 'gone' }; ensure(s);
+      if (!unlockedK(s, a.k)) return { err: 'tLocked', p: { n: d.need } };
+      const spots = a.spots || [];
+      if (!spots.length) return { err: 'tTaken' };
+      const unitCost = kindCost(s, a.k);
+      const totalCost = unitCost * spots.length;
+      if (s.coins < totalCost) return { err: 'notEnough' };
+      const doorDir = a.doorDir != null ? ((a.doorDir % 4 + 4) % 4) : (normR(a.k, a.r) % 4);
+      let builtCount = 0;
+      for (const pt of spots) {
+        const e = canPlace(s, a.k, pt.x, pt.y, normR(a.k, a.r));
+        if (e) continue;
+        s.coins -= unitCost;
+        const o = { id: s.town.seq++, k: a.k, x: pt.x, y: pt.y, r: normR(a.k, a.r), paid: unitCost, doorDir };
+        if (d.cat === 'tree') o.pd = s.clock.day;
+        if (d.cat === 'civic') {
+          const bx = { x: o.x, y: o.y, w: fpOf(o.k, o.r).w, d: fpOf(o.k, o.r).d };
+          s.town.objs = s.town.objs.filter(q => !D[q.k] || D[q.k].cat !== 'tree' || !overlap(bx, { x: q.x, y: q.y, w: 1, d: 1 }));
+        }
+        s.town.objs.push(o);
+        builtCount++;
+      }
+      if (builtCount === 0) return { err: 'tTaken' };
+      s.town.best = Math.max(s.town.best || 0, pop(s));
+      checkMilestones(s);
+      clearBuildingOverlaps(s);
+      if (typeof G !== 'undefined' && G.addXpPublic) G.addXpPublic(s, (d.cat === 'deco' ? 2 : 1) * builtCount);
+      return { ok: 1, fx: 'coin', msg: d.cat === 'tree' ? 'tPlanted' : 'tBuilt', count: builtCount };
     }
     if (a.t === 'tmove') {
       const o = obj(s, a.id); if (!o) return { err: 'gone' };
@@ -5028,6 +5085,23 @@ function getFlowerSprite(kind) {
   const depthOf = o => { const f = fpOf(o.k, o.r), d = D[o.k]; if (d && d.cat === 'house') return o.x + o.y + 5.0; if (d && d.cat === 'civic' && !d.open) return o.x + o.y + f.w / 2 + f.d / 2 + .3; return o.x + o.y + f.w + f.d - 1.02; };
   // the ghost while choosing a spot: footprint tiles (green = fine, red = not here) + the building, half see-through
   function drawGhost(c, g, T) {
+    if (!g) return false;
+    if (g.batch != null && g.batch.size > 0 && !g.mv) {
+      const f = fpOf(g.k, g.r);
+      let anyBad = false;
+      for (const pt of g.batch.values()) {
+        const bad = canPlace(S, g.k, pt.x, pt.y, g.r, g.mv);
+        if (bad) anyBad = true;
+        for (let u = 0; u < f.w; u++) for (let v = 0; v < f.d; v++) {
+          poly(c, [Q(pt.x + u + .05, pt.y + v + .05), Q(pt.x + u + .95, pt.y + v + .05), Q(pt.x + u + .95, pt.y + v + .95), Q(pt.x + u + .05, pt.y + v + .95)], bad ? 'rgba(230,70,60,.45)' : 'rgba(80,200,90,.45)', bad ? '#c0302a' : '#2e8a3a', 1.2);
+        }
+        c.save();
+        c.globalAlpha = bad ? 0.35 : 0.65;
+        drawObj(c, { k: g.k, x: pt.x, y: pt.y, r: g.r, doorDir: g.doorDir, cw: 1, cr: 0, pd: -99, tier: g.tier || 1 }, T, true);
+        c.restore();
+      }
+      return !anyBad;
+    }
     const f = fpOf(g.k, g.r), bad = canPlace(S, g.k, g.x, g.y, g.r, g.mv);
     for (let u = 0; u < f.w; u++) for (let v = 0; v < f.d; v++) poly(c, [Q(g.x + u + .05, g.y + v + .05), Q(g.x + u + .95, g.y + v + .05), Q(g.x + u + .95, g.y + v + .95), Q(g.x + u + .05, g.y + v + .95)], bad ? 'rgba(230,70,60,.45)' : 'rgba(80,200,90,.45)', bad ? '#c0302a' : '#2e8a3a', 1.2);
     if (g.k === 'zone') { const L = laneOf({ x: g.x, y: g.y, w: f.w, d: f.d, r: g.r }); poly(c, [Q(L.x, L.y), Q(L.x + L.w, L.y), Q(L.x + L.w, L.y + L.d), Q(L.x, L.y + L.d)], 'rgba(230,218,194,.8)'); }
@@ -5883,6 +5957,9 @@ function getFlowerSprite(kind) {
     const cx = cb ? cb.cx : 0, cy = cb ? cb.cy : 0;
     const rw = cb ? cb.rw : 1e9, rh = cb ? cb.rh : 1e9;
 
+    // 주택 입구 기본 연결 타일 렌더링 (플레이어가 그 위에 도로를 깔지 않은 경우 기본 흙길로 표시)
+    drawHouseEntranceTiles(curC, S);
+
     const validRoads = getValidPlayerRoads(S);
     for (let i = 0; i < validRoads.length; i++) {
       const r = validRoads[i];
@@ -5903,8 +5980,6 @@ function getFlowerSprite(kind) {
         if (!R.has((x + 1) + ',' + y)) { const a = Q(x + 1, y), b2 = Q(x + 1, y + 1); curC.beginPath(); curC.moveTo(a[0], a[1]); curC.lineTo(b2[0], b2[1]); curC.stroke(); }
       }
     }
-    // 주택 입구 자동 연결 타일 렌더링
-    drawHouseEntranceTiles(curC, S);
     // 공원·호수·동물원 입구 자동 길 렌더링 (활성 doorDir 방향)
     drawFacilityEntranceTiles(curC, S);
     // 횡단보도 렌더링
