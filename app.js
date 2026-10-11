@@ -2038,6 +2038,11 @@ function handle(a, v, w) {
       }
       break;
     }
+    case 'troadclose': {
+      App.troad = null;
+      render();
+      break;
+    }
     case 'troaddone': {
       const rd = App.troad;
       if (!rd) { render(); break; }
@@ -2049,7 +2054,7 @@ function handle(a, v, w) {
           if (typeof toast === 'function') {
             toast(rd.erase ? `🧽 길 ${tiles.length}칸 철거 완료!` : `🛤️ 길 ${tiles.length}칸 깔기 완료!`);
           }
-          App.troad = null;
+          rd.pending.clear();
         } else if (r && r.err === 'notEnough') {
           if (typeof toast === 'function') toast(t('notEnough') || '코인이 부족합니다');
           render();
@@ -2060,10 +2065,8 @@ function handle(a, v, w) {
           break;
         } else if (r && r.err === 'tRoadNone') {
           if (typeof toast === 'function') toast('변경할 수 있는 타일이 없습니다');
-          App.troad = null;
+          rd.pending.clear();
         }
-      } else {
-        App.troad = null;
       }
       render();
       break;

@@ -1566,23 +1566,19 @@ return true;
       }
       if (a.type === 'insp') label(sx, sy - 80, '📋 ' + t('lbl_insp'), null, '#e8eefc');
       if (a.type === 'staff' && a.m && !a.leaving && !a.hidden) {
-        const R = STAFF_ROLES.find(r => r.id === a.role);
-        if (a.role === 'sales') {
-          c.save();
-          c.font = 'bold 9px sans-serif';
-          // v1.100.49: 직원 머리 크기를 여러 차례 줄이면서(30%+10%) 머리가 작아진 만큼, 고정값이던
-          // 라벨 위치(sy-79)가 이제 모자/얼굴에 겹쳐 보여서 위로 더 올림 (sy-99)
-          const mtxt = t('managerLabel') + (a.m.job ? ' · ' + t('stj_' + a.m.job.k) : ''), mw = c.measureText(mtxt).width + 10, mh = 13, my = sy - 99;
-          ART.rrect(c, sx - mw / 2, my - mh / 2, mw, mh, 4);
-          c.fillStyle = 'rgba(15,15,18,.92)'; c.fill();
-          c.lineWidth = 1; c.strokeStyle = '#ffd700'; c.stroke();
-          c.fillStyle = '#ffe135'; c.textAlign = 'center'; c.textBaseline = 'middle';
-          c.fillText(mtxt, sx, my + 0.5);
-          c.restore();
-        } else {
-          // v1.100.49: 위 매니저 라벨과 같은 이유로 sy-80 -> sy-100 (모자 위로 올림)
-          label(sx, sy - 100, (R ? R.icon : '👥') + ' Lv' + a.m.lv + (a.m.job ? ' · ' + t('stj_' + a.m.job.k) : ''), null, '#eef9ff');
-        }
+        c.save();
+        const ltxt = 'Lv' + (a.m.lv || 1);
+        const ly = sy - 74;
+        c.font = '900 11px sans-serif';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.lineWidth = 2.6;
+        c.lineJoin = 'round';
+        c.strokeStyle = '#000000';
+        c.strokeText(ltxt, sx, ly);
+        c.fillStyle = '#ffe033';
+        c.fillText(ltxt, sx, ly);
+        c.restore();
         if (a.m.say && a.m.sayT > 0) {
           const msg = a.m.say;
           c.save();
@@ -2134,7 +2130,22 @@ return true;
           }
         }
       }
-      if (a.type === 'hstaff' && a.m) { const R0 = hospStaffRole(a.m.role) || cafeStaffRole(a.m.role) || farmStaffRole(a.m.role) || salonStaffRole(a.m.role); label(sx, sy - 100, (R0 ? R0.icon : '') + ' Lv' + a.m.lv, null, '#eef9ff'); if (a.talk || a.m.tt > 0) bubble(sx + 4, sy - 116, () => { c.font = '15px sans-serif'; c.textAlign = 'center'; c.fillText(Math.floor(T * 1.7) % 2 ? '💬' : (a.m.role === 'recept' ? '📋' : farmStaffRole(a.m.role) ? ({ harvest: '\u{1F9FA}', water: '\u{1F4A7}', plant: '\u{1F331}', feed: '\u{1F963}', eggs: '\u{1F95A}' }[a.m.act] || farmStaffRole(a.m.role).icon) : '🩺'), 0, 0); c.textAlign = 'start'; }); }
+      if (a.type === 'hstaff' && a.m) {
+        c.save();
+        const ltxt = 'Lv' + (a.m.lv || 1);
+        const ly = sy - 74;
+        c.font = '900 11px sans-serif';
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.lineWidth = 2.6;
+        c.lineJoin = 'round';
+        c.strokeStyle = '#000000';
+        c.strokeText(ltxt, sx, ly);
+        c.fillStyle = '#ffe033';
+        c.fillText(ltxt, sx, ly);
+        c.restore();
+        if (a.talk || a.m.tt > 0) bubble(sx + 4, sy - 92, () => { const R0 = hospStaffRole(a.m.role) || cafeStaffRole(a.m.role) || farmStaffRole(a.m.role) || salonStaffRole(a.m.role); c.font = '15px sans-serif'; c.textAlign = 'center'; c.fillText(Math.floor(T * 1.7) % 2 ? '💬' : (a.m.role === 'recept' ? '📋' : farmStaffRole(a.m.role) ? ({ harvest: '\u{1F9FA}', water: '\u{1F4A7}', plant: '\u{1F331}', feed: '\u{1F963}', eggs: '\u{1F95A}' }[a.m.act] || farmStaffRole(a.m.role).icon) : '🩺'), 0, 0); c.textAlign = 'start'; });
+      }
       if (a.salon) { // v9.99: salon guests -- waiting (tap to groom), then paying with the amount, holding a pet with a bow
         if (a.salonWait) { bubble(sx, sy - 66, () => { c.font = '17px sans-serif'; c.textAlign = 'center'; c.fillText(Math.floor(T * 1.5) % 2 ? '🛁' : '✂️', 0, 0); c.textAlign = 'start'; }); }
         if (a.hold && a.happyT > 0) { c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillText('🎀', sx + 6, sy - 44); c.textAlign = 'start'; }

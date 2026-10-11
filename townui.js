@@ -511,8 +511,9 @@ function clearThumbCache() {
           <div class="road-card-cost">🪙${rt.cost}</div>
         </button>`;
       }).join('');
-      return `<div class="editbar tplacebar road-palette-bar">
-        <div class="road-cards-scroll">${cards}</div>
+      return `<div class="editbar tplacebar road-palette-bar" style="position:relative;">
+        <button type="button" class="road-close-x-btn" data-a="troadclose" title="닫기" style="position:absolute;top:6px;right:8px;z-index:30;width:30px;height:30px;border-radius:50%;background:#e11d48;border:2px solid #ffffff;color:#ffffff;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.35);line-height:1;padding:0;">✕</button>
+        <div class="road-cards-scroll" style="padding-right:44px;">${cards}</div>
         <div class="road-bot-row">
           <div class="grow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
             <span>${rd.erase ? '🧽' : curRt.ic} <b>${rd.erase ? (t('tRoadErase') || '길 철거') : (t('tRoadPave') || '길 깔기')}</b>
@@ -612,6 +613,10 @@ function clearThumbCache() {
     troaddir: () => { const rd = App.troad; if (!rd) return; rd.dir = rd.dir === 'y' ? 'x' : 'y'; render(); },
     troaddir_x: () => { const rd = App.troad; if (!rd) return; rd.dir = 'x'; render(); },
     troaddir_y: () => { const rd = App.troad; if (!rd) return; rd.dir = 'y'; render(); },
+    troadclose: () => {
+      App.troad = null;
+      render();
+    },
     troaddone: () => {
       const rd = App.troad;
       if (!rd) { render(); return; }
@@ -623,21 +628,15 @@ function clearThumbCache() {
           if (typeof toast === 'function') {
             toast(rd.erase ? `🧽 길 ${tiles.length}칸 철거 완료!` : `🛤️ 길 ${tiles.length}칸 깔기 완료!`);
           }
-          App.troad = null;
+          rd.pending.clear();
         } else if (r && r.err === 'notEnough') {
           if (typeof toast === 'function') toast(t('notEnough') || '코인이 부족합니다');
-          render();
-          return;
         } else if (r && r.err === 'tLocked') {
           if (typeof toast === 'function') toast(t('tLvlNeed', { n: (r.p && r.p.n) || 1 }) || ('레벨 ' + ((r.p && r.p.n) || 1) + ' 필요'));
-          render();
-          return;
         } else if (r && r.err === 'tRoadNone') {
           if (typeof toast === 'function') toast('변경할 수 있는 타일이 없습니다');
-          App.troad = null;
+          rd.pending.clear();
         }
-      } else {
-        App.troad = null;
       }
       render();
     },
