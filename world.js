@@ -300,7 +300,7 @@ return true;
         check: (ix, iy, ox, oy) => connected && ix === sp.x + sp.w - 1 && ox === sp.x + sp.w && (iy === sp.y + sp.d - 2 || iy === sp.y + sp.d - 1)
       });
     }
-    // 4. 공원 (4방향 doorDir 입구 및 연결된 길 판정)
+    // 4. 공원 (지정된 doorDir 입구로만 출입 허용)
     if (S.park && S.park.built && typeof PARK_POS === 'function') {
       const pp = PARK_POS();
       const pObj = (S.town && S.town.objs && S.town.objs.find(o => o.k === 'park'));
@@ -309,23 +309,31 @@ return true;
       rs.push({
         k: 'park', x: pp.x, y: pp.y, w: pw, d: pd,
         check: (ix, iy, ox, oy) => {
-          // A. 연결된 길 타일이 있으면 어디서든 진입 허용 (북서쪽에 길 깐 경우 즉시 통과)
-          if (typeof TOWN !== 'undefined' && TOWN.isRoadTile && TOWN.isRoadTile(S, ox, oy, true)) return true;
-          // B. 활성 doorDir 입구 방향 통과
-          if (dir === 0 && ox >= pp.x + pw && ix < pp.x + pw) return true; // 남동
-          if (dir === 1 && oy >= pp.y + pd && iy < pp.y + pd) return true; // 남서
-          if (dir === 2 && ox < pp.x && ix >= pp.x) return true;          // 북서
-          if (dir === 3 && oy < pp.y && iy >= pp.y) return true;          // 북동
-          // C. 기본 출입구 연결부
-          if (ox < pp.x && (iy >= pp.y + 5 && iy <= pp.y + 8)) return true;
-          if (oy >= pp.y + pd && (ix >= pp.x + 6 && ix <= pp.x + 10)) return true;
-          if (oy < pp.y && (ix >= pp.x + 6 && ix <= pp.x + 10)) return true;
-          if (ox >= pp.x + pw && (iy >= pp.y + 5 && iy <= pp.y + 8)) return true;
+          // 남동 (앞쪽): x = pp.x + pw - 2 .. pw + 1, y = pp.y + 6..7
+          if (dir === 0) {
+            return (iy >= pp.y + 5 && iy <= pp.y + 8) && (oy >= pp.y + 5 && oy <= pp.y + 8) &&
+                   (ix >= pp.x + pw - 3 && ox >= pp.x + pw - 2);
+          }
+          // 남서 (좌측): y = pp.y + pd - 2 .. pd + 1, x = pp.x + 6..9
+          if (dir === 1) {
+            return (ix >= pp.x + 6 && ix <= pp.x + 9) && (ox >= pp.x + 6 && ox <= pp.x + 9) &&
+                   (iy >= pp.y + pd - 3 && oy >= pp.y + pd - 2);
+          }
+          // 북서 (뒤쪽 - 꽃 아치문): x = pp.x - 2 .. pp.x + 1, y = pp.y + 6..7
+          if (dir === 2) {
+            return (iy >= pp.y + 5 && iy <= pp.y + 8) && (oy >= pp.y + 5 && oy <= pp.y + 8) &&
+                   (ix <= pp.x + 2 && ox <= pp.x + 1);
+          }
+          // 북동 (우측): y = pp.y - 2 .. pp.y + 1, x = pp.x + 6..9
+          if (dir === 3) {
+            return (ix >= pp.x + 6 && ix <= pp.x + 9) && (ox >= pp.x + 6 && ox <= pp.x + 9) &&
+                   (iy <= pp.y + 2 && oy <= pp.y + 1);
+          }
           return false;
         }
       });
     }
-    // 5. 호수 (4방향 doorDir 입구 및 연결된 길 판정)
+    // 5. 호수 (지정된 doorDir 입구로만 출입 허용)
     if (S.village && S.village.lake && typeof VILLAGE !== 'undefined' && typeof VILLAGE.LAKE === 'function') {
       const lp = VILLAGE.LAKE();
       if (lp && lp.x < 1000) {
@@ -335,13 +343,26 @@ return true;
         rs.push({
           k: 'lake', x: lp.x, y: lp.y, w: lw, d: ld,
           check: (ix, iy, ox, oy) => {
-            if (typeof TOWN !== 'undefined' && TOWN.isRoadTile && TOWN.isRoadTile(S, ox, oy, true)) return true;
-            if (dir === 0 && ox >= lp.x + lw && ix < lp.x + lw) return true;
-            if (dir === 1 && oy >= lp.y + ld && iy < lp.y + ld) return true;
-            if (dir === 2 && ox < lp.x && ix >= lp.x) return true;
-            if (dir === 3 && oy < lp.y && iy >= lp.y) return true;
-            if (ox < lp.x && (iy >= lp.y + 7 && iy <= lp.y + 11)) return true;
-            if (oy >= lp.y + ld && (ix >= lp.x + 8 && ix <= lp.x + 12)) return true;
+            // 남동 (앞쪽): x = lp.x + lw - 2 .. lw + 1, y = lp.y + 7..10
+            if (dir === 0) {
+              return (iy >= lp.y + 7 && iy <= lp.y + 10) && (oy >= lp.y + 7 && oy <= lp.y + 10) &&
+                     (ix >= lp.x + lw - 3 && ox >= lp.x + lw - 2);
+            }
+            // 남서 (좌측 - 정자 광장): y = lp.y + ld - 2 .. ld + 1, x = lp.x + 8..11
+            if (dir === 1) {
+              return (ix >= lp.x + 8 && ix <= lp.x + 11) && (ox >= lp.x + 8 && ox <= lp.x + 11) &&
+                     (iy >= lp.y + ld - 3 && oy >= lp.y + ld - 2);
+            }
+            // 북서 (뒤쪽): x = lp.x - 2 .. lp.x + 1, y = lp.y + 7..10
+            if (dir === 2) {
+              return (iy >= lp.y + 7 && iy <= lp.y + 10) && (oy >= lp.y + 7 && oy <= lp.y + 10) &&
+                     (ix <= lp.x + 2 && ox <= lp.x + 1);
+            }
+            // 북동 (우측): y = lp.y - 2 .. lp.y + 1, x = lp.x + 8..11
+            if (dir === 3) {
+              return (ix >= lp.x + 8 && ix <= lp.x + 11) && (ox >= lp.x + 8 && ox <= lp.x + 11) &&
+                     (iy <= lp.y + 2 && oy <= lp.y + 1);
+            }
             return false;
           }
         });
@@ -355,13 +376,22 @@ return true;
         rs.push({
           k: 'zoo', x: o.x, y: o.y, w: 20, d: 22,
           check: (ix, iy, ox, oy) => {
-            if (typeof TOWN !== 'undefined' && TOWN.isRoadTile && TOWN.isRoadTile(S, ox, oy, true)) return true;
-            if (dir === 0 && ox >= o.x + 20 && ix < o.x + 20) return true;
-            if (dir === 1 && oy >= o.y + 22 && iy < o.y + 22) return true;
-            if (dir === 2 && ox < o.x && ix >= o.x) return true;
-            if (dir === 3 && oy < o.y && iy >= o.y) return true;
-            if (iy >= o.y + 21 && oy >= o.y + 22 && (ix >= o.x + 4 && ix <= o.x + 8)) return true;
-            if (iy <= o.y && oy < o.y && (ix >= o.x + 13 && ix <= o.x + 16)) return true;
+            if (dir === 0) {
+              return (iy >= o.y + 10 && iy <= o.y + 13) && (oy >= o.y + 10 && oy <= o.y + 13) &&
+                     (ix >= o.x + 18 && ox >= o.x + 19);
+            }
+            if (dir === 1) {
+              return (ix >= o.x + 4 && ix <= o.x + 7) && (ox >= o.x + 4 && ox <= o.x + 7) &&
+                     (iy >= o.y + 20 && oy >= o.y + 21);
+            }
+            if (dir === 2) {
+              return (iy >= o.y + 10 && iy <= o.y + 13) && (oy >= o.y + 10 && oy <= o.y + 13) &&
+                     (ix <= o.x + 2 && ox <= o.x + 1);
+            }
+            if (dir === 3) {
+              return (ix >= o.x + 13 && ix <= o.x + 16) && (ox >= o.x + 13 && ox <= o.x + 16) &&
+                     (iy <= o.y + 2 && oy <= o.y + 1);
+            }
             return false;
           }
         });

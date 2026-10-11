@@ -1029,44 +1029,49 @@ function clearThumbCache() {
       render();
     },
     tdoorobj: v => {
-      if (v === 'park') {
-        const pObj = TOWN.objs().find(q => q.id === +v || q.k === 'park');
-        const curDir = pObj && pObj.doorDir != null ? pObj.doorDir : ((S.park && S.park.doorDir != null) ? S.park.doorDir : 0);
+      const o = TOWN.objs().find(q => q.id === +v || q.id === v || q.k === v);
+      const isPark = (v === 'park' || (o && o.k === 'park'));
+      const isLake = (v === 'lake' || (o && o.k === 'lake'));
+      const isZoo = (v === 'zoo' || (o && o.k === 'zoo'));
+
+      if (isPark) {
+        const curDir = (o && o.doorDir != null) ? o.doorDir : ((S.park && S.park.doorDir != null) ? S.park.doorDir : 0);
         const nextDir = (curDir + 1) % 4;
-        actR({ t: 'tsetdoor', k: 'park', id: (pObj ? pObj.id : 'park'), doorDir: nextDir });
+        actR({ t: 'tsetdoor', k: 'park', id: (o ? o.id : 'park'), doorDir: nextDir });
         S.park = S.park || {};
         S.park.doorDir = nextDir;
         if (S.lay && S.lay.park) S.lay.park.doorDir = nextDir;
-        if (pObj) pObj.doorDir = nextDir;
+        if (o) o.doorDir = nextDir;
+        if (S.town) S.town.rv = (S.town.rv || 0) + 1;
         if (typeof SND !== 'undefined' && SND.pop) SND.pop();
         if (typeof renderPanel === 'function') renderPanel(true);
         render();
         return;
       }
-      if (v === 'lake') {
-        const lObj = TOWN.objs().find(q => q.id === +v || q.k === 'lake');
-        const curDir = lObj && lObj.doorDir != null ? lObj.doorDir : ((S.village && S.village.lakeDoorDir != null) ? S.village.lakeDoorDir : ((S.lay && S.lay.lake && S.lay.lake.doorDir != null) ? S.lay.lake.doorDir : 0));
+      if (isLake) {
+        const curDir = (o && o.doorDir != null) ? o.doorDir : ((S.village && S.village.lakeDoorDir != null) ? S.village.lakeDoorDir : ((S.lay && S.lay.lake && S.lay.lake.doorDir != null) ? S.lay.lake.doorDir : 0));
         const nextDir = (curDir + 1) % 4;
-        actR({ t: 'tsetdoor', k: 'lake', id: (lObj ? lObj.id : 'lake'), doorDir: nextDir });
+        actR({ t: 'tsetdoor', k: 'lake', id: (o ? o.id : 'lake'), doorDir: nextDir });
         S.village = S.village || {};
         S.village.lakeDoorDir = nextDir;
         if (S.lay && S.lay.lake) S.lay.lake.doorDir = nextDir;
-        if (lObj) lObj.doorDir = nextDir;
+        if (o) o.doorDir = nextDir;
+        if (S.town) S.town.rv = (S.town.rv || 0) + 1;
         if (typeof SND !== 'undefined' && SND.pop) SND.pop();
         if (typeof renderPanel === 'function') renderPanel(true);
         render();
         return;
       }
-      const o = TOWN.objs().find(q => q.id === +v || q.id === v || q.k === v);
       if (o) {
         const nextDir = (((o.doorDir != null ? o.doorDir : (o.r || 0)) + 1) % 4);
         actR({ t: 'tsetdoor', id: o.id, k: o.k, doorDir: nextDir });
         o.doorDir = nextDir;
-        if (o.k === 'zoo') {
+        if (isZoo) {
           S.zoo = S.zoo || {};
           S.zoo.doorDir = nextDir;
           if (S.lay && S.lay.zoo) S.lay.zoo.doorDir = nextDir;
         }
+        if (S.town) S.town.rv = (S.town.rv || 0) + 1;
       }
       if (typeof SND !== 'undefined' && SND.pop) SND.pop();
       if (typeof renderPanel === 'function') renderPanel(true);
