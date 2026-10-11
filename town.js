@@ -195,8 +195,8 @@ Object.assign(TOWN_DEF, {
   cafe: { cat: 'big', w: CAFE_LV[CAFE_MAX].w + 2, d: CAFE_LV[CAFE_MAX].d + 1, cost: CAFE_BUILD_COST, act: 'buildcafe', rep: CAFE_UNLOCK_TIER, ic: '☕', live: 1 },
   hosp: { cat: 'big', w: hospDims(HOSP_MAX).w + 2, d: hospDims(HOSP_MAX).d + 1, cost: HOSP_BUILD_COST, act: 'buildhosp', rep: HOSP_UNLOCK_TIER, ic: '🏥', live: 1 },
   salon: { cat: 'big', w: 12, d: 9, cost: SALON_COST, act: 'buildsalon', ic: '✂️', live: 1 },
-  park: { cat: 'big', w: PARK_W, d: PARK_D, cost: PARK_COST, act: 'buildpark', ic: '🌳' },
-  lake: { cat: 'big', w: 18, d: 16, cost: VILLAGE_COST.lake, act: 'vbuild', ic: '🦢' },
+  park: { cat: 'big', w: PARK_W, d: PARK_D, cost: PARK_COST, act: 'buildpark', ic: '🌳', hap: 12, sup: 50 },
+  lake: { cat: 'big', w: 18, d: 16, cost: VILLAGE_COST.lake, act: 'vbuild', ic: '🦢', hap: 15, sup: 40 },
   monu: { cat: 'big', w: 7, d: 7, cost: VILLAGE_COST.monu, act: 'vbuild', ic: '💑' },
   avenue: { cat: 'big', noPlace: 1, cost: VILLAGE_COST.avenue, act: 'vbuild', ic: '🌸' }
 });
@@ -5829,7 +5829,152 @@ function getFlowerSprite(kind) {
     }
     // 길 미연결 시설 경고 배지 수집
     collectRoadWarnings(out, c, S);
+    // 동물원·공원·호수 입구 옆 표지판 수집
+    collectFacilitySigns(out, c, S, addHit);
     return out;
+  }
+
+  function collectFacilitySigns(out, c, s, addHit) {
+    if (!s) return;
+    const cb = (typeof World !== 'undefined' && World.cullBounds) ? World.cullBounds() : null;
+
+    // 1. 동물원 표지판: IN 입구(o.x + 5, o.y + 22) 바로 옆 (좌측 보도 o.x + 3.8, o.y + 22.3)
+    if (s.town && s.town.objs) {
+      for (const o of s.town.objs) {
+        if (o.k === 'zoo') {
+          addFacilitySign(out, c, o.x + 3.8, o.y + 22.3, '🦁 동물원', 'zoo', o.id, addHit, cb);
+        }
+      }
+    }
+
+    // 2. 공원 표지판: 남쪽 입구 바로 옆
+    if (s.park && s.park.built && typeof PARK_POS === 'function') {
+      const pp = PARK_POS();
+      if (pp && pp.x < 1000) {
+        const pd = pp.d || 14;
+        addFacilitySign(out, c, pp.x + 7.8, pp.y + pd + 1.3, '🌳 마을 공원', 'park', 'park', addHit, cb);
+      }
+    }
+    if (s.town && s.town.objs) {
+      for (const o of s.town.objs) {
+        if (o.k === 'park') {
+          addFacilitySign(out, c, o.x + 7.8, o.y + 14 + 1.3, '🌳 마을 공원', 'park', o.id, addHit, cb);
+        }
+      }
+    }
+
+    // 3. 호수 표지판: 남쪽 입구 바로 옆
+    if (s.village && s.village.lake && typeof VILLAGE !== 'undefined' && typeof VILLAGE.LAKE === 'function') {
+      const lp = VILLAGE.LAKE();
+      if (lp && lp.x < 1000) {
+        const ld = lp.d || 16;
+        addFacilitySign(out, c, lp.x + 8.8, lp.y + ld + 1.3, '🦢 호수', 'lake', 'lake', addHit, cb);
+      }
+    }
+    if (s.town && s.town.objs) {
+      for (const o of s.town.objs) {
+        if (o.k === 'lake') {
+          addFacilitySign(out, c, o.x + 8.8, o.y + 16 + 1.3, '🦢 호수', 'lake', o.id, addHit, cb);
+        }
+      }
+    }
+  }
+
+  function addFacilitySign(list, c, sx, sy, txt, fac, id, addHit, cb) {
+    if (cb) {
+      const px = ISO.wx(sx, sy), py = ISO.wy(sx, sy);
+      if (Math.abs(px - cb.cx) > cb.rw + 90 || Math.abs(py - cb.cy) > cb.rh + 100) return;
+    }
+    list.push({
+      depth: sx + sy + 1.4,
+      fn: () => {
+        const pG = Q(sx, sy);
+        const pTop = Q(sx, sy, 30);
+
+        c.save();
+        // 1. 지면 원근 타원 그림자
+        c.beginPath();
+        c.ellipse(pG[0] + 3, pG[1] + 1, 9, 4.5, 0, 0, Math.PI * 2);
+        c.fillStyle = 'rgba(0, 0, 0, 0.22)';
+        c.fill();
+
+        // 2. 튼튼한 원목 기둥
+        c.beginPath();
+        c.moveTo(pG[0], pG[1]);
+        c.lineTo(pTop[0], pTop[1]);
+        c.strokeStyle = '#5a381e';
+        c.lineWidth = 4;
+        c.lineCap = 'round';
+        c.stroke();
+
+        c.beginPath();
+        c.moveTo(pG[0] - 1, pG[1]);
+        c.lineTo(pTop[0] - 1, pTop[1]);
+        c.strokeStyle = '#8a5a33';
+        c.lineWidth = 1.8;
+        c.stroke();
+
+        // 3. 나무 표지판 보드
+        c.font = 'bold 9.5px sans-serif';
+        const label = (typeof t === 'function' && t('tk_' + fac)) ? ((fac === 'zoo' ? '🦁 ' : fac === 'park' ? '🌳 ' : '🦢 ') + t('tk_' + fac)) : txt;
+        const tw = Math.max(54, c.measureText(label).width + 18);
+        const bw = tw;
+        const bh = 18;
+        const bx = pTop[0] - bw / 2;
+        const by = pTop[1] - 15;
+
+        // 금속 고정 브라켓
+        c.fillStyle = '#3d2514';
+        c.fillRect(bx + 5, by + bh - 2, 3, 3);
+        c.fillRect(bx + bw - 8, by + bh - 2, 3, 3);
+
+        // 보드 그림자
+        ART.rrect(c, bx + 1, by + 1.5, bw, bh, 5);
+        c.fillStyle = 'rgba(0, 0, 0, 0.16)';
+        c.fill();
+
+        // 따뜻한 나무 바탕
+        ART.rrect(c, bx, by, bw, bh, 5);
+        c.fillStyle = '#fff4db';
+        c.fill();
+        c.strokeStyle = '#7c4922';
+        c.lineWidth = 1.5;
+        c.stroke();
+
+        // 안쪽 앤틱 테두리선
+        ART.rrect(c, bx + 2, by + 2, bw - 4, bh - 4, 3);
+        c.strokeStyle = 'rgba(180, 120, 60, 0.35)';
+        c.lineWidth = 0.8;
+        c.stroke();
+
+        // 텍스트 라벨
+        c.textAlign = 'center';
+        c.textBaseline = 'middle';
+        c.fillStyle = '#4a2c11';
+        c.fillText(label, pTop[0], by + bh / 2 + 0.5);
+
+        // 귀여운 인터랙션 노란 포인트 점
+        c.fillStyle = '#f59e0b';
+        c.beginPath();
+        c.arc(bx + bw - 4.5, by + 4.5, 2.2, 0, Math.PI * 2);
+        c.fill();
+
+        c.restore();
+
+        if (addHit) {
+          addHit({
+            kind: 'facility_sign',
+            fac,
+            id,
+            name: label,
+            x0: bx - 6,
+            x1: bx + bw + 6,
+            y0: by - 6,
+            y1: pG[1] + 4
+          });
+        }
+      }
+    });
   }
   // the road tool's preview: the first point and the straight L-shaped run to where you tap next
   function roadLine(a, b) { const out = []; const sx = Math.sign(b.x - a.x), sy = Math.sign(b.y - a.y); let x = a.x, y = a.y; out.push([x, y]); while (x !== b.x) { x += sx; out.push([x, y]); } while (y !== b.y) { y += sy; out.push([x, y]); } return out; }

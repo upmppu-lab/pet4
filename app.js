@@ -1675,6 +1675,10 @@ function askPrompt(o) { openPanel(Object.assign({ type: 'prompt' }, o)); const i
 // ---------- world taps ----------
 function onWorldTap(h) {
   if (typeof TOWNUI !== 'undefined' && TOWNUI.tap(h)) return; // PET TOWN
+  if (h.kind === 'facility_sign') {
+    openPanel({ type: 'tobj', id: h.id, k: h.fac });
+    return;
+  }
   if (h.kind === 'train' || h.kind === 'station') {
     if (typeof TRAIN !== 'undefined') {
       const sx = typeof TRAIN.STAT_X === 'function' ? TRAIN.STAT_X() : 18;

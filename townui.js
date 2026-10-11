@@ -187,6 +187,12 @@ const TOWNUI = (() => {
   if (k === 'zoo') {
     return (typeof assetUrl === 'function') ? assetUrl('spr/zoo/zoo.png') : 'spr/zoo/zoo.png';
   }
+  if (k === 'park') {
+    return (typeof assetUrl === 'function') ? assetUrl('spr/park.png') : 'spr/park.png';
+  }
+  if (k === 'lake') {
+    return (typeof assetUrl === 'function') ? assetUrl('spr/lake/lake.png') : 'spr/lake/lake.png';
+  }
 
   try {
     const cat = TOWN_DEF[k].cat;
@@ -424,8 +430,41 @@ function clearThumbCache() {
   }
   // ---------- one placed thing ----------
   PANELS.tobj = m => {
-    const o = TOWN.objs().find(q => q.id === m.id); if (!o) return '';
-    const d = TOWN_DEF[o.k]; let info = '';
+    let o = null;
+    if (typeof m.id === 'number') {
+      o = TOWN.objs().find(q => q.id === m.id);
+    }
+    if (!o && (m.k === 'park' || m.id === 'park')) {
+      const pObjs = TOWN.objs().filter(q => q.k === 'park');
+      o = pObjs[0] || {
+        id: 'park',
+        k: 'park',
+        x: (S.lay && S.lay.park && S.lay.park.x) || (typeof PARK_POS === 'function' ? PARK_POS().x : 0),
+        y: (S.lay && S.lay.park && S.lay.park.y) || (typeof PARK_POS === 'function' ? PARK_POS().y : 0),
+        r: (S.park && S.park.doorDir) || (S.lay && S.lay.park && S.lay.park.r) || 0,
+        doorDir: (S.park && S.park.doorDir) || 0,
+        paid: (typeof PARK_COST !== 'undefined' ? PARK_COST : 1000000),
+        isBig: true
+      };
+    }
+    if (!o && (m.k === 'lake' || m.id === 'lake')) {
+      const lObjs = TOWN.objs().filter(q => q.k === 'lake');
+      o = lObjs[0] || {
+        id: 'lake',
+        k: 'lake',
+        x: (S.lay && S.lay.lake && S.lay.lake.x) || (typeof VILLAGE !== 'undefined' && typeof VILLAGE.LAKE === 'function' ? VILLAGE.LAKE().x : 0),
+        y: (S.lay && S.lay.lake && S.lay.lake.y) || (typeof VILLAGE !== 'undefined' && typeof VILLAGE.LAKE === 'function' ? VILLAGE.LAKE().y : 0),
+        r: (S.lay && S.lay.lake && S.lay.lake.r) || 0,
+        doorDir: 0,
+        paid: ((typeof VILLAGE_COST !== 'undefined' && VILLAGE_COST.lake) || 500000),
+        isBig: true
+      };
+    }
+    if (!o && (m.k === 'zoo' || m.id === 'zoo')) {
+      o = TOWN.objs().find(q => q.k === 'zoo');
+    }
+    if (!o) return '';
+    const d = TOWN_DEF[o.k] || {}; let info = '';
     const cp = d.cat === 'house' ? TOWN.capOf(o) : 0, L = TOWN.lvOf(o), mul = 1 + .5 * (L - 1);
     if (d.cat === 'house') {
       info = `<div class="t">👥 ${t('tLiving', { n: o.n || 0, c: cp })}</div>${bar((o.n || 0) / cp * 100, 'linear-gradient(#b8e89a,#5cae3c)', (o.n || 0) + ' / ' + cp)}<div class="m">${t('tHouseHint')}</div>`;
@@ -440,7 +479,34 @@ function clearThumbCache() {
       }
     }
     else if (d.cat === 'tree') { const sg = TOWN.stageOf(S, o), left = Math.max(0, (o.pd || 1) + d.grow[d.grow.length - 1] - S.clock.day); info = `<div class="t">${['🌱', '🌿', d.ic][sg]} ${t('tStage' + sg)}</div>${sg < 2 ? `<div class="m">${t('tGrowLeft', { n: left })}</div>` : ''}`; }
-    else info = `<div class="m">😊 +${Math.round(d.hap * (d.cat === 'civic' ? mul : 1) * 10) / 10} · 🧺 ${t('tSupN', { n: Math.round(d.sup * (d.cat === 'civic' ? mul : 1)) })}</div>${d.fx ? `<div class="m">✨ ${t('tfx_' + d.fx)}${L > 1 && /spend|movein/.test(d.fx) ? ' ×' + mul : ''}</div>` : ''}`;
+    else if (o.k === 'zoo') {
+      info = `<div class="card" style="margin-bottom:8px;background:rgba(254,243,199,0.4);border:1px solid #fde68a;">
+        <div class="t" style="font-size:14px;color:#92400e;margin-bottom:4px;">🦁 ${t('tk_zoo') || '동물원'} · 사파리 투어</div>
+        <div class="m" style="line-height:1.6;font-size:12.5px;">😊 행복도 +${d.hap || 18} · 🧺 주민 수용 ${d.sup || 80}명</div>
+        <div class="m" style="color:#666;margin:4px 0 6px;">${t('tBigDesc_zoo') || '사파리 동물원입니다. 귀여운 동물 가족들을 관찰하고 먹이를 주며 힐링할 수 있어요.'}</div>
+        <div class="m">📐 ${t('tLotSize', { w: d.w || 20, d: d.d || 22 })}</div>
+      </div>
+      <button class="btn o block" data-a="open" data-v="zoo" style="margin-top:6px;font-weight:bold;padding:9px;">🦁 ${t('tManageZoo') || '동물원 관리 (티켓 수금)'}</button>`;
+    }
+    else if (o.k === 'park') {
+      info = `<div class="card" style="margin-bottom:8px;background:rgba(220,252,231,0.4);border:1px solid #bbf7d0;">
+        <div class="t" style="font-size:14px;color:#166534;margin-bottom:4px;">🌳 ${t('tk_park') || '공원'} · 쉼터</div>
+        <div class="m" style="line-height:1.6;font-size:12.5px;">😊 행복도 +${d.hap || 12} · 🧺 주민 수용 ${d.sup || 50}명</div>
+        <div class="m" style="color:#666;margin:4px 0 6px;">${t('tBigDesc_park') || '푸르른 마을 공원입니다. 분수대, 놀이터, 벚꽃나무 아래에서 주민들이 여유롭게 산책해요.'}</div>
+        <div class="m">📐 ${t('tLotSize', { w: d.w || 16, d: d.d || 14 })}</div>
+      </div>
+      <button class="btn g block" data-a="tparkstroll" style="margin-top:6px;font-weight:bold;padding:9px;">🌳 공원 산책하기</button>`;
+    }
+    else if (o.k === 'lake') {
+      info = `<div class="card" style="margin-bottom:8px;background:rgba(224,242,254,0.4);border:1px solid #bae6fd;">
+        <div class="t" style="font-size:14px;color:#0369a1;margin-bottom:4px;">🦢 ${t('tk_lake') || '호수'} · 수변 공원</div>
+        <div class="m" style="line-height:1.6;font-size:12.5px;">😊 행복도 +${d.hap || 15} · 🧺 주민 수용 ${d.sup || 40}명</div>
+        <div class="m" style="color:#666;margin:4px 0 6px;">${t('tBigDesc_lake') || '맑고 넓은 호수입니다. 오리들이 유유히 헤엄치며 호숫가에서 낚시를 즐길 수 있어요.'}</div>
+        <div class="m">📐 ${t('tLotSize', { w: d.w || 18, d: d.d || 16 })}</div>
+      </div>
+      <button class="btn o block" data-a="open" data-v="fishing" style="margin-top:6px;font-weight:bold;padding:9px;">🎣 ${t('fishDock') || '호수 낚시터 가기'}</button>`;
+    }
+    else info = `<div class="m">😊 +${Math.round((d.hap || 0) * (d.cat === 'civic' ? mul : 1) * 10) / 10} · 🧺 ${t('tSupN', { n: Math.round((d.sup || 0) * (d.cat === 'civic' ? mul : 1)) })}</div>${d.fx ? `<div class="m">✨ ${t('tfx_' + d.fx)}${L > 1 && /spend|movein/.test(d.fx) ? ' ×' + mul : ''}</div>` : ''}`;
     const back = Math.floor((o.paid || 0) / 2);
     if (d.cat === 'house') {
       // v2026-10-08: 집은 티어(1~12)로 올라가고, 다음 티어는 "레벨 + 마을 인구 + 코인"을 전부 만족해야 함
@@ -448,13 +514,12 @@ function clearThumbCache() {
       const okLvl = req && (S.level || 1) >= req.lvl, okPop = req && TOWN.pop(S) >= req.pop;
       const maxed = L >= TOWN.HOUSE_TIER_MAX;
       info = `<div class="card tlvcard"><div class="t">🏠 ${t('tTierN', { n: L })}${maxed ? ' · ' + t('tHouseMaxTier') : ''}</div>${req ? `<div class="m">${t('tHouseNextCap', { n: L + 1, c: req.cap })}</div>${okLvl ? '' : `<div class="m tbad">${t('tHouseLockLvl', { n: req.lvl })}</div>`}${okPop ? '' : `<div class="m tbad">${t('tHouseLockPop', { n: req.pop })}</div>`}<button class="btn o block ${!okLvl || !okPop || S.coins < req.cost ? 'dis' : ''}" data-a="tup" data-v="${o.id}" style="margin-top:6px">⬆️ ${t('tUpBtn')} · 🪙${fmt(req.cost)}</button>` : ''}</div>` + info;
-    } else if (d.cat === 'civic') { // levels
+    } else if (d.cat === 'civic' && o.k !== 'zoo') { // levels
       const up = TOWN.canUp(o), need = up && TOWN.upNeed(o), okPop = up && TOWN.bestPop(S) >= need, cost = up && TOWN.upCost(o);
       const next = !up ? '' : t('tUpCivic', { m: (1 + .5 * L).toFixed(1) });
       info = `<div class="card tlvcard"><div class="t">${'⭐'.repeat(L)} Lv${L}${L >= TOWN.LV_MAX ? ' · ' + t('tLvMax') : ''}</div>${up ? `<div class="m">⬆️ Lv${L + 1}: ${next}</div>${okPop ? '' : `<div class="m tbad">🔒 ${t('tPopN', { n: need })}</div>`}<button class="btn o block ${!okPop || S.coins < cost ? 'dis' : ''}" data-a="tup" data-v="${o.id}" style="margin-top:6px">⬆️ ${t('tUpBtn')} · 🪙${fmt(cost)}</button>` : ''}</div>` + info;
     }
     if (o.k === 'shelter') info += `<button class="btn o block" data-a="open" data-v="shelter" style="margin-top:8px">🛖 ${t('tManageShelter')}</button>`;
-    if (o.k === 'zoo') info += `<button class="btn o block" data-a="open" data-v="zoo" style="margin-top:8px">🦁 ${t('tManageZoo')}</button>`;
     const hasDoor = d && (d.cat === 'house' || d.cat === 'civic' || o.k === 'park' || d.cat === 'big');
     const curR = (o.r || 0);
     const isFlipped = (curR % 2 !== 0);
@@ -522,8 +587,9 @@ function clearThumbCache() {
       </div>
     `;
 
+    const canDemo = typeof o.id === 'number';
     return frameHTML((d.ic || '') + ' ' + nm(o.k), `${previewCard}${info}
-      <div class="row" style="gap:8px;margin-top:10px">${TOWN.maxR(o.k) > 1 ? `<button class="btn b block" data-a="trotnow" data-v="${o.id}">🔄 ${t('tRotateDir')}</button>` : ''}<button class="btn g block" data-a="tmovego" data-v="${o.id}">🔁 ${t('tMove')}</button><button class="btn r block" data-a="tdemo" data-v="${o.id}">🗑️ ${t('tDemo')}${back ? ' +🪙' + fmt(back) : ''}</button></div>`);
+      <div class="row" style="gap:8px;margin-top:10px">${TOWN.maxR(o.k) > 1 ? `<button class="btn b block" data-a="trotnow" data-v="${o.id}">🔄 ${t('tRotateDir')}</button>` : ''}<button class="btn g block" data-a="tmovego" data-v="${o.id}">🔁 ${t('tMove')}</button>${canDemo ? `<button class="btn r block" data-a="tdemo" data-v="${o.id}">🗑️ ${t('tDemo')}${back ? ' +🪙' + fmt(back) : ''}</button>` : ''}</div>`);
   };
 
   // User Request 4: 동물 직접 클릭 시 설명 그림/글과 먹이주기 버튼만 표시 (아기 동물 지원)
@@ -751,6 +817,15 @@ function clearThumbCache() {
       <button class="btn sm ${bad || (!p.mv && S.coins < cost) ? 'dis' : ''}" data-a="tok">✔ ${p.mv ? t('tMoveHere') : '🪙' + fmt(cost)}</button></div>`;
   }
   function tap(h) {
+    if (h.kind === 'facility_sign') {
+      openPanel({ type: 'tobj', id: h.id, k: h.fac });
+      return true;
+    }
+    if (h.kind === 'zoo_entrance') {
+      const zoo = TOWN.objs().find(o => o.k === 'zoo');
+      openPanel({ type: 'tobj', id: zoo ? zoo.id : 'zoo', k: 'zoo' });
+      return true;
+    }
     if (h.kind === 'zoo_animal') {
       openPanel({ type: 'zoo_animal', sp: h.sp, name: h.name, desc: h.desc, habitat: h.habitat, isBaby: h.isBaby });
       return true;
@@ -883,11 +958,59 @@ function clearThumbCache() {
     tpick: v => startPlace(v),
     tpickhouse: v => startPlace('cottage', null, +v),
     tmovego: v => {
-      const targetObj = TOWN.objs().find(o => o.id === +v);
-      startPlace(targetObj.k, +v, targetObj.tier);
+      if (v === 'park') {
+        if (TOWN.bigBuilt(S, 'park')) startPlace('park', 'park');
+        else {
+          const p = TOWN.objs().find(o => o.k === 'park');
+          startPlace('park', p ? p.id : 'park');
+        }
+        return;
+      }
+      if (v === 'lake') {
+        if (TOWN.bigBuilt(S, 'lake')) startPlace('lake', 'lake');
+        else {
+          const l = TOWN.objs().find(o => o.k === 'lake');
+          startPlace('lake', l ? l.id : 'lake');
+        }
+        return;
+      }
+      const isNum = !isNaN(+v);
+      const targetObj = isNum ? TOWN.objs().find(o => o.id === +v) : TOWN.objs().find(o => o.id === v);
+      if (targetObj) {
+        startPlace(targetObj.k, targetObj.id, targetObj.tier);
+      } else {
+        startPlace(v, v);
+      }
+    },
+    tparkstroll: () => {
+      closePanel();
+      const pp = (typeof PARK_POS === 'function') ? PARK_POS() : null;
+      if (pp && typeof World !== 'undefined') {
+        World.cam.follow = false;
+        World.cam.x = ISO.wx(pp.x + 8, pp.y + 7);
+        World.cam.y = ISO.wy(pp.x + 8, pp.y + 7);
+        World.walkNear(Math.floor(pp.x + 9), Math.floor(pp.y + 14));
+      }
     },
     trotnow: v => {
-      const o = TOWN.objs().find(q => q.id === +v); if (!o) return;
+      if (v === 'park') {
+        const pObj = TOWN.objs().find(q => q.id === +v || q.k === 'park');
+        if (pObj && typeof pObj.id === 'number') {
+          const m = TOWN.maxR('park');
+          const nextR = ((pObj.r || 0) + 1) % m;
+          const nextDoor = (((pObj.doorDir != null ? pObj.doorDir : pObj.r) + 1) % 4);
+          actR({ t: 'tmove', id: pObj.id, x: pObj.x, y: pObj.y, r: nextR, doorDir: nextDoor });
+        } else {
+          S.park = S.park || {};
+          S.park.doorDir = ((S.park.doorDir || 0) + 1) % 4;
+          if (S.lay && S.lay.park) S.lay.park.doorDir = S.park.doorDir;
+        }
+        if (typeof SND !== 'undefined' && SND.pop) SND.pop();
+        if (typeof renderPanel === 'function') renderPanel(true);
+        render();
+        return;
+      }
+      const o = TOWN.objs().find(q => q.id === +v || q.id === v); if (!o) return;
       const m = TOWN.maxR(o.k);
       const nextR = ((o.r || 0) + 1) % m;
       const nextDoor = (((o.doorDir != null ? o.doorDir : o.r) + 1) % 4);
@@ -905,7 +1028,22 @@ function clearThumbCache() {
       render();
     },
     tdoorobj: v => {
-      const o = TOWN.objs().find(q => q.id === +v); if (!o) return;
+      if (v === 'park') {
+        const pObj = TOWN.objs().find(q => q.id === +v || q.k === 'park');
+        if (pObj && typeof pObj.id === 'number') {
+          const nextDir = (((pObj.doorDir != null ? pObj.doorDir : (pObj.r || 0)) + 1) % 4);
+          actR({ t: 'tsetdoor', id: pObj.id, doorDir: nextDir });
+        } else {
+          S.park = S.park || {};
+          S.park.doorDir = ((S.park.doorDir || 0) + 1) % 4;
+          if (S.lay && S.lay.park) S.lay.park.doorDir = S.park.doorDir;
+        }
+        if (typeof SND !== 'undefined' && SND.pop) SND.pop();
+        if (typeof renderPanel === 'function') renderPanel(true);
+        render();
+        return;
+      }
+      const o = TOWN.objs().find(q => q.id === +v || q.id === v); if (!o) return;
       const nextDir = (((o.doorDir != null ? o.doorDir : (o.r || 0)) + 1) % 4);
       actR({ t: 'tsetdoor', id: +v, doorDir: nextDir });
       if (typeof SND !== 'undefined' && SND.pop) SND.pop();
