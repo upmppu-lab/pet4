@@ -539,6 +539,16 @@ return true;
   }
   const freeInside = () => { const out = []; for (let x = 0; x < W(); x++) for (let y = 0; y < H(); y++) if (walk(x, y)) out.push({ x, y }); return out; };
 
+  function getVillageEdge(seed, nearY) {
+    if (typeof villageEdgePoint === 'function') return villageEdgePoint(seed, nearY);
+    const w = W();
+    const vN = (typeof VILLAGE_N !== 'undefined') ? VILLAGE_N : -34;
+    const vS = (typeof villageS === 'function') ? villageS() : 60;
+    const fromTop = nearY != null ? (nearY < (vN + vS) / 2) : ((seed || 0) % 2 === 0);
+    const roadX = w + 1.5 + (((seed || 0) % 2) ? 1 : 0);
+    return { x: roadX, y: fromTop ? vN : vS };
+  }
+
   // ---------- actors ----------
   function mkActor(id, type, x, y, extra) {
     const a = Object.assign({ id, type, x, y, ox: x, oy: y, path: [], dir: 1, face: 0, moving: false, speed: 2.4, t: Math.random() * 10, idle: 0 }, extra || {});
@@ -601,12 +611,11 @@ return true;
             if (homeP && homeP.length) { a.st = 'back'; a.path = homeP; a.moving = true; }
           }
         } else if (a.type === 'cust' || a.type === 'cafeguest' || a.type === 'patient') {
-          // 손님은 길이 끊기면 돌아가기
-          const vS = (typeof VILLAGE_S_MAX === 'function') ? VILLAGE_S_MAX() : 30;
-          const vY0 = (typeof VILLAGE_Y0 !== 'undefined') ? VILLAGE_Y0 : -22;
-          const backY = a.y > 10 ? vS - 2 : vY0 + 2;
-          const backP = findPath(a.x, a.y, Math.floor(a.x), Math.floor(backY), false);
-          if (backP && backP.length) { a.path = backP; a.moving = true; }
+          // 손님은 길이 끊기면 마을 끝 출발지로 안전하게 돌아가기
+          const seed = a.seed || (a.cust ? (a.cust.seed || a.cust.id) : (a.pat ? a.pat.seed : (a.id ? a.id.length : 0)));
+          const ex = getVillageEdge(seed, a.y);
+          const backP = findPath(a.x, a.y, ex.x, ex.y, false);
+          if (backP && backP.length) { a.path = backP; a.moving = true; a.cb = () => actors.delete(a.id); }
         }
         return;
       }
@@ -804,7 +813,8 @@ return true;
         { const sn = seasonOf(); if (sn && (cu.seed || cu.id) % 10 < 4) { look.hat = SEASON_HAT[sn]; look.hatc = '#ef8fa8'; } }
         // arrive from the far end of the street, not out of thin air mid-road ("갑자기 중간에 나타나")
         // 주민은 상점에 갈 필요가 없으므로 상점 고객은 외부 거리 끝에서 자연스럽게 입장
-        a = mkActor(id, 'cust', w + 1.5 + (cu.id % 2), fromTop ? VILLAGE_N : villageS(), { look, speed: 1.7 + (cu.id % 3) * .15, baseSpeed: 1.7 + (cu.id % 3) * .15, cust: cu, inside: false });
+        const ex = getVillageEdge(cu.seed || cu.id);
+        a = mkActor(id, 'cust', ex.x, ex.y, { look, speed: 1.7 + (cu.id % 3) * .15, baseSpeed: 1.7 + (cu.id % 3) * .15, cust: cu, inside: false });
         if (cu.vsp) a.hold = { sp: cu.vsp, grow: 1 };
         SFX.door && setTimeout(() => SFX.door(), 1200);
         goTo(a, door.x + 1, door.y, () => goTo(a, door.x, door.y, () => { a.inside = true; }));
@@ -875,13 +885,13 @@ return true;
     if (vis) {
       const id = 'reg_' + vis.rid; alive.add(id);
       let a = actors.get(id);
-      if (!a) { const R = REGS.find(r => r.id === vis.rid); a = mkActor(id, 'reg', w + 1.5, VILLAGE_N, { look: R.look, speed: 1.3, baseSpeed: 1.3, inside: false, rid: vis.rid }); goTo(a, door.x + 1, door.y, () => goTo(a, door.x, door.y, () => { a.inside = true; const cnt = S.items.find(i => i.k === 'counter'); const t = cnt ? nearestFree(cnt.x - 1, cnt.y + 1) : null; if (t) goTo(a, t.x, t.y, () => { a.face = 0; }); })); }
+      if (!a) { const R = REGS.find(r => r.id === vis.rid); const ex = getVillageEdge(vis.rid || 1); a = mkActor(id, 'reg', ex.x, ex.y, { look: R.look, speed: 1.3, baseSpeed: 1.3, inside: false, rid: vis.rid }); goTo(a, door.x + 1, door.y, () => goTo(a, door.x, door.y, () => { a.inside = true; const cnt = S.items.find(i => i.k === 'counter'); const t = cnt ? nearestFree(cnt.x - 1, cnt.y + 1) : null; if (t) goTo(a, t.x, t.y, () => { a.face = 0; }); })); }
     }
     // inspector NPC
     if (S.event && S.event.k === 'inspect') {
       alive.add('insp');
       let a = actors.get('insp');
-      if (!a) { const lk = ART.randomHuman(S.event.seed || 5); lk.top = 'jacket'; lk.jacket = '#3d405b'; lk.shirt = '#ffffff'; lk.glasses = 2; lk.hat = null; a = mkActor('insp', 'insp', w + 1.5, VILLAGE_N, { look: lk, speed: 1.5, baseSpeed: 1.5, inside: false }); goTo(a, door.x + 1, door.y, () => goTo(a, door.x, door.y, () => { a.inside = true; })); }
+      if (!a) { const lk = ART.randomHuman(S.event.seed || 5); lk.top = 'jacket'; lk.jacket = '#3d405b'; lk.shirt = '#ffffff'; lk.glasses = 2; lk.hat = null; const ex = getVillageEdge(S.event.seed || 5); a = mkActor('insp', 'insp', ex.x, ex.y, { look: lk, speed: 1.5, baseSpeed: 1.5, inside: false }); goTo(a, door.x + 1, door.y, () => goTo(a, door.x, door.y, () => { a.inside = true; })); }
       if (a.inside && !a.path.length) { a.idle = (a.idle || 0) - dt; if (a.idle <= 0) { a.idle = 3 + Math.random() * 3; const fr = freeInside(); const t = fr[Math.floor(Math.random() * fr.length)]; if (t) goTo(a, t.x, t.y, () => { a.bubble = '📋'; a.bubT = 2; }); } }
       if (a.bubT > 0) a.bubT -= dt;
     }
@@ -891,7 +901,8 @@ return true;
       let a = actors.get('thief');
       if (!a) {
         const lk = ART.randomHuman(S.event.seed || 9); lk.top = 'hoodie'; lk.shirt = '#2b2b33'; lk.pants = '#1a1a1f'; lk.hat = null; lk.bag = '#3a3a44';
-        a = mkActor('thief', 'thief', w + 1.5, VILLAGE_N, { look: lk, speed: 1.7, baseSpeed: 1.7, inside: false, pid: S.event.pid });
+        const ex = getVillageEdge(S.event.seed || 9);
+        a = mkActor('thief', 'thief', ex.x, ex.y, { look: lk, speed: 1.7, baseSpeed: 1.7, inside: false, pid: S.event.pid });
         goTo(a, door.x + 1, door.y, () => goTo(a, door.x, door.y, () => {
           a.inside = true;
           const i = S.pets.findIndex(p => p && p.id === S.event.pid), hab = i >= 0 ? G.habItem(S, i) : null;
@@ -952,7 +963,7 @@ return true;
     // hospital: patients and staff are real actors that walk between the street, the reception, the lobby benches and the rooms
     if (S.hosp && S.hosp.built) {
       const L = HOSP_LAYOUT(), hp = S.hosp, P = hp.patients || [];
-      const getHospEdge = (seed, nearY) => (typeof villageEdgePoint === 'function') ? villageEdgePoint(seed, nearY) : { x: W() + 1.5, y: (typeof VILLAGE_N !== 'undefined') ? VILLAGE_N : -34 };
+      const getHospEdge = (seed, nearY) => getVillageEdge(seed, nearY);
       const deskQ = P.filter(p => p.ph === 'walkin' || p.ph === 'deskwait' || p.ph === 'deskserve' || p.ph === 'toDesk').sort((a, b) => ((a.ph === 'deskserve') ? 0 : 1) - ((b.ph === 'deskserve') ? 0 : 1) || a.id - b.id);
       const benchQ = P.filter(p => p.ph === 'bench').sort((a, b) => a.qt - b.qt), rc = L.reception;
       for (const p of P) {
@@ -1052,12 +1063,36 @@ return true;
     TOWN.villagerStep(dt, actors, mkActor, alive, goTo, walk); // PET TOWN v1.3: villagers visiting shops & public buildings
     // remove / animate leaving
     for (const [id, a] of actors) {
-      if (alive.has(id) || a.type === 'me' || a.type === 'partner' || a.type === 'truck' || a.leaving || id.startsWith('gh')) continue; // gh*: commuting staff (v9.95)
+      if (alive.has(id) || a.type === 'me' || a.type === 'partner' || a.type === 'truck' || id.startsWith('gh')) continue; // gh*: commuting staff (v9.95)
+      if (a.leaving) {
+        const vN = (typeof VILLAGE_N !== 'undefined') ? VILLAGE_N : -34;
+        const vS = (typeof villageS === 'function') ? villageS() : 60;
+        if (a.y <= vN + 1.5 || a.y >= vS - 1.5) {
+          actors.delete(id);
+        } else if (!a.path.length && !a.moving) {
+          a._leaveWait = (a._leaveWait || 0) + dt;
+          if (a._leaveWait > 3.0) {
+            actors.delete(id);
+          } else if (a._leaveWait > 1.0 && !a._leaveRetried) {
+            a._leaveRetried = true;
+            const seed = a.seed || (a.cust ? (a.cust.seed || a.cust.id) : (a.pat ? a.pat.seed : 1));
+            const ex = getVillageEdge(seed, a.y);
+            goTo(a, ex.x, ex.y, () => actors.delete(id));
+          }
+        }
+        continue;
+      }
       if (a.type === 'cust' || a.type === 'insp' || a.type === 'reg' || a.type === 'staff' || a.type === 'thief') {
         a.homeId = null; a.leaving = true; a.cust = null; a.watching = false;
-        goTo(a, door.x, door.y, () => goTo(a, door.x + 2, door.y, () => {
-          goTo(a, w + 1.5, (a.id.length % 2) ? VILLAGE_N : villageS(), () => { actors.delete(id); });
-        }));
+        const seed = a.seed || (a.cust ? (a.cust.seed || a.cust.id) : (a.id ? a.id.length : 0));
+        const ex = getVillageEdge(seed, a.y);
+        if (a.inside) {
+          goTo(a, door.x, door.y, () => goTo(a, door.x + 2, door.y, () => {
+            goTo(a, ex.x, ex.y, () => { actors.delete(id); });
+          }));
+        } else {
+          goTo(a, ex.x, ex.y, () => { actors.delete(id); });
+        }
       } else if (a.type === 'cafeguest') {
         // v9.76: left because the food never came -> angry face + a line, no meal, no paying
         const ang = S.cafe && (S.cafe.angry || []).find(x => 'cg' + x.id === id);
@@ -1073,14 +1108,11 @@ return true;
         else if (a.served) { a.mealStarted = true; if (a.seatAt) cafeMeal(a); else a.afterSit = () => cafeMeal(a); }
         else cafeDepart(a);
       } else if (a.type === 'patient') {
-        if (!a.leaving) {
-          a.leaving = true;
-          a.sit = false; a.seatAt = null;
-          const exitTgt = a.salon ? { x: a.x + 3.5, y: a.y } : { x: a.x + 3.5, y: a.y };
-          goTo(a, exitTgt.x, exitTgt.y, () => actors.delete(id));
-        } else {
-          actors.delete(id);
-        }
+        a.leaving = true;
+        a.sit = false; a.seatAt = null;
+        const seed = a.pat ? (a.pat.seed || a.pat.id) : (a.seed || 1);
+        const ex = getVillageEdge(seed, a.y);
+        goTo(a, ex.x, ex.y, () => actors.delete(id));
       } else if (a.type === 'hstaff') { actors.delete(id); } else actors.delete(id);
     }
     for (const a of actors.values()) if (a.type === 'cafeguest') a.sit = !!a.seatAt && Math.hypot(a.seatAt.x - a.x, a.seatAt.y - a.y) < .06;

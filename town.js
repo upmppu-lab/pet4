@@ -920,6 +920,9 @@ const TOWN = (() => {
     for (const ent of allEnts) {
       if (isEntranceConnected(s, ent)) {
         baseSet.add(Math.floor(ent.x) + ',' + Math.floor(ent.y));
+        if (ent.accessX != null && ent.accessY != null) {
+          baseSet.add(Math.floor(ent.accessX) + ',' + Math.floor(ent.accessY));
+        }
       }
     }
 
@@ -927,30 +930,39 @@ const TOWN = (() => {
     // 대각선으로 모서리만 닿아있는 길도 안전한(호수 물/건물 본체가 아닌) 직각 타일을 통해 "쭉갔다가 옆으로 돌고 쭉가고" 이동할 수 있도록 연결
     const isSolidCornerTile = (tx, ty) => {
       if (inActualBuilding(s, tx, ty)) return true;
+      if (typeof TRAIN !== 'undefined' && TRAIN.solid && TRAIN.solid(tx, ty)) return true;
+      const vs = (typeof VILLAGE !== 'undefined' && typeof VILLAGE.solid === 'function') ? VILLAGE.solid() : null;
+      if (vs && vs.has(tx + ',' + ty)) return true;
       if (s.village && s.village.lake && typeof VILLAGE !== 'undefined' && typeof VILLAGE.LAKE === 'function') {
         const lp = VILLAGE.LAKE();
         if (lp && tx >= lp.x && tx < lp.x + lp.w && ty >= lp.y && ty < lp.y + lp.d) {
-          const vs = (typeof VILLAGE.solid === 'function') ? VILLAGE.solid() : null;
           if (vs && vs.has(tx + ',' + ty)) return true;
+        }
+      }
+      for (const o of (s.town && s.town.objs) || []) {
+        if (o.k === 'lake') {
+          if (tx >= o.x && tx < o.x + 18 && ty >= o.y && ty < o.y + 16) {
+            if (vs && vs.has(tx + ',' + ty)) return true;
+          }
         }
       }
       return false;
     };
     const diagDirs = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
-    for (const rk of R) {
+    const candidateSet = new Set(baseSet);
+    for (const rk of candidateSet) {
       const comma = rk.indexOf(',');
       const rx = +rk.slice(0, comma), ry = +rk.slice(comma + 1);
       for (const [dx, dy] of diagDirs) {
         const diagK = (rx + dx) + ',' + (ry + dy);
-        if (R.has(diagK)) {
+        if (candidateSet.has(diagK)) {
           const c1x = rx + dx, c1y = ry, c1k = c1x + ',' + c1y;
           const c2x = rx, c2y = ry + dy, c2k = c2x + ',' + c2y;
           if (!baseSet.has(c1k) && !baseSet.has(c2k)) {
-            if (!isSolidCornerTile(c1x, c1y)) {
-              baseSet.add(c1k);
-            } else if (!isSolidCornerTile(c2x, c2y)) {
-              baseSet.add(c2k);
-            }
+            const ok1 = !isSolidCornerTile(c1x, c1y);
+            const ok2 = !isSolidCornerTile(c2x, c2y);
+            if (ok1) baseSet.add(c1k);
+            if (ok2) baseSet.add(c2k);
           }
         }
       }

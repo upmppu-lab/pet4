@@ -47,6 +47,7 @@ function villageEdgePoint(seed, nearY) {
   return { x: roadX, y: fromTop ? vN : vS };
 }
 if (typeof window !== 'undefined') window.villageEdgePoint = villageEdgePoint;
+if (typeof globalThis !== 'undefined') globalThis.villageEdgePoint = villageEdgePoint;
 const CAFE_SPAWN = (seed, nearY) => villageEdgePoint(seed, nearY);
 const CAFE_ENTRY = () => { const cp = CAFE_POS(); return { x: cafeW() + 1.6, y: cp.y + cp.d - .5 }; };
 // the reserved lot for the future pet hospital: same footprint as the café's biggest tier, WEST of the shop
