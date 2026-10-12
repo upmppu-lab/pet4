@@ -113,6 +113,12 @@ const PNG_PETS = {
   hamster_deepdark_gray: 1,
   hamster_gray: 1,
   hamster_white: 1,
+  budgerigar_blue: 1,
+  budgerigar_green: 1,
+  budgerigar_purple: 1,
+  budgerigar_yellow: 1,
+  cockatiel_cream: 1,
+  cockatiel_gray: 1,
 };
 const PET_PNG = (() => {
   const cache = {};
@@ -135,7 +141,8 @@ const PET_PNG = (() => {
 Object.keys(PNG_PETS).forEach(sp => {
   PET_PNG.load(sp);
   if (!sp.startsWith('rat_') && !sp.startsWith('guineapig_') && !sp.startsWith('hamster_') &&
-      !sp.startsWith('gerbil_') && !sp.startsWith('ferrets_') && !sp.startsWith('betta_')) {
+      !sp.startsWith('gerbil_') && !sp.startsWith('ferrets_') && !sp.startsWith('betta_') &&
+      !sp.startsWith('budgerigar_') && !sp.startsWith('cockatiel_')) {
     PET_PNG.load(sp + '_walk1');
     PET_PNG.load(sp + '_walk2');
   }

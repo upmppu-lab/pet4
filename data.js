@@ -132,7 +132,10 @@ const SPECIES_RAW = [
  ['hamster_gray', 'small', 1, 40, 90, 3, '그레이 햄스터', 'Серый хомяк'],
  ['hamster_white', 'small', 1, 40, 90, 3, '화이트 햄스터', 'Белый хомяк'],
  ['goldfish','fish',1,25,60,2,'금붕어','Золотая рыбка'],
- ['budgie','bird',1,60,130,4,'사랑앵무','Волнистый попугай'],
+ ['budgerigar_blue','bird',1,60,130,4,'블루 사랑앵무','Волнистый попугай синий'],
+ ['budgerigar_green','bird',1,60,130,4,'그린 사랑앵무','Волнистый попугай зелёный'],
+ ['budgerigar_purple','bird',1,60,130,4,'퍼플 사랑앵무','Волнистый попугай фиолетовый'],
+ ['budgerigar_yellow','bird',1,60,130,4,'옐로우 사랑앵무','Волнистый попугай жёлтый'],
  ['neon','fish',2,35,80,2,'네온테트라','Неон'],
  ['canary','bird',2,80,170,4,'카나리아','Канарейка'],
  ['rabbit','small',3,120,260,6,'집토끼','Домашний кролик'],
@@ -161,7 +164,8 @@ const SPECIES_RAW = [
  ['pomeranian','dog',5,350,760,10,'포메라니안','Померанский шпиц'],
  ['chinchilla','small',5,260,560,8,'친칠라','Шиншилла'],
  ['british','cat',6,420,900,10,'브리티시 숏헤어','Британская кошка'],
- ['cockatiel','bird',6,240,520,7,'왕관앵무','Корелла'],
+ ['cockatiel_cream','bird',1,60,130,4,'크림 왕관앵무','Корелла кремовая'],
+ ['cockatiel_gray','bird',1,60,130,4,'그레이 왕관앵무','Корелла серая'],
  ['hedgehog','small',7,300,650,8,'고슴도치','Африканский ёжик'],
  ['dwarfrabbit','small',7,250,540,7,'드워프 토끼','Карликовый кролик'],
  ['shiba_sinu_black','dog',10,510,1100,12,'시바 시누 블랙','Сиба-сину чёрный'],
@@ -264,6 +268,8 @@ const LEGACY_SP_MAP = {
   gerbil: 'gerbil_brown',
   ferret: 'ferrets_black',
   betta: 'betta_red',
+  budgie: 'budgerigar_blue',
+  cockatiel: 'cockatiel_cream',
 };
 for (const [k, v] of Object.entries(LEGACY_SP_MAP)) {
   if (!SPECIES[k] && SPECIES[v]) SPECIES[k] = SPECIES[v];
@@ -273,7 +279,8 @@ const PHOTO_POS = {cockatiel:'50% 30%',conure:'50% 35%',hollandlop:'50% 40%',jin
   russianblue:'50% 35%',siamese:'50% 30%',sphynx:'50% 30%',yorkie:'50% 30%',persian:'50% 35%',bengal:'50% 30%',
   scottish:'50% 40%',samoyed:'50% 40%',kitten:'40% 50%',pomeranian:'35% 40%',chihuahua:'50% 40%',shiba:'50% 40%',
   shiba_black:'50% 40%',shiba_sinu:'50% 40%',shiba_sinu_black:'50% 40%',shiba_sinu_black_brown:'50% 40%',shiba_red:'50% 40%',
-  dalmatian_black:'50% 40%',dalmatian_eye:'50% 40%',dalmatian_red:'50% 40%',maltese_brown2:'50% 40%',maltese_dark_brown:'50% 40%',maltese_white:'50% 40%',retriever_black:'50% 40%',retriever_brown:'50% 40%',retriever_dark_brown:'50% 40%',maltese:'50% 40%',maltese_cream:'50% 40%',maltese_brown:'50% 40%'};
+  dalmatian_black:'50% 40%',dalmatian_eye:'50% 40%',dalmatian_red:'50% 40%',maltese_brown2:'50% 40%',maltese_dark_brown:'50% 40%',maltese_white:'50% 40%',retriever_black:'50% 40%',retriever_brown:'50% 40%',retriever_dark_brown:'50% 40%',maltese:'50% 40%',maltese_cream:'50% 40%',maltese_brown:'50% 40%',
+  cockatiel_cream:'50% 30%',cockatiel_gray:'50% 30%'};
 
 const CATS = ['small','fish','bird','reptile','cat','dog'];
 const FOOD = { // food per category: pack of 10 servings

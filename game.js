@@ -172,6 +172,8 @@ const SP_MAP = {
   gerbil: 'gerbil_brown',
   ferret: 'ferrets_black',
   betta: 'betta_red',
+  budgie: 'budgerigar_blue',
+  cockatiel: 'cockatiel_cream',
 };
 const _mapSp = obj => { if (obj) obj.sp = SP_MAP[obj.sp] || obj.sp; };
 // 모든 펫 위치 순회
