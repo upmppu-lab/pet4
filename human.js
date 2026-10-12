@@ -1738,82 +1738,94 @@ const P2 = {
     if (isPlayer && !HUM.forceVector) {
       drawMyChar2(c, o, realDir, faceBack, moving, t, isSit);
       
-      // ========== 소품 그리기 시작 ==========
+      // ========== 소품 그리기 시작 (PNG 캐릭터 기준 위치 정밀 보정) ==========
       if (o.acc) {
-        const hy = -54;
-        // 목걸이
-        if (o.acc.neck && (realDir === 0 || realDir === 1)) {
-          const ny = hy + 1;
+        // PNG 캐릭터 좌표계: 머리 정수리 y=-74~-78, 눈 y=-66, 귀 x=±12.5 y=-64, 목 y=-48
+        const headY = -74;
+        const eyeY = -66;
+        const neckY = -48;
+
+        // 1. 목걸이 (정면 / 대각선)
+        if (o.acc.neck && (realDir === 0 || realDir === 3) && !faceBack) {
           c.beginPath();
-          c.arc(0, ny, 5, 0.15 * Math.PI, 0.85 * Math.PI);
-          c.lineWidth = 2;
+          c.arc(0, neckY, 5.5, 0.15 * Math.PI, 0.85 * Math.PI);
+          c.lineWidth = 1.4;
           c.strokeStyle = '#f5c542';
           c.stroke();
           if (o.acc.neck === 'pendant') {
-            ell(c, 0, ny + 3.5, 2.5, 3, '#ff7aa8', OUT, 0.8);
+            ell(c, 0, neckY + 4.2, 1.8, 2.4, '#ff7aa8', OUT, 0.7);
           } else if (o.acc.neck === 'bell') {
-            ell(c, 0, ny + 3.5, 2.5, 2.5, '#ffd23a', OUT, 0.8);
-            ell(c, 0, ny + 5, 1, 1, '#6a4a1a');
+            ell(c, 0, neckY + 4.2, 2.0, 2.0, '#ffd23a', OUT, 0.7);
+            ell(c, 0, neckY + 5.2, 0.7, 0.7, '#6a4a1a');
           } else {
-            ell(c, 0, ny + 3.5, 2, 2, '#f5c542', OUT, 0.8);
+            ell(c, 0, neckY + 4.2, 1.5, 1.5, '#f5c542', OUT, 0.7);
           }
         }
-        // 귀걸이
-        if (o.acc.ear && realDir === 0) {
+        // 2. 귀걸이 (정면: 양쪽, 옆면: 한쪽)
+        if (o.acc.ear && !faceBack) {
           const col = o.acc.ear === 'hoop' ? '#c9962a' : '#f5c542';
-          for (const s of [-1, 1]) {
-            ell(c, s * 19, hy + 1, 1, 1, col, OUT, 0.7);
+          if (realDir === 0) {
+            for (const s of [-1, 1]) {
+              ell(c, s * 12.5, eyeY + 1.5, 1.2, 1.2, col, OUT, 0.6);
+            }
+          } else if (realDir === 2 || realDir === 3) {
+            ell(c, 11, eyeY + 1.5, 1.2, 1.2, col, OUT, 0.6);
           }
         }
-        // 안경
-        if (o.acc.face && realDir === 0) {
-          const ey = hy + 4;
-          c.lineWidth = 1.5;
+        // 3. 안경 / 선글라스 (정면 / 대각선 앞)
+        if (o.acc.face && (realDir === 0 || realDir === 3) && !faceBack) {
+          c.lineWidth = 1.4;
           if (o.acc.face === 'sunglasses') {
             c.strokeStyle = '#1a1a1a';
             for (const s of [-1, 1]) {
-              rrect(c, s * 7 - 5, ey - 4, 10, 7, 2);
+              rrect(c, s * 6.5 - 4.2, eyeY - 3.2, 8.4, 6.4, 2);
               c.fillStyle = '#1a1a1a';
               c.fill();
               c.stroke();
             }
-            c.beginPath(); c.moveTo(-2, ey - 0.5); c.lineTo(2, ey - 0.5); c.stroke();
+            c.beginPath(); c.moveTo(-2, eyeY - 0.5); c.lineTo(2, eyeY - 0.5); c.stroke();
           } else if (o.acc.face === 'glasses' || o.acc.face === 'roundglass') {
             c.strokeStyle = o.acc.face === 'glasses' ? '#3a2418' : '#c9962a';
             for (const s of [-1, 1]) {
               c.beginPath();
-              c.arc(s * 7, ey, 5, 0, Math.PI * 2);
+              c.arc(s * 6.5, eyeY, 4.2, 0, Math.PI * 2);
               c.stroke();
             }
-            c.beginPath(); c.moveTo(-2, ey); c.lineTo(2, ey); c.stroke();
+            c.beginPath(); c.moveTo(-2, eyeY); c.lineTo(2, eyeY); c.stroke();
           }
         }
-        // 목도리
+        // 4. 목도리
         if (o.acc.scarf) {
           const col = o.acc.scarf === 'scarf_red' ? '#e0303a' : '#2f4f8a';
-          const ny = hy + 15;
           c.beginPath();
-          c.ellipse(0, ny, 15, 7, 0, 0, Math.PI * 2);
+          c.ellipse(0, neckY + 1, 10.5, 5.2, 0, 0, Math.PI * 2);
           c.fillStyle = col;
           c.fill();
           c.strokeStyle = OUT;
           c.lineWidth = 1.2;
           c.stroke();
-          if (realDir === 0 || realDir === 1) {
+          if ((realDir === 0 || realDir === 3) && !faceBack) {
             c.beginPath();
-            c.moveTo(-3, ny + 3);
-            c.quadraticCurveTo(-6, ny + 10, -4, ny + 16);
-            c.lineWidth = 4;
+            c.moveTo(-2.5, neckY + 3);
+            c.quadraticCurveTo(-5, neckY + 8, -3.5, neckY + 13);
+            c.lineWidth = 3.2;
             c.strokeStyle = col;
             c.stroke();
-            c.lineWidth = 1.2;
+            c.lineWidth = 1.0;
             c.strokeStyle = OUT;
             c.stroke();
           }
         }
-        // 모자
+        // 5. 모자 / 머리 장식 (고양이귀, 토끼귀, 왕관, 화관 등)
         if (o.acc.head) {
-          hatOnly(c, { hat: o.acc.head });
+          c.save();
+          c.lineWidth = 1.6; c.strokeStyle = ART.OUT; c.lineJoin = 'round';
+          if (realDir === 2) {
+            hatSide(c, { hat: o.acc.head, hatc: o.acc.headc }, headY);
+          } else {
+            hat(c, { hat: o.acc.head, hatc: o.acc.headc }, headY, realDir === 1 || faceBack);
+          }
+          c.restore();
         }
       }
       // ========== 소품 그리기 끝 ==========

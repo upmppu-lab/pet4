@@ -1011,8 +1011,8 @@ const TOWN = (() => {
     const W = Wd(s);
 
     // 1. 중앙 대형 도로의 양옆 인도 (빠른 수식 판정)
-    const yMin = (typeof VILLAGE_Y0 !== 'undefined') ? VILLAGE_Y0 : -40;
-    const yMax = (typeof VILLAGE_S_MAX === 'function') ? VILLAGE_S_MAX() : 60;
+    const yMin = (typeof VILLAGE_Y0 !== 'undefined') ? (VILLAGE_Y0 - 2) : -62;
+    const yMax = (typeof VILLAGE_S_MAX === 'function') ? (VILLAGE_S_MAX() + 2) : 80;
     if (y >= yMin && y <= yMax) {
       if ((x >= W + 1 && x <= W + 3) || (x >= W + 6 && x <= W + 8)) return true;
     }

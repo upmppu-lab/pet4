@@ -553,10 +553,10 @@ return true;
   function getVillageEdge(seed, nearY) {
     if (typeof villageEdgePoint === 'function') return villageEdgePoint(seed, nearY);
     const w = W();
-    const vN = (typeof VILLAGE_N !== 'undefined') ? VILLAGE_N : -34;
-    const vS = (typeof villageS === 'function') ? villageS() : 60;
+    const vN = (typeof VILLAGE_Y0 !== 'undefined') ? (VILLAGE_Y0 + 0.5) : -58.5;
+    const vS = (typeof VILLAGE_S_MAX === 'function') ? (VILLAGE_S_MAX() - 0.5) : 78.5;
     const fromTop = nearY != null ? (nearY < (vN + vS) / 2) : ((seed || 0) % 2 === 0);
-    const roadX = w + 1.5 + (((seed || 0) % 2) ? 1 : 0);
+    const roadX = w + (((seed || 0) % 2 === 0) ? 2.5 : 6.5);
     return { x: roadX, y: fromTop ? vN : vS };
   }
 
@@ -827,8 +827,10 @@ return true;
         const ex = getVillageEdge(cu.seed || cu.id);
         a = mkActor(id, 'cust', ex.x, ex.y, { look, speed: 1.7 + (cu.id % 3) * .15, baseSpeed: 1.7 + (cu.id % 3) * .15, cust: cu, inside: false });
         if (cu.vsp) a.hold = { sp: cu.vsp, grow: 1 };
-        SFX.door && setTimeout(() => SFX.door(), 1200);
-        goTo(a, door.x + 1, door.y, () => goTo(a, door.x, door.y, () => { a.inside = true; }));
+        goTo(a, door.x + 1, door.y, () => {
+          SFX.door && SFX.door();
+          goTo(a, door.x, door.y, () => { a.inside = true; });
+        });
       }
       a.cust = cu;
       if (cu.pd) a.hold = cu.pd;
@@ -1076,16 +1078,14 @@ return true;
     for (const [id, a] of actors) {
       if (alive.has(id) || a.type === 'me' || a.type === 'partner' || a.type === 'truck' || id.startsWith('gh')) continue; // gh*: commuting staff (v9.95)
       if (a.leaving) {
-        const vN = (typeof VILLAGE_N !== 'undefined') ? VILLAGE_N : -34;
-        const vS = (typeof villageS === 'function') ? villageS() : 60;
-        if (a.y <= vN + 1.5 || a.y >= vS - 1.5) {
+        const vN = (typeof VILLAGE_Y0 !== 'undefined') ? (VILLAGE_Y0 + 0.5) : -58.5;
+        const vS = (typeof VILLAGE_S_MAX === 'function') ? (VILLAGE_S_MAX() - 0.5) : 78.5;
+        if (a.y <= vN + 1.2 || a.y >= vS - 1.2) {
           actors.delete(id);
         } else if (!a.path.length && !a.moving) {
           a._leaveWait = (a._leaveWait || 0) + dt;
-          if (a._leaveWait > 3.0) {
-            actors.delete(id);
-          } else if (a._leaveWait > 1.0 && !a._leaveRetried) {
-            a._leaveRetried = true;
+          if (a._leaveWait > 1.0) {
+            a._leaveWait = 0;
             const seed = a.seed || (a.cust ? (a.cust.seed || a.cust.id) : (a.pat ? a.pat.seed : 1));
             const ex = getVillageEdge(seed, a.y);
             goTo(a, ex.x, ex.y, () => actors.delete(id));
@@ -1160,7 +1160,12 @@ return true;
     for (const { key, a, duty } of list) {
       seen.add(key); let c = cmState.get(key);
       if (!c) { c = { st: duty ? 'on' : 'gone' }; cmState.set(key, c); }
-      const exit = () => { const n = a.y < H() / 2; return { x: W() + 1.5 + (n ? 0 : 1), y: n ? VILLAGE_N + 1 : villageS() - 1 }; };
+      const exit = () => {
+        const vN = (typeof VILLAGE_Y0 !== 'undefined') ? (VILLAGE_Y0 + 0.5) : -58.5;
+        const vS = (typeof VILLAGE_S_MAX === 'function') ? (VILLAGE_S_MAX() - 0.5) : 78.5;
+        const n = a.y < (vN + vS) / 2;
+        return { x: W() + (n ? 2.5 : 6.5), y: n ? (vN + 1) : (vS - 1) };
+      };
       const ghost = (x, y) => { let g = actors.get('gh' + key); if (!g) { g = mkActor('gh' + key, a.type === 'staff' ? 'staff' : 'hstaff', x, y, { look: a.look, role: a.role, m: a.m, speed: 3.4 }); } return g; };
       const drop = () => actors.delete('gh' + key);
       if (!duty && (c.st === 'on' || c.st === 'in')) { // off home: walk out to the street

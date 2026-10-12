@@ -35,15 +35,16 @@ const CAFE_POS = s => { const e = CAFE_LV[cafeLv(s)]; return { x: cafeW(s) - e.w
 const CAFE_SIGN = () => ({ x: LAY_FAR, y: LAY_FAR }); // PET TOWN: no signposts, built from the build menu
 // the shop's back door (2 tiles: W-2, W-1) -- leads straight up to the café's south edge
 const CAFE_DOOR = () => cafeW() - 1;
-// where people enter the village: the far (north) end of the sidewalk, so they WALK down the
-// street to the gate instead of popping into existence mid-road
-const VILLAGE_N = -34, villageS = () => (typeof VILLAGE_S_MAX === 'function' ? VILLAGE_S_MAX() - 2 : (S && S.room ? S.room.h : 8) + 34);
+// where people enter the village: the far north and south ends of the central avenue (outside the fence gates),
+// so they walk all the way down the street from the town gates instead of appearing mid-road.
+const VILLAGE_N = -58, villageS = () => (typeof VILLAGE_S_MAX === 'function' ? VILLAGE_S_MAX() - 1 : 78);
 function villageEdgePoint(seed, nearY) {
   const w = (typeof S !== 'undefined' && S && S.room && S.room.w) || 8;
-  const vN = (typeof VILLAGE_N !== 'undefined') ? VILLAGE_N : -34;
-  const vS = (typeof villageS === 'function') ? villageS() : 60;
+  const vN = (typeof VILLAGE_Y0 !== 'undefined') ? (VILLAGE_Y0 + 0.5) : -58.5;
+  const vS = (typeof VILLAGE_S_MAX === 'function') ? (VILLAGE_S_MAX() - 0.5) : 78.5;
   const fromTop = nearY != null ? (nearY < (vN + vS) / 2) : ((seed || 0) % 2 === 0);
-  const roadX = w + 1.5 + (((seed || 0) % 2) ? 1 : 0);
+  // Walk along either the west sidewalk (w + 2.5) or east sidewalk (w + 6.5)
+  const roadX = w + (((seed || 0) % 2 === 0) ? 2.5 : 6.5);
   return { x: roadX, y: fromTop ? vN : vS };
 }
 if (typeof window !== 'undefined') window.villageEdgePoint = villageEdgePoint;
