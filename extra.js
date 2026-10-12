@@ -9,32 +9,39 @@ const COSM = ['catears', 'bunny', 'flower', 'crown', 'witch', 'santa', 'sunhat',
 // 소품 슬롯 정의
 const ACC_SLOTS = ['head', 'face', 'neck', 'ear', 'scarf'];
 
-// 소품별 상세 정의 (슬롯, 아이콘)
+// 소품별 상세 정의 (슬롯, 정면/옆면 그림 파일명, 이름)
+// v1.103: 원화가님이 직접 그린 소품 PNG(assets/spr/acc/front, /side)로 교체.
+// 뒷면은 정면 그림을, 대각선은 옆면 그림을 그대로 재사용한다(인게임에서 자동 처리).
 const COSM_DEF = {
-  // === 모자 (head) ===
-  catears:    { slot: 'head',  icon: '🐱', name: '고양이 귀' },
-  bunny:      { slot: 'head',  icon: '🐰', name: '토끼 귀' },
-  flower:     { slot: 'head',  icon: '🌸', name: '꽃 화관' },
-  crown:      { slot: 'head',  icon: '👑', name: '왕관' },
-  witch:      { slot: 'head',  icon: '🧙', name: '마녀 모자' },
-  santa:      { slot: 'head',  icon: '🎅', name: '산타 모자' },
-  sunhat:     { slot: 'head',  icon: '👒', name: '밀짚모자' },
-  headphones: { slot: 'head',  icon: '🎧', name: '헤드폰' },
-  heart:      { slot: 'head',  icon: '💕', name: '하트 머리띠' },
-  // === 🆕 안경 (face) ===
-  sunglasses: { slot: 'face',  icon: '🕶️', name: '선글라스' },
-  glasses:    { slot: 'face',  icon: '👓', name: '안경' },
-  roundglass: { slot: 'face',  icon: '👓', name: '둥근 안경' },
-  // === 🆕 목걸이 (neck) ===
-  necklace:   { slot: 'neck',  icon: '📿', name: '목걸이' },
-  pendant:    { slot: 'neck',  icon: '💎', name: '펜던트' },
-  bell:       { slot: 'neck',  icon: '🔔', name: '방울' },
-  // === 🆕 귀걸이 (ear) ===
-  earring:    { slot: 'ear',   icon: '💠', name: '귀걸이' },
-  hoop:       { slot: 'ear',   icon: '⭕', name: '링 귀걸이' },
-  // === 🆕 목도리 (scarf) ===
-  scarf_red:  { slot: 'scarf', icon: '🧣', name: '빨간 목도리' },
-  scarf_blue: { slot: 'scarf', icon: '🧣', name: '파란 목도리' },
+  // === 모자 (head) - 6종 ===
+  cap1:   { slot: 'head', front: 'head_cap1',  side: 'head_side_cap1',   name: '모자 1' },
+  cap2:   { slot: 'head', front: 'head_cap2',  side: 'head__side_cap2',  name: '모자 2' },
+  cap3:   { slot: 'head', front: 'head_cap3',  side: 'head__side_cap3',  name: '모자 3' },
+  cap4:   { slot: 'head', front: 'head_cap4',  side: 'head__side_cap4',  name: '모자 4' },
+  cap5:   { slot: 'head', front: 'head_cap5',  side: 'head__side_cap5',  name: '모자 5' },
+  ribbon: { slot: 'head', front: 'head_ribon', side: 'head_side_ribon',  name: '리본 머리띠' },
+  // === 안경 (face) - 6종 ===
+  glass1: { slot: 'face', front: 'glass_1', side: 'glass_side_1', name: '안경 1' },
+  glass2: { slot: 'face', front: 'glass_2', side: 'glass_side_2', name: '안경 2' },
+  glass3: { slot: 'face', front: 'glass_3', side: 'glass_side_3', name: '안경 3' },
+  glass4: { slot: 'face', front: 'glass_4', side: 'glass_side_4', name: '안경 4' },
+  glass5: { slot: 'face', front: 'glass_5', side: 'glass_side_5', name: '안경 5' },
+  glass6: { slot: 'face', front: 'glass_6', side: 'glass_side_6', name: '안경 6' },
+  // === 목걸이 (neck) - 3종 ===
+  necklace1: { slot: 'neck', front: 'Necklace_1', side: 'Necklace_side_1', name: '목걸이 1' },
+  necklace2: { slot: 'neck', front: 'Necklace_2', side: 'Necklace_side_2', name: '목걸이 2' },
+  necklace3: { slot: 'neck', front: 'Necklace_3', side: 'Necklace_side_3', name: '목걸이 3' },
+  // === 귀걸이 (ear) - 6종 ===
+  earring1: { slot: 'ear', front: 'Earrings_1', side: 'Earrings__side_1', name: '귀걸이 1' },
+  earring2: { slot: 'ear', front: 'Earrings_2', side: 'Earrings__side_2', name: '귀걸이 2' },
+  earring3: { slot: 'ear', front: 'Earrings_3', side: 'Earrings__side_3', name: '귀걸이 3' },
+  earring4: { slot: 'ear', front: 'Earrings_4', side: 'Earrings__side_4', name: '귀걸이 4' },
+  earring5: { slot: 'ear', front: 'Earrings_5', side: 'Earrings__side_5', name: '귀걸이 5' },
+  earring6: { slot: 'ear', front: 'Earrings_6', side: 'Earrings__side_6', name: '귀걸이 6' },
+  // === 목도리 (scarf) - 3종 ===
+  scarf1: { slot: 'scarf', front: 'Scarf_1', side: 'Scarf_side_1', name: '목도리 1' },
+  scarf2: { slot: 'scarf', front: 'Scarf_2', side: 'Scarf_side_2', name: '목도리 2' },
+  scarf3: { slot: 'scarf', front: 'Scarf_3', side: 'Scarf_side_3', name: '목도리 3' },
 };
 
 // 뽑기에서 사용할 전체 소품 ID 목록 (COSM 배열 확장)
@@ -263,7 +270,7 @@ const EXTRA = (() => {
           prize = { k: 'cosm', id };
         }
       } else {
-        prize = { k: 'rare', sp: pick(unlocked(s)) };
+        prize = { k: 'rare', sp: H.pick(unlocked(s)) };
       }
       
       return { ok: 1, prize, fx: 'coin' };

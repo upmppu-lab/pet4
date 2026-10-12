@@ -824,6 +824,47 @@ const HUM = (() => {
     }
     return im;
   }
+  // ---- v1.103: 슬롯별 소품(모자/안경/목걸이/귀걸이/목도리) PNG 로더 ----
+  // getPart2Img와 같은 방식(파일을 미리 data: URL로 바꿔 캔버스 오염 방지)을 쓰되,
+  // 파일명이 cat_01 규칙을 따르지 않아서(Earrings_1, head_cap1, head_ribon 등) 전용 함수로 분리.
+  const ACC_IMG = {};
+  function getAccImg(view, file) {
+    if (!file) { const e = new Image(); return e; }
+    const key = view + '/' + file;
+    let im = ACC_IMG[key];
+    if (!im) {
+      im = new Image();
+      im.crossOrigin = 'anonymous';
+      ACC_IMG[key] = im;
+      const url = assetUrl('spr/acc/' + view + '/' + file + '.png');
+      const toDataUrlViaXHR = () => new Promise((resolve, reject) => {
+        try {
+          const xhr = new XMLHttpRequest();
+          xhr.open('GET', url, true);
+          xhr.responseType = 'blob';
+          xhr.onload = () => {
+            if (xhr.status !== 0 && xhr.status !== 200) { reject(new Error('xhr ' + xhr.status)); return; }
+            const fr = new FileReader();
+            fr.onload = () => resolve(fr.result);
+            fr.onerror = reject;
+            fr.readAsDataURL(xhr.response);
+          };
+          xhr.onerror = reject;
+          xhr.send();
+        } catch (e) { reject(e); }
+      });
+      const toDataUrlViaFetch = () => fetch(url).then(r => r.blob()).then(blob => new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result);
+        fr.onerror = reject;
+        fr.readAsDataURL(blob);
+      }));
+      toDataUrlViaXHR().catch(toDataUrlViaFetch)
+        .then(dataUrl => { im.onload = part2Ready; im.src = dataUrl; })
+        .catch(() => { im.onload = part2Ready; im.src = url; });
+    }
+    return im;
+  }
   // 고정 정렬 상수 - 15세트 SIFT 특징점 매칭으로 산출한 중앙값 (목/허리 이음선 오차 최소화, 어떤 조합이든 자연스럽게 맞음)
  // ============ v1.108: 헤어 크기 배율 (한 곳만 바꾸면 전체 다 반영) ============
   const HAIR_SCALE = 0.8;
@@ -1088,6 +1129,16 @@ const P2 = {
     back: { hair: POS_hair_back, top: POS_top_back, bottom: POS_bottom_back },
     side: { hair: POS_hair_side, top: POS_top_side, bottom: POS_bottom_side },
     diag: { hair: POS_hair_diag, top: POS_top_diag, bottom: POS_bottom_diag },
+  };
+
+  // ---- v1.103: 슬롯별 소품(모자/안경/목걸이/귀걸이/목도리) 위치 기준점 ----
+  // 소품 그림은 헤어1번과 똑같은 캔버스 비율로 그려졌으므로, 헤어1번(정면/뒷면/옆면/대각선)과
+  // 완전히 같은 위치/크기 박스에 그대로 겹쳐 그리면 저절로 딱 맞는다(실제로 겹쳐서 확인 완료).
+  const ACC_ANCHOR = {
+    front: HAIR1_POS,
+    back: HAIR_BACK_BASE,
+    side: HAIR_SIDE_BASE,
+    diag: HAIR_DIAG_BASE,
   };
 
   // ---- 헤어 색상변경: 얼굴이 같이 그려진 그림이라 전체를 색조회전하면 피부/눈까지 변해버림 ----
@@ -1490,6 +1541,21 @@ const P2 = {
     // 거의 바로 정확한 색으로 자동 전환됨
     const hairColorNeedsMask = (effDir === 2 || effDir === 3) && o.pHair !== 1;
     const hairRecolor = (o.pHairHue && !(hairColorNeedsMask && !hairMaskImg)) ? getPartRecolorCanvas(hairCat + '_' + o.pHair, hairImg, o.pHairHue, HAIR_FACE_EXCLUDE, false, false, hairMaskImg) : null;
+    // v1.105: 뒷면 귀걸이는 머리카락보다 먼저 그려서 머리에 가려지게 함(간격도 좁게)
+    if (suffix === 'back' && o.acc && o.acc.ear) {
+      const bEarDef = COSM_DEF[o.acc.ear];
+      if (bEarDef) {
+        const bImg = getAccImg('front', bEarDef.front);
+        if (bImg.complete && bImg.naturalWidth) {
+          const BACK_EAR_OFFSET = 8, bAnchor = ACC_ANCHOR.back, bSize = P2.hair.size;
+          put(bImg, { size: bSize, x: bAnchor.x - BACK_EAR_OFFSET, y: bAnchor.y });
+          c.save();
+          c.scale(-1, 1);
+          c.drawImage(bImg, 0, 0, bImg.naturalWidth, bImg.naturalHeight, -(bAnchor.x + BACK_EAR_OFFSET + bSize), bAnchor.y, bSize, bSize);
+          c.restore();
+        }
+      }
+    }
     c.save();
     if (mirror) c.scale(-1, 1);
     const hdx = mirror ? -(hairDrawPos.x + hairDrawPos.size) : hairDrawPos.x;
@@ -1499,6 +1565,135 @@ const P2 = {
     if (o.pAcc && realDir === 0) { // 소품(커스텀 업로드 전용)은 정면 이미지만 있음
       const accImg = getPart2Img('acc', o.pAcc);
       if (accImg.complete && accImg.naturalWidth) put(accImg, P2.acc);
+    }
+    // ---- v1.103: 슬롯별 소품(뽑기로 획득한 모자/안경/목걸이/귀걸이/목도리) PNG 그리기 ----
+    // 정면/뒷면은 "정면" 그림을, 옆면/대각선은 "옆면" 그림을 그대로 사용(뒷면·대각선 전용 그림 없음).
+    if (o.acc) {
+      const accAnchor = suffix === 'back' ? ACC_ANCHOR.back
+        : suffix === 'side' ? ACC_ANCHOR.side
+        : suffix === 'diag' ? ACC_ANCHOR.diag
+        : ACC_ANCHOR.front;
+      const accView = (suffix === 'side' || suffix === 'diag') ? 'side' : 'front';
+      const baseSize = P2.hair.size;
+      const centerX = accAnchor.x + baseSize / 2;
+      const centerY = accAnchor.y + baseSize / 2;
+      const getFile = def => accView === 'side' ? def.side : def.front;
+      // 헤어1번과 같은 비율로 그려진 그림을, 중심은 고정한 채 (dx,dy)만큼 옮기고 scale배로 키우고/줄여서 그림
+      const drawSlot = (accImg, dx, dy, scale) => {
+        const sz = baseSize * scale;
+        put(accImg, { size: sz, x: centerX - sz / 2 + dx, y: centerY - sz / 2 + dy });
+      };
+      // v1.106: 안경 옆면/대각선에서 "안경다리"가 머리 밖으로 삐져나와 보이는 걸 막기 위해,
+      // 원본 그림의 왼쪽 clipFrac 비율만 그리고 나머지(다리 부분)는 잘라서 그림(스케일은 그대로 유지돼서 확대되지 않음)
+      const drawSlotClip = (accImg, dx, dy, scale, clipFrac) => {
+        const sz = baseSize * scale;
+        const px = centerX - sz / 2 + dx, py = centerY - sz / 2 + dy;
+        const cw = Math.round(accImg.naturalWidth * clipFrac), dw = sz * clipFrac;
+        c.save();
+        if (mirror) c.scale(-1, 1);
+        const ddx = mirror ? -(px + sz) : px;
+        c.drawImage(accImg, 0, 0, cw, accImg.naturalHeight, ddx, py, dw, sz);
+        c.restore();
+      };
+
+      // 목걸이: 헤어 전체 크기가 아니라 목 둘레에 맞게 작게, 목 위치로 내려서 그림
+      // v1.107: 정면은 그대로, 뒷면 위로1 더, 대각선 왼쪽2/위로1 더, 측면 왼쪽1/위로1 더
+      const neckId = o.acc.neck, neckDef = neckId && COSM_DEF[neckId];
+      if (neckDef) {
+        const img = getAccImg(accView, getFile(neckDef));
+        if (img.complete && img.naturalWidth) {
+          const nSize = 24;
+          const neckY = !suffix ? -59 : suffix === 'back' ? -58 : -61; // 정면 -59, 뒷면 -58, 측면/대각선 -61
+          const neckDx = !suffix ? 0 : suffix === 'back' ? 0 : suffix === 'diag' ? -2 : -1; // 대각선 -2, 측면 -1
+          put(img, { size: nSize, x: -nSize / 2 + neckDx, y: neckY });
+        }
+      }
+
+      // 귀걸이: 그림이 귀 1개분만 있으므로, 좌우로 하나씩(오른쪽은 좌우 반전) 겹쳐 그려 한 쌍으로 만듦
+      // (옆면/대각선은 귀가 한쪽만 보이므로 1개만 그림. 뒷면은 머리카락보다 먼저 이미 그렸으므로 여기선 건너뜀)
+      // v1.107: 정면 아래 2이동 더(총7), 대각선 왼쪽1/아래2 더, 측면 아래1 더
+      const earId = o.acc.ear, earDef = earId && COSM_DEF[earId];
+      if (earDef && suffix !== 'back') {
+        const img = getAccImg(accView, getFile(earDef));
+        if (img.complete && img.naturalWidth) {
+          if (!suffix) {
+            // 정면
+            const EAR_OFFSET = 12.5, dy = 7;
+            put(img, { size: baseSize, x: accAnchor.x - EAR_OFFSET, y: accAnchor.y + dy });
+            c.save();
+            c.scale(-1, 1);
+            c.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, -(accAnchor.x + EAR_OFFSET + baseSize), accAnchor.y + dy, baseSize, baseSize);
+            c.restore();
+          } else {
+            const edx = suffix === 'diag' ? -3 : -2, edy = suffix === 'diag' ? 6 : 3; // 대각선 왼쪽3/아래6, 측면 왼쪽2/아래3
+            put(img, { size: baseSize, x: accAnchor.x + edx, y: accAnchor.y + edy });
+          }
+        }
+      }
+
+      // 목도리: v1.107: 정면 아래4 더(총12), 뒷면 아래3 더(총11), 대각선 아래3/왼쪽2 더(총 dy11,dx-2), 측면 왼쪽1/아래1 더(총 dx-2,dy9)
+      const scarfId = o.acc.scarf, scarfDef = scarfId && COSM_DEF[scarfId];
+      if (scarfDef) {
+        const img = getAccImg(accView, getFile(scarfDef));
+        if (img.complete && img.naturalWidth) {
+          // v1.109: 정면만 아래로 3 더
+          const scarfDx = !suffix ? 0 : suffix === 'back' ? 0 : -2; // 대각선/측면 -2
+          const scarfDy = !suffix ? 20 : suffix === 'back' ? 18 : suffix === 'diag' ? 16 : 14; // 정면20 뒷면18 대각선16 측면14
+          drawSlot(img, scarfDx, scarfDy, 1);
+        }
+      }
+
+      // 안경: 뒷모습에서는 보이지 않게. 옆면/대각선은 다리 부분을 잘라 머리에 가려진 것처럼 보이게 함
+      // v1.106: 정면 모두 아래로1 더(총7), 안경6만 오른쪽1/아래1 더, 측면 모두 위로1 더(총-2.2), 대각선은 그대로(2)
+      if (suffix !== 'back') {
+        const faceId = o.acc.face, faceDef = faceId && COSM_DEF[faceId];
+        if (faceDef) {
+          const img = getAccImg(accView, getFile(faceDef));
+          if (img.complete && img.naturalWidth) {
+            let faceDx = -1, faceDy;
+            if (!suffix) { // 정면
+              faceDy = 7;
+              if (faceId === 'glass6') { faceDx = 0; faceDy = 8; }
+            } else if (suffix === 'side') {
+              faceDy = -2.2;
+            } else { // 대각선
+              faceDy = 2;
+            }
+            if (suffix === 'side' || suffix === 'diag') drawSlotClip(img, faceDx, faceDy, 0.8, 0.6);
+            else drawSlot(img, faceDx, faceDy, 0.8);
+          }
+        }
+      }
+
+      // 모자: 맨 위에 그려지도록 마지막. 머리를 다 못가려서 크기 키움(0.85→1.0)
+      // v1.107: 대각선은 아이템별 위치를 다시 세밀 조정(절대값 테이블로 관리)
+      const headId = o.acc.head, headDef = headId && COSM_DEF[headId];
+      if (headDef) {
+        const img = getAccImg(accView, getFile(headDef));
+        if (img.complete && img.naturalWidth) {
+          if (suffix === 'diag') {
+            // 대각선 전용 아이템별 최종 위치(절대값)
+            const HEAD_DIAG = {
+              cap1: { dx: -2, dy: -8 }, cap2: { dx: -2, dy: -8 },
+              cap3: { dx: 0, dy: -6 }, cap4: { dx: -1, dy: -6 },
+              cap5: { dx: -4, dy: -6 }, ribbon: { dx: -2, dy: -3 },
+            };
+            const p = HEAD_DIAG[headId] || { dx: -1, dy: -3 };
+            drawSlot(img, p.dx, p.dy, 1.0);
+          } else {
+            const headDxBase = !suffix ? -1 : (suffix === 'back' ? 1 : -1);
+            const headDyBase = suffix === 'side' ? -3 : -2;
+            let headDxAdj = 0, headDyAdj = 0;
+            if (!suffix) {
+              if (headId === 'cap1' || headId === 'cap4') headDyAdj = 1;
+              if (headId === 'ribbon') headDxAdj = -1;
+            } else if (suffix === 'side') {
+              headDxAdj = -1; headDyAdj = -2;
+            }
+            drawSlot(img, headDxBase + headDxAdj, headDyBase + headDyAdj, 1.0);
+          }
+        }
+      }
     }
     c.restore();
     return true;
@@ -1736,100 +1931,9 @@ const P2 = {
 
     // 2. 플레이어 전용 (CFG.look) - 마을사람 그리기보다 무조건 최우선으로 내 캐릭터(drawMyChar2) 렌더링!
     if (isPlayer && !HUM.forceVector) {
+      // v1.103: 슬롯별 소품(모자/안경/목걸이/귀걸이/목도리)은 이제 drawMyChar2 안에서
+      // PNG 그림으로 직접 그려짐(헤어와 똑같은 위치/크기 박스를 재사용해 자동으로 맞음).
       drawMyChar2(c, o, realDir, faceBack, moving, t, isSit);
-      
-      // ========== 소품 그리기 시작 (PNG 캐릭터 기준 위치 정밀 보정) ==========
-      if (o.acc) {
-        // PNG 캐릭터 좌표계: 머리 정수리 y=-74~-78, 눈 y=-66, 귀 x=±12.5 y=-64, 목 y=-48
-        const headY = -74;
-        const eyeY = -66;
-        const neckY = -48;
-
-        // 1. 목걸이 (정면 / 대각선)
-        if (o.acc.neck && (realDir === 0 || realDir === 3) && !faceBack) {
-          c.beginPath();
-          c.arc(0, neckY, 5.5, 0.15 * Math.PI, 0.85 * Math.PI);
-          c.lineWidth = 1.4;
-          c.strokeStyle = '#f5c542';
-          c.stroke();
-          if (o.acc.neck === 'pendant') {
-            ell(c, 0, neckY + 4.2, 1.8, 2.4, '#ff7aa8', OUT, 0.7);
-          } else if (o.acc.neck === 'bell') {
-            ell(c, 0, neckY + 4.2, 2.0, 2.0, '#ffd23a', OUT, 0.7);
-            ell(c, 0, neckY + 5.2, 0.7, 0.7, '#6a4a1a');
-          } else {
-            ell(c, 0, neckY + 4.2, 1.5, 1.5, '#f5c542', OUT, 0.7);
-          }
-        }
-        // 2. 귀걸이 (정면: 양쪽, 옆면: 한쪽)
-        if (o.acc.ear && !faceBack) {
-          const col = o.acc.ear === 'hoop' ? '#c9962a' : '#f5c542';
-          if (realDir === 0) {
-            for (const s of [-1, 1]) {
-              ell(c, s * 12.5, eyeY + 1.5, 1.2, 1.2, col, OUT, 0.6);
-            }
-          } else if (realDir === 2 || realDir === 3) {
-            ell(c, 11, eyeY + 1.5, 1.2, 1.2, col, OUT, 0.6);
-          }
-        }
-        // 3. 안경 / 선글라스 (정면 / 대각선 앞)
-        if (o.acc.face && (realDir === 0 || realDir === 3) && !faceBack) {
-          c.lineWidth = 1.4;
-          if (o.acc.face === 'sunglasses') {
-            c.strokeStyle = '#1a1a1a';
-            for (const s of [-1, 1]) {
-              rrect(c, s * 6.5 - 4.2, eyeY - 3.2, 8.4, 6.4, 2);
-              c.fillStyle = '#1a1a1a';
-              c.fill();
-              c.stroke();
-            }
-            c.beginPath(); c.moveTo(-2, eyeY - 0.5); c.lineTo(2, eyeY - 0.5); c.stroke();
-          } else if (o.acc.face === 'glasses' || o.acc.face === 'roundglass') {
-            c.strokeStyle = o.acc.face === 'glasses' ? '#3a2418' : '#c9962a';
-            for (const s of [-1, 1]) {
-              c.beginPath();
-              c.arc(s * 6.5, eyeY, 4.2, 0, Math.PI * 2);
-              c.stroke();
-            }
-            c.beginPath(); c.moveTo(-2, eyeY); c.lineTo(2, eyeY); c.stroke();
-          }
-        }
-        // 4. 목도리
-        if (o.acc.scarf) {
-          const col = o.acc.scarf === 'scarf_red' ? '#e0303a' : '#2f4f8a';
-          c.beginPath();
-          c.ellipse(0, neckY + 1, 10.5, 5.2, 0, 0, Math.PI * 2);
-          c.fillStyle = col;
-          c.fill();
-          c.strokeStyle = OUT;
-          c.lineWidth = 1.2;
-          c.stroke();
-          if ((realDir === 0 || realDir === 3) && !faceBack) {
-            c.beginPath();
-            c.moveTo(-2.5, neckY + 3);
-            c.quadraticCurveTo(-5, neckY + 8, -3.5, neckY + 13);
-            c.lineWidth = 3.2;
-            c.strokeStyle = col;
-            c.stroke();
-            c.lineWidth = 1.0;
-            c.strokeStyle = OUT;
-            c.stroke();
-          }
-        }
-        // 5. 모자 / 머리 장식 (고양이귀, 토끼귀, 왕관, 화관 등)
-        if (o.acc.head) {
-          c.save();
-          c.lineWidth = 1.6; c.strokeStyle = ART.OUT; c.lineJoin = 'round';
-          if (realDir === 2) {
-            hatSide(c, { hat: o.acc.head, hatc: o.acc.headc }, headY);
-          } else {
-            hat(c, { hat: o.acc.head, hatc: o.acc.headc }, headY, realDir === 1 || faceBack);
-          }
-          c.restore();
-        }
-      }
-      // ========== 소품 그리기 끝 ==========
-      
       c.restore();
       return;
     }
@@ -2320,86 +2424,10 @@ const P2 = {
   }
 
   const hatOnly = (c, o) => {
+    // v1.103: 슬롯별 소품(o.acc)은 hy/dir 값이 없는 이 작은 아이콘 전용 함수에서는 그리지 않음
+    // (실제 캐릭터 그리기는 drawMyChar2 안에서 PNG로 처리됨). 여기는 기존 모자 아이콘 생성 용도 그대로.
     c.save(); c.lineWidth = 1.6; c.strokeStyle = ART.OUT; c.lineJoin = 'round';
     hat(c, norm(Object.assign({}, o, { _n: 0 })), 0, false);
-	// ========== 🆕 슬롯별 소품 그리기 (v1.102) ==========
-  if (o.acc) {
-    // --- 목걸이 (neck) ---
-    if (o.acc.neck && (dir === 0 || dir === 1)) {
-      const ny = hy + 14;
-      c.beginPath();
-      c.arc(0, ny, 12, 0.15 * Math.PI, 0.85 * Math.PI);
-      c.lineWidth = 2;
-      c.strokeStyle = '#f5c542';
-      c.stroke();
-      if (o.acc.neck === 'pendant') {
-        ell(c, 0, ny + 3.5, 2.5, 3, '#ff7aa8', OUT, 0.8);
-      } else if (o.acc.neck === 'bell') {
-        ell(c, 0, ny + 3.5, 2.5, 2.5, '#ffd23a', OUT, 0.8);
-        ell(c, 0, ny + 5, 1, 1, '#6a4a1a');
-      } else {
-        ell(c, 0, ny + 3.5, 2, 2, '#f5c542', OUT, 0.8);
-      }
-    }
-    // --- 귀걸이 (ear) ---
-    if (o.acc.ear && dir === 0) {
-      const col = o.acc.ear === 'hoop' ? '#c9962a' : '#f5c542';
-      for (const s of [-1, 1]) {
-        ell(c, s * 19, hy + 2, 2, 2, col, OUT, 0.7);
-      }
-    }
-    // --- 안경 (face) ---
-    if (o.acc.face && dir === 0) {
-      const ey = hy + 4;
-      c.lineWidth = 1.5;
-      if (o.acc.face === 'sunglasses') {
-        c.strokeStyle = '#1a1a1a';
-        for (const s of [-1, 1]) {
-          rrect(c, s * 7 - 5, ey - 4, 10, 7, 2);
-          c.fillStyle = '#1a1a1a';
-          c.fill();
-          c.stroke();
-        }
-        c.beginPath(); c.moveTo(-2, ey - 0.5); c.lineTo(2, ey - 0.5); c.stroke();
-      } else if (o.acc.face === 'glasses' || o.acc.face === 'roundglass') {
-        c.strokeStyle = o.acc.face === 'glasses' ? '#3a2418' : '#c9962a';
-        for (const s of [-1, 1]) {
-          c.beginPath();
-          c.arc(s * 7, ey, 5, 0, Math.PI * 2);
-          c.stroke();
-        }
-        c.beginPath(); c.moveTo(-2, ey); c.lineTo(2, ey); c.stroke();
-      }
-    }
-    // --- 목도리 (scarf) ---
-    if (o.acc.scarf) {
-      const col = o.acc.scarf === 'scarf_red' ? '#e0303a' : '#2f4f8a';
-      const ny = hy + 15;
-      c.beginPath();
-      c.ellipse(0, ny, 15, 7, 0, 0, Math.PI * 2);
-      c.fillStyle = col;
-      c.fill();
-      c.strokeStyle = OUT;
-      c.lineWidth = 1.2;
-      c.stroke();
-      if (dir === 0 || dir === 1) {
-        c.beginPath();
-        c.moveTo(-3, ny + 3);
-        c.quadraticCurveTo(-6, ny + 10, -4, ny + 16);
-        c.lineWidth = 4;
-        c.strokeStyle = col;
-        c.stroke();
-        c.lineWidth = 1.2;
-        c.strokeStyle = OUT;
-        c.stroke();
-      }
-    }
-    // --- 모자 (head) ---
-    if (o.acc.head) {
-      HUM.hatOnly(c, { hat: o.acc.head });
-    }
-  }
-  // ========== 슬롯별 소품 그리기 끝 ==========
     c.restore();
   };
 

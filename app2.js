@@ -76,7 +76,12 @@ PANELS.quest = m => {
       ${last ? `<div class="gprize">${prizeText(last)}</div>` : `<div class="m">${t('gachaDesc')}</div>`}
       <button class="btn o block ${tk ? '' : 'dis'}" data-a="xgacha">🎁 ${t('gachaOpen')} (🎟️1)</button>
       <div class="m">${t('gachaWhere')}</div>
-      <div class="t" style="margin-top:8px">🎀 ${t('cosmTitle')}</div><div class="chips">${COSM.map(c => (x.cosm || {})[c] ? `<button class="chip ${CFG.look && CFG.look.hat === c ? 'on' : ''}" data-a="wearcosm" data-v="${c}">${CFG.look && CFG.look.hat === c ? '✓ ' : '👒 '}${t('cosm_' + c)}</button>` : `<span class="chip lockc">🔒 ${t('cosm_' + c)}</span>`).join('')}</div><div class="m">${t('cosmTap')}</div></div>`;
+      <div class="t" style="margin-top:8px">🎀 ${t('cosmTitle')}</div><div class="chips">${COSM_ALL.map(id => {
+        const def = COSM_DEF[id], owned = !!(x.cosm || {})[id], cur = (CFG.look && CFG.look.acc && CFG.look.acc[def.slot] === id);
+        if (!owned) return `<span class="chip lockc">🔒 ${t('cosm_' + id) || def.name}</span>`;
+        return `<button class="chip ${cur ? 'on' : ''}" data-a="setacc" data-v="${def.slot}" data-w="${id}" style="display:inline-flex;align-items:center;gap:4px;">
+          <img src="${assetUrl('spr/acc/front/' + def.front + '.png')}" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;">${cur ? '✓ ' : ''}${t('cosm_' + id) || def.name}</button>`;
+      }).join('')}</div><div class="m">${t('cosmTap')}</div></div>`;
   }
   return frameHTML('📜 ' + t('questTitle'), h);
 };

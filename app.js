@@ -1467,10 +1467,10 @@ function charHTML(editing) {
             <span style="font-size:10px;">${CFG.lang === 'ru' ? 'Гача' : '뽑기'}</span>
           </button>`;
         } else {
-          // 보유: 착용 버튼
+          // 보유: 착용 버튼 (실제 그려주신 그림으로 미리보기)
           accHTML += `<button class="th ${isCurrent ? 'on' : ''}" data-a="setacc" data-v="${slot}" data-w="${id}">
-            <span style="font-size:22px;">${def.icon}</span>
-            <span>${t('cosm_' + id) || id}</span>
+            <img src="${assetUrl('spr/acc/front/' + def.front + '.png')}" style="width:32px;height:32px;object-fit:contain;">
+            <span>${t('cosm_' + id) || def.name || id}</span>
           </button>`;
         }
       }
