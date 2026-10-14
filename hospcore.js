@@ -19,15 +19,15 @@ const HOSP_LV = [null,
 ];
 HOSP_LV.forEach(l => { if (l) l.cost = balCost(l.cost); });
 const HOSP_MAX = HOSP_LV.length - 1;
-const HOSP_ROOMS = { clinic: { w: 4, d: 5, icon: '🩺' }, treat: { w: 5, d: 6, icon: '💉' }, radio: { w: 4, d: 5, icon: '🩻' }, surgery: { w: 4, d: 5, icon: '🏥' }, ward: { w: 6, d: 6, icon: '🛏️' } };
+const HOSP_ROOMS = { clinic: { w: 4, d: 5, icon: '🩺' }, treat: { w: 5, d: 5, icon: '💉' }, radio: { w: 4, d: 5, icon: '🩻' }, surgery: { w: 4, d: 5, icon: '🏥' }, ward: { w: 5, d: 5, icon: '🛏️' } };
 const HOSP_LOBBY_W = 6;
 const hospLvOf = lv => Math.min(HOSP_MAX, Math.max(1, lv || 1));
 const hospLv = s => { const st = s || (typeof S !== 'undefined' && S); return hospLvOf(st && st.hosp && st.hosp.lv); };
 const hospRoomsAt = lv => HOSP_LV[hospLvOf(lv)].rooms;
 const hospCap = (lv, k) => (HOSP_LV[hospLvOf(lv)].cap || {})[k];
 const hospRoom = s => { const st = s || (typeof S !== 'undefined' && S); return { w: (st && st.room && st.room.w) || 8, h: (st && st.room && st.room.h) || 8 }; };
-// width = lobby zone + one column between rooms + the rooms; depth = deepest room + a 5-row corridor / lobby strip
-const hospDims = lv => { const rs = hospRoomsAt(lv); let w = HOSP_LOBBY_W + rs.length, d = 5; for (const r of rs) { w += HOSP_ROOMS[r].w; d = Math.max(d, HOSP_ROOMS[r].d); } return { w, d: d + 5 + 3 * (hospLvOf(lv) - 1) }; }; // each level also adds 3 rows to the south, so the building grows west AND south
+// width = lobby zone + all department rooms; depth = uniform room depth (5) + 5-row lobby/corridor strip
+const hospDims = lv => { const rs = hospRoomsAt(lv); let w = HOSP_LOBBY_W; for (const r of rs) { w += HOSP_ROOMS[r].w; } return { w, d: 5 + 5 + 3 * (hospLvOf(lv) - 1) }; }; // each level also adds 3 rows to the south, so the building grows west AND south
 // east edge x = W (like the café and the shop), north edge y = H + 8 (an 8-tile yard below the shop's south wall)
 // PET TOWN: the hospital stands on its own lot (S.lay.hosp = top-left of the biggest footprint); its north-east corner stays put and it grows west / south
 const hospAnchor = s => { const L = LAY('hosp', s); return L ? { x1: L.x + hospDims(HOSP_MAX).w, y: L.y } : { x1: LAY_FAR, y: LAY_FAR }; };
@@ -135,7 +135,14 @@ const HOSP_FURN = [
 ];
 const hospFurn = k => HOSP_FURN.find(f => f.k === k);
 // the fixed equipment of each room (north wall row); the lobby's sits at the east end by the door
-const HOSP_KIT = { lobby: ['cabinet', 'sink', 'reception'], clinic: ['exam', 'desk', 'cabinet'], treat: ['cabinet', 'sink'], radio: ['monitor'], surgery: ['sink', 'cabinet'], ward: ['cabinet', 'sink'] };
+const HOSP_KIT = {
+  lobby: ['cabinet', 'sink', 'reception'],
+  clinic: ['exam', 'desk', 'cabinet'],
+  treat: ['tbed', 'cabinet', 'sink'],
+  radio: ['ct', 'xray', 'monitor'],
+  surgery: ['surgery', 'cabinet', 'sink'],
+  ward: ['bed', 'incubator', 'medbath']
+};
 const HOSP_SELL_BACK = .5;
 
 // ------------------------------------------------------------------ layout
