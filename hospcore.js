@@ -180,8 +180,15 @@ function hospBuildLayout(hp, Rm, lv) {
       const doorX = rooms[id].door[0], k = doorX + ',' + ry1;
       if (!partSet.has(k)) { partSet.add(k); parts.push({ x: doorX, y: ry1, vert: false, doorway: true, room: id }); }
     }
-    cx = x0 - 1;
+    cx = x0;
   });
+  if (rs.length && !pd.includes(rs[rs.length - 1])) {
+    const lastR = rooms[rs[rs.length - 1]];
+    if (lastR) {
+      for (let y = ny; y < lastR.y1; y++) addPart(lastR.x0, y, true);
+      addPart(lastR.x0, lastR.y1, true);
+    }
+  }
   for (const q of parts) {
     q.k = 'part'; q.w = 1; q.d = 1;
     if (!q.doorway) mark(q.x, q.y, 1, 1);
@@ -443,6 +450,20 @@ const HOSP = (() => {
       // older hospitals were multi-storey: rooms = departments now, the layout changed completely -> re-place everything, drop old patients
       if (!hp.v6) { hp.v6 = 1; hp.patients = []; hp.items.forEach(it => { delete it.fl; if (!hospFurn(it.k)) it.k = null; }); hp.items = hp.items.filter(it => it.k); hp.items.forEach(it => { const F = hospFurn(it.k); if (!F.dps.includes(it.dp)) it.dp = F.dps[0]; }); relocateAll(s, hp); }
       if (!hp.v7) { hp.v7 = 1; relocateAll(s, hp); } // benches now need a free tile in front of them (none may sit against the south wall)
+      if (!hp.v8) {
+        hp.v8 = 1;
+        const hospLvNow = lvNow(hp);
+        const rList = hospRoomsAt(hospLvNow);
+        if (rList.includes('treat')) {
+          for (const it of hp.items) {
+            if (it.k === 'tbed' && it.dp === 'clinic') it.dp = 'treat';
+          }
+        }
+        for (const it of hp.items) {
+          if (it.k === 'bench') it.dp = 'lobby';
+        }
+        relocateAll(s, hp);
+      }
       grantBase(s, hp);
       // v1.113: leveling up claims more of the open lobby ground for the new department rooms, so anything the
       // player had standing there (benches above all) can end up buried under the new room - bump everything
