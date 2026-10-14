@@ -2605,7 +2605,7 @@ return true;
   // (partitions with a door on the south side). Patients and staff are real walking actors (see sync()).
   let hospSel = null; // selected hospital furniture id while decorating
   const hospIn = new Map(); // stand-ins for the café's staff (kept here for historical reasons)
-  const HOSP_ROOM_COL = { clinic: '#e9f4f9', treat: '#e2f5ec', radio: '#e6e9f7', surgery: '#e4f3ec', ward: '#fbf1e2' };
+  const HOSP_ROOM_COL = { clinic: '#eef8fc', treat: '#eaf7f2', radio: '#edf0fb', surgery: '#eaf7f4', ward: '#fdf6ed' };
   function drawHospLot() {
     if (S.hosp && S.hosp.built) return;
     const L = HOSP_LOT(), q = [[L.x, L.y], [L.x + L.w, L.y], [L.x + L.w, L.y + L.d], [L.x, L.y + L.d]].map(([px, py]) => [ISO.wx(px, py), ISO.wy(px, py)]);
@@ -2629,20 +2629,21 @@ return true;
     const wallFace = (a, b, z0, z1) => [ptz(a[0], a[1], z1), ptz(b[0], b[1], z1), ptz(b[0], b[1], z0), ptz(a[0], a[1], z0)];
     c.save();
     // paving from the road side into the entrance
-    fillP([pt(R.x1, R.y + .2), pt(R.x1 + 1.1, R.y + .2), pt(R.x1 + 1.1, R.y + 3.2), pt(R.x1, R.y + 3.2)], '#e2dccf', 'rgba(150,140,120,.4)', 1);
-    for (let j = 0; j < R.d; j++) for (let i = 0; i < R.w; i++) fillP([pt(R.x + i, R.y + j), pt(R.x + i + 1, R.y + j), pt(R.x + i + 1, R.y + j + 1), pt(R.x + i, R.y + j + 1)], (i + j) % 2 ? '#eef6f4' : '#d9ebe7', 'rgba(90,140,130,.2)');
+    fillP([pt(R.x1, R.y + .2), pt(R.x1 + 1.1, R.y + .2), pt(R.x1 + 1.1, R.y + 3.2), pt(R.x1, R.y + 3.2)], '#f0ede6', 'rgba(150,140,120,.4)', 1);
+    // clean porcelain/marble lobby tiles
+    for (let j = 0; j < R.d; j++) for (let i = 0; i < R.w; i++) fillP([pt(R.x + i, R.y + j), pt(R.x + i + 1, R.y + j), pt(R.x + i + 1, R.y + j + 1), pt(R.x + i, R.y + j + 1)], (i + j) % 2 ? '#fafdfc' : '#f0f7f5', 'rgba(140,185,175,.2)');
     // each room's floor tint + name
-    for (const id of L.roomIds) { const r = L.rooms[id]; fillP([pt(r.x0, r.y0), pt(r.x1, r.y0), pt(r.x1, r.y1), pt(r.x0, r.y1)], HOSP_ROOM_COL[id] || '#eee', null);
-      for (let j = 0; j < r.d; j++) for (let i = 0; i < r.w; i++) if ((i + j) % 2) fillP([pt(r.x0 + i, r.y0 + j), pt(r.x0 + i + 1, r.y0 + j), pt(r.x0 + i + 1, r.y0 + j + 1), pt(r.x0 + i, r.y0 + j + 1)], 'rgba(255,255,255,.35)', null);
-      c.save(); c.font = 'bold 10px sans-serif'; c.textAlign = 'center'; c.fillStyle = 'rgba(37,105,95,.6)'; const lp = pt((r.x0 + r.x1) / 2, r.y1 - .8); c.fillText(HOSP_ROOMS[id].icon + ' ' + t('hroom_' + id), lp[0], lp[1]); c.restore(); }
-    fillP([pt(R.x, R.y), pt(R.x1, R.y), pt(R.x1, R.y1), pt(R.x, R.y1)], 'rgba(0,0,0,0)', '#6fa9a0', 2);
+    for (const id of L.roomIds) { const r = L.rooms[id]; fillP([pt(r.x0, r.y0), pt(r.x1, r.y0), pt(r.x1, r.y1), pt(r.x0, r.y1)], HOSP_ROOM_COL[id] || '#eee', 'rgba(80,165,155,.3)', 1.5);
+      for (let j = 0; j < r.d; j++) for (let i = 0; i < r.w; i++) if ((i + j) % 2) fillP([pt(r.x0 + i, r.y0 + j), pt(r.x0 + i + 1, r.y0 + j), pt(r.x0 + i + 1, r.y0 + j + 1), pt(r.x0 + i, r.y0 + j + 1)], 'rgba(255,255,255,.45)', null);
+      c.save(); c.font = 'bold 10px sans-serif'; c.textAlign = 'center'; c.fillStyle = 'rgba(28,95,85,.75)'; const lp = pt((r.x0 + r.x1) / 2, r.y1 - .8); c.fillText(HOSP_ROOMS[id].icon + ' ' + t('hroom_' + id), lp[0], lp[1]); c.restore(); }
+    fillP([pt(R.x, R.y), pt(R.x1, R.y), pt(R.x1, R.y1), pt(R.x, R.y1)], 'rgba(0,0,0,0)', '#5fa89d', 2);
     const WALL_H = 112;
     const WW = [[R.x, R.y], [R.x, R.y1]], NW = [[R.x, R.y], [R.x1, R.y]];
-    for (const [wa, wb, up] of [[WW[0], WW[1], '#f4fbfa'], [NW[0], NW[1], '#fafefd']]) {
-      fillP(wallFace(wa, wb, 42, WALL_H), up, '#86c9c0', 1.2); fillP(wallFace(wa, wb, 0, 42), '#86c9c0', '#3fa79b', 1.2);
-      fillP(wallFace(wa, wb, 39, 44), '#e6f4f1', '#86c9c0', 1); fillP(wallFace(wa, wb, 0, 4), '#3fa79b'); fillP(wallFace(wa, wb, WALL_H - 6, WALL_H), '#cfe6e2', '#86c9c0', 1);
+    for (const [wa, wb, up] of [[WW[0], WW[1], '#f8fcfa'], [NW[0], NW[1], '#fcfffe']]) {
+      fillP(wallFace(wa, wb, 42, WALL_H), up, '#72bcb1', 1.2); fillP(wallFace(wa, wb, 0, 42), '#64b5a9', '#389a8e', 1.2);
+      fillP(wallFace(wa, wb, 39, 44), '#eaf6f3', '#72bcb1', 1); fillP(wallFace(wa, wb, 0, 4), '#389a8e'); fillP(wallFace(wa, wb, WALL_H - 6, WALL_H), '#cbe6e0', '#72bcb1', 1);
     }
-    const win = (a, b, z0, z1) => { fillP(wallFace(a, b, z0, z1), '#dff1fa', '#3fa79b', 2.2); const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], p0 = ptz(m[0], m[1], z0), p1 = ptz(m[0], m[1], z1); c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); const l0 = ptz(a[0], a[1], (z0 + z1) / 2), l1 = ptz(b[0], b[1], (z0 + z1) / 2); c.moveTo(l0[0], l0[1]); c.lineTo(l1[0], l1[1]); c.strokeStyle = '#3fa79b'; c.lineWidth = 1.5; c.stroke(); };
+    const win = (a, b, z0, z1) => { fillP(wallFace(a, b, z0, z1), '#e8f6fc', '#4ea89d', 2.2); const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], p0 = ptz(m[0], m[1], z0), p1 = ptz(m[0], m[1], z1); c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); const l0 = ptz(a[0], a[1], (z0 + z1) / 2), l1 = ptz(b[0], b[1], (z0 + z1) / 2); c.moveTo(l0[0], l0[1]); c.lineTo(l1[0], l1[1]); c.strokeStyle = '#4ea89d'; c.lineWidth = 1.5; c.stroke(); };
     for (let j = 1; j + 1 < R.d; j += 3) win([R.x, R.y + j + .15], [R.x, R.y + j + 1.85], 56, 96);
     for (let i = 1; i + 1 < R.w; i += 3) win([R.x + i + .15, R.y], [R.x + i + 1.85, R.y], 56, 96);
     const cross = (x, y, s) => { const p = ptz(x, y, 84); c.fillStyle = '#e0505a'; c.fillRect(p[0] - s, p[1] - s / 3, 2 * s, 2 * s / 3); c.fillRect(p[0] - s / 3, p[1] - s, 2 * s / 3, 2 * s); };
@@ -2680,7 +2681,7 @@ return true;
     if (!(S.hosp && S.hosp.built)) return [];
     const L = HOSP_LAYOUT(), out = [], sel = App.hospEdit ? hospSel : null;
     for (const it of L.all) out.push({ depth: it.x + it.w + it.y + it.d - 1.02, fn: () => { if (sel != null && sel === it.id) { c.globalAlpha = .6; drawHospItem(it); c.globalAlpha = 1; } else drawHospItem(it); } });
-    for (const q of L.parts) { const pq = { k: 'part', x: q.x, y: q.y, w: 1, d: 1, vert: !!q.vert }; out.push({ depth: q.x + q.y + 1 - 1.02 + .2, fn: () => drawHospItem(pq) }); }
+    for (const q of L.parts) { const pq = { k: 'part', x: q.x, y: q.y, w: 1, d: 1, vert: !!q.vert, doorway: q.doorway, room: q.room }; out.push({ depth: q.x + q.y + 1 - 1.02 + .2, fn: () => drawHospItem(pq) }); }
     // low walls along the south and east sides (the back walls are the tall ones): the door in the east wall is the only way in
     const R = HOSP_POS(), dyy = [R.y + 2, R.y + 3];
     // (drawn just OUTSIDE the floor so nothing inside ever pokes through them)
@@ -2742,59 +2743,79 @@ return true;
         { const lp = P3(w / 2, .95, 18); c.font = 'bold 10px sans-serif'; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 3.5; c.strokeStyle = 'rgba(20,50,50,.85)'; c.strokeText('🛎️ ' + t('hosp_reception'), lp[0], lp[1]); c.fillStyle = '#fff'; c.fillText('🛎️ ' + t('hosp_reception'), lp[0], lp[1]); }
         hit('hospcabinet', 60);
         break; }
-      case 'wallS': { c.save(); c.globalAlpha = 0.1; B(0, 0, it.w, .16, 40, '#86c9c0', 0, '#e6f4f1'); c.restore(); break; }
-      case 'wallE': { c.save(); c.globalAlpha = 0.1; B(0, 0, .16, 1.001, 40, '#86c9c0', 0, '#e6f4f1'); c.restore(); break; }
-      case 'dpost': { c.save(); c.globalAlpha = 0.35; B(0, 0, .18, .12, 46, '#3fa79b', 0, '#86c9c0'); B(-.02, -.02, .22, .16, 4, '#e0505a', 46, '#f07a80'); c.restore(); break; }
+      case 'wallS': { c.save(); c.globalAlpha = 0.22; B(0, 0, it.w, .14, 38, '#72bcb1', 0, '#eaf6f3'); c.restore(); break; }
+      case 'wallE': { c.save(); c.globalAlpha = 0.22; B(0, 0, .14, 1.001, 38, '#72bcb1', 0, '#eaf6f3'); c.restore(); break; }
+      case 'dpost': { c.save(); c.globalAlpha = 0.6; B(0, 0, .18, .12, 44, '#389a8e', 0, '#72bcb1'); B(-.02, -.02, .22, .16, 4, '#e0505a', 44, '#f07a80'); c.restore(); break; }
       case 'hdoorE': {
         c.save(); c.globalAlpha = 0.25;
         quad([P3(0, 0, 2), P3(.55, -.25, 2), P3(.55, -.25, 42), P3(0, 0, 42)], 'rgba(185,235,255,.55)', '#3fa79b');
         quad([P3(0, 2, 2), P3(.55, 2.25, 2), P3(.55, 2.25, 42), P3(0, 2, 42)], 'rgba(185,235,255,.55)', '#3fa79b');
         c.restore(); break; }
-      case 'part': { // walled-room partition & clinic entrance doorway
+      case 'part': { // 슬림 반투명 글래스 칸막이 & 개방형 진료실 아치 출입구
         if (it.doorway) {
-          // Framed Consultation Room Entrance Doorway
-          // Left jamb post
-          B(0, .32, .18, .36, 52, '#3fa79b', 0, '#86c9c0');
-          // Right jamb post
-          B(.82, .32, .18, .36, 52, '#3fa79b', 0, '#86c9c0');
-          // Top lintel / overhead arch beam
-          B(0, .32, 1.001, .36, 14, '#3fa79b', 38, '#86c9c0');
-          // Golden/white clinic room plaque above door
-          quad([P3(.12, .68, 50), P3(.88, .68, 50), P3(.88, .68, 40), P3(.12, .68, 40)], '#fffdf7', '#1f635c');
-          const dp = P3(.5, .69, 44);
+          // 1. 개방형 출입문 바닥 깔끔한 마감
+          B(0, .38, 1, .24, 2, '#d6ebe7', 0, '#f2fbf9');
+          // 2. 좌우 슬림 알루미늄/민트 기둥
+          B(.04, .38, .12, .16, 38, '#4ea89d', 0, '#86d0c6');
+          B(.84, .38, .12, .16, 38, '#4ea89d', 0, '#86d0c6');
+          // 3. 상단 슬림 아치 빔 (높이 34~38)
+          B(0, .38, 1.001, .16, 4, '#4ea89d', 34, '#86d0c6');
+          // 4. 귀여운 병원 진료과목 명패
+          quad([P3(.12, .54, 46), P3(.88, .54, 46), P3(.88, .54, 34), P3(.12, .54, 34)], '#ffffff', '#2a7c73');
+          const dp = P3(.5, .55, 40);
           c.save();
           c.font = 'bold 8.5px sans-serif';
           c.fillStyle = '#115e59';
           c.textAlign = 'center';
           c.textBaseline = 'middle';
-          c.fillText('🩺 진료실', dp[0], dp[1]);
+          const rname = it.room ? (HOSP_ROOMS[it.room] ? HOSP_ROOMS[it.room].icon + ' ' + t('hroom_' + it.room) : '🩺 진료실') : '🩺 진료실';
+          c.fillText(rname, dp[0], dp[1]);
           c.restore();
         } else if (it.vert) {
-          // Clean vertical wall partition (flush 1.001, aligned corner)
-          B(.32, 0, .36, 1.001, 50, '#e6f3f1', 0, '#cfe6e2');
-          quad([P3(.68, .08, 22), P3(.68, .92, 22), P3(.68, .92, 46), P3(.68, .08, 46)], 'rgba(190,225,240,.7)');
+          // 방 사이 세로(Y축) 슬림 반투명 칸막이
+          B(.44, 0, .12, .12, 34, '#7ecdc1', 0, '#eaf7f5');
+          B(.44, .88, .12, .12, 34, '#7ecdc1', 0, '#eaf7f5');
+          B(.46, .06, .08, .88, 28, 'rgba(215,242,238,.65)', 2, 'rgba(235,252,250,.85)');
+          quad([P3(.54, .08, 12), P3(.54, .92, 12), P3(.54, .92, 22), P3(.54, .08, 22)], 'rgba(255,255,255,.55)', '#5fa89d');
+          B(.44, 0, .12, 1.001, 2, '#4ea89d', 30, '#86d0c6');
         } else {
-          // Clean horizontal south wall partition (flush 1.001, no door overlap)
-          B(0, .32, 1.001, .36, 50, '#e6f3f1', 0, '#cfe6e2');
-          quad([P3(.08, .68, 22), P3(.92, .68, 22), P3(.92, .68, 46), P3(.08, .68, 46)], 'rgba(190,225,240,.7)');
+          // 남쪽 로비 대면 가로(X축) 슬림 반투명 칸막이 (방 내부가 화사하게 보임)
+          B(0, .44, .12, .12, 34, '#7ecdc1', 0, '#eaf7f5');
+          B(.88, .44, .12, .12, 34, '#7ecdc1', 0, '#eaf7f5');
+          B(.06, .46, .88, .08, 28, 'rgba(215,242,238,.65)', 2, 'rgba(235,252,250,.85)');
+          quad([P3(.08, .54, 12), P3(.92, .54, 12), P3(.92, .54, 22), P3(.08, .54, 22)], 'rgba(255,255,255,.55)', '#5fa89d');
+          B(0, .44, 1.001, .12, 2, '#4ea89d', 30, '#86d0c6');
         }
         break; }
       case 'desk': { B(.05, .15, .9, .7, 26, '#c9a27a', 0, '#e6cfaa'); B(.3, .25, .4, .3, 8, '#3a4a55', 26, '#57687a'); emoji('🧑‍⚕️', P3(.5, .95, 44), 12); hit('hospcabinet', 60); break; }
       case 'monitor': { B(.1, .1, .8, .8, 30, '#4a5a68', 0, '#6b7c8a'); quad([P3(.1, .9, 34), P3(.9, .9, 34), P3(.9, .9, 62), P3(.1, .9, 62)], '#0e1a24', '#8aa'); emoji('🩻', P3(.5, .9, 44), 14); break; }
-      case 'bench': { // User request: 병원 긴의자는 반대로 돌려 접수대(북쪽)를 바라보게 배치 (남쪽에 등받이, 북쪽을 봄)
-        // Tall backrest on the south edge
-        B(.04, .82, it.w - .08, .12, 34, '#4d5863', 0, '#6a7784');
-        B(.04, .84, it.w - .08, .08, 32, '#aab2ba', 0, '#cbd5e1');
-        // Metal frame legs
-        for (const lx of [.08, it.w - .2]) {
-          B(lx, .14, .12, .05, 6, '#aab2ba', 0);
-          B(lx, .76, .12, .05, 6, '#aab2ba', 0);
+      case 'bench': { // 모던 코지 파스텔 대기실 벤치 소파 (방석과 등받이 겹침 버그 완전 수정)
+        const w = it.w;
+        // 1. 스테인리스/크롬 프레임 다리 (앞/뒤 4모서리)
+        for (const lx of [.12, w - .26]) {
+          B(lx, .16, .14, .08, 7, '#94a3b8', 0, '#cbd5e1');
+          B(lx, .72, .14, .08, 7, '#94a3b8', 0, '#cbd5e1');
         }
-        // Padded seat cushion facing NORTH towards reception desk
-        for (let k = 0; k < it.w; k++) {
-          B(k + .06, .14, .88, .64, 8, '#5a6672', 6, '#7d8a97');
-          B(k + .08, .14, .84, .06, 6, '#475569', 6, '#64748b');
+        // 다리를 연결하는 견고한 하단 프레임
+        B(.14, .18, w - .28, .56, 2, '#64748b', 6, '#94a3b8');
+
+        // 2. 푹신하고 포근한 3인용 민트 패브릭 방석
+        for (let k = 0; k < w; k++) {
+          const sx = k + .08;
+          B(sx, .16, .84, .54, 8, '#388e85', 7, '#5bbfae');
+          quad([P3(sx + .1, .24, 15), P3(sx + .74, .24, 15), P3(sx + .74, .62, 15), P3(sx + .1, .62, 15)], '#8ee0d2', '#3d9487');
         }
+
+        // 3. 인체공학적 등받이 (방석 뒤에서 높이 솟아올라 방석에 가려지지 않고 깔끔하게 입체감 표현)
+        B(.06, .70, w - .12, .14, 28, '#2d7a71', 8, '#4ea89d');
+        for (let k = 0; k < w; k++) {
+          const sx = k + .1;
+          quad([P3(sx, .84, 14), P3(sx + .8, .84, 14), P3(sx + .8, .84, 34), P3(sx, .84, 34)], '#62c4b3', '#25695f');
+        }
+
+        // 4. 좌우 끝 측면 편안한 팔걸이
+        B(.02, .18, .08, .54, 12, '#475569', 8, '#94a3b8');
+        B(w - .10, .18, .08, .54, 12, '#475569', 8, '#94a3b8');
         break; }
       case 'exam': { B(.1, .1, .8, .8, 28, '#dfe9ee', 0, '#f8fbfd'); B(.14, .14, .72, .72, 4, '#7ec8e3', 28, '#9ad8ee'); break; }
       case 'tbed': { B(.04, .1, it.w - .08, .8, 14, '#9fc7bd', 0, '#d9efe9'); B(.08, .14, it.w - .16, .72, 8, '#ffffff', 14, '#ffffff'); quad([P3(it.w * .45, .16, 22), P3(it.w - .1, .16, 22), P3(it.w - .1, .84, 22), P3(it.w * .45, .84, 22)], '#8fd9b6', '#4fa982'); ell(P3(.35, .5, 23), 9, 5, '#fff', '#c5d3da', 1); line(P3(it.w - .1, .1, 14), P3(it.w - .1, .1, 66), '#b0bec5', 2); emoji('💧', P3(it.w - .1, .1, 72), 11); break; }

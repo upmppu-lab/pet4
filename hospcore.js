@@ -289,17 +289,58 @@ function hospAutoSpot(hp, Rm, lv, k, dp) {
   }
   return null;
 }
-// v1.121: hospAutoSpot은 항상 동(東)-남쪽 모서리부터 채우므로 긴의자가 매번 구석에 몰림 -> 긴의자 전용으로
-// "대기실 가로 중앙에 가까운 자리부터, 같은 거리면 더 남쪽부터" 순서로 고르는 버전. 병원이 커질 때마다
-// 넓어진 대기실 전체 기준으로 다시 계산되어 중앙/남쪽 쪽으로 자연스럽게 재배치됨.
+// 병원 대기실 긴의자 전용 정렬: 2열 대칭 그리드와 중앙 보행 통로를 유지하여 단정하고 깔끔한 행/열로 배치
 function hospCenterSpot(hp, Rm, lv, k, dp) {
-  const F = hospFurn(k), R = hospRect(Rm.w, Rm.h, lv), cand = [];
+  const F = hospFurn(k), R = hospRect(Rm.w, Rm.h, lv);
   const L0 = hospBuildLayout(hp, Rm, lv);
-  for (let y = R.y1 - F.d; y >= R.y; y--) for (let x = R.x1 - F.w; x >= R.x; x--) { let ok = true; for (let i = 0; i < F.w && ok; i++) for (let j = 0; j < F.d; j++) if (!L0.inRegion(dp, x + i, y + j)) { ok = false; break; } if (ok) cand.push({ x, y }); }
-  const cx = (R.x + R.x1) / 2;
-  cand.sort((a, b) => { const da = Math.abs(a.x + F.w / 2 - cx), db = Math.abs(b.x + F.w / 2 - cx); return da !== db ? da - db : b.y - a.y; });
-  for (const air of [true, false]) for (const c of cand) {
-    if (air) { let ok = true; for (let i = -1; i <= F.w && ok; i++) for (let j = -1; j <= F.d; j++) if (L0.solid.has((c.x + i) + ',' + (c.y + j))) { ok = false; break; } if (!ok) continue; }
+
+  const plannedSlots = [];
+  const maxRoomD = 6;
+  const minY = R.y + maxRoomD + 1; // 진료실 칸막이 앞 1칸 여유
+  const maxY = R.y1 - F.d - 1;     // 남쪽 전면 창문 앞 1칸 여유
+
+  // 대기실 유효 너비(동쪽 접수대 구역 제외)
+  const availW = Math.max(8, (R.x1 - 3) - (R.x + 2));
+  // 3인용 의자(너비 3) 2개와 중앙 통로(너비 2) -> 총 너비 8
+  const startX = Math.max(R.x + 2, Math.min(R.x1 - F.w * 2 - 4, R.x + Math.floor((availW - 8) / 2)));
+  const colA = startX;
+  const colB = startX + F.w + 2;
+
+  // 남쪽에서 북쪽 순서로 2칸 간격(행간 1칸 통로) 정돈된 좌우 열 생성
+  for (let y = maxY; y >= minY; y -= 2) {
+    if (colA + F.w <= R.x1 - 3) plannedSlots.push({ x: colA, y });
+    if (colB + F.w <= R.x1 - 3) plannedSlots.push({ x: colB, y });
+  }
+
+  // 1순위: 계획된 가지런한 2열 행/열 그리드 시도
+  for (const s of plannedSlots) {
+    if (L0.inRegion(dp, s.x, s.y) && !hospCheckPlace(hp, Rm, lv, { id: -1, k, dp, x: s.x, y: s.y })) {
+      return s;
+    }
+  }
+
+  // 예비: 정렬된 열(colA/colB) 기준 후보 탐색
+  const cand = [];
+  for (let y = maxY; y >= minY; y--) {
+    for (let x = R.x + 2; x <= R.x1 - F.w - 3; x++) {
+      let ok = true;
+      for (let i = 0; i < F.w && ok; i++) {
+        for (let j = 0; j < F.d; j++) {
+          if (!L0.inRegion(dp, x + i, y + j)) { ok = false; break; }
+        }
+      }
+      if (ok) cand.push({ x, y });
+    }
+  }
+  const cx = (colA + colB + F.w) / 2;
+  cand.sort((a, b) => {
+    const aMatch = (a.x === colA || a.x === colB) ? 0 : 1;
+    const bMatch = (b.x === colA || b.x === colB) ? 0 : 1;
+    if (aMatch !== bMatch) return aMatch - bMatch;
+    if (b.y !== a.y) return b.y - a.y;
+    return Math.abs(a.x - cx) - Math.abs(b.x - cx);
+  });
+  for (const c of cand) {
     if (!hospCheckPlace(hp, Rm, lv, { id: -1, k, dp, x: c.x, y: c.y })) return c;
   }
   return null;
@@ -326,18 +367,15 @@ const HOSP = (() => {
   // put every piece back on a legal spot (after the shop / hospital changed): same place if it still fits, else the next free one, else refunded
   function relocateAll(s, hp) {
     const Rm = roomOf(s), lv = lvNow(hp), old0 = hp.items || [], R = hospRect(Rm.w, Rm.h, lv);
-    // v1.118: 레이아웃 유효성 검사(hospLayoutErr)는 "접수대가 있는지 + 대기줄이 있는지"까지 매번 통째로 확인하는데,
-    // 이 함수가 물건들을 하나씩 다시 채워넣는 동안에는 접수대가 아직 안 들어간 시점이 생겨서, 그 전에 검사받는
-    // 물건(특히 긴 의자)은 "접수대가 없다"는 이유로 번번이 거부되어 영구 환불(=사라짐)되고 있었음 -- 실제 사라진
-    // 긴 의자, 레벨업할 때마다 벽들이 엉뚱한 남동쪽 구석으로 튀어나가던 현상의 진짜 원인. 고정 비품(접수대 포함)을
-    // 먼저 제자리에 넣어두고 나서 나머지(긴의자, 파티션 벽 등)를 검사하도록 순서를 바꿔서 해결.
     const old = old0.slice().sort((a, b) => { const fa = hospFurn(a.k), fb = hospFurn(b.k); return ((fa && fa.fixed) ? 0 : 1) - ((fb && fb.fixed) ? 0 : 1); });
     hp.items = []; hp.iv = (hp.iv | 0) + 1;
     for (const it of old) {
       const F = hospFurn(it.k); if (!F) continue;
       let dp = F.dps.includes(it.dp) ? it.dp : F.dps[0];
-      // v1.121: 긴의자는 "원래 자리가 아직도 비어있으니 그대로 둔다"를 적용하지 않고, 레벨업마다 넓어진
-      // 대기실 전체 기준으로 중앙/남쪽에 가까운 자리로 매번 다시 배치
+      // Lv2 이상에서 치료실(treat)이 있으면 치료 침대(tbed)는 진료실이 아닌 치료실로 배치
+      if (it.k === 'tbed' && lv >= 2 && hospRoomsAt(lv).includes('treat')) {
+        dp = 'treat';
+      }
       if (it.k === 'bench') {
         const p = hospCenterSpot(hp, Rm, lv, it.k, dp);
         if (p) hp.items.push({ id: it.id, k: it.k, dp, x: p.x - R.x1, y: p.y - R.y, v: it.v, r: it.r }); else s.coins += F.cost;
@@ -350,11 +388,10 @@ const HOSP = (() => {
     }
     hp.iv = (hp.iv | 0) + 1;
   }
-  // v1.119: 긴의자/치료 침상은 레벨이 오를 때마다 그 레벨의 정원(cap)만큼 무료로 채워짐(예전엔 Lv1에서
-  // 딱 한 번만 2개/1개 주고 끝 -> 이후 레벨업해도 늘어나지 않던 문제)
   function grantBase(s, hp) {
     const Rm = roomOf(s), lv = lvNow(hp), R = hospRect(Rm.w, Rm.h, lv);
-    for (const [k, dp] of [['bench', 'lobby'], ['tbed', 'clinic']]) {
+    const tbedRoom = (lv >= 2 && hospRoomsAt(lv).includes('treat')) ? 'treat' : 'clinic';
+    for (const [k, dp] of [['bench', 'lobby'], ['tbed', tbedRoom]]) {
       const cap = hospCap(lv, k) || 0, have = hp.items.filter(i => i.k === k).length;
       for (let i = have; i < cap; i++) { const p = k === 'bench' ? hospCenterSpot(hp, Rm, lv, k, dp) : hospAutoSpot(hp, Rm, lv, k, dp); if (p) { hp.items.push({ id: hp.iseq++, k, dp, x: p.x - R.x1, y: p.y - R.y }); hp.iv = (hp.iv | 0) + 1; } else break; }
     }
