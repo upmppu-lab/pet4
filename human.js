@@ -1585,14 +1585,18 @@ const P2 = {
       };
       // v1.106: 안경 옆면/대각선에서 "안경다리"가 머리 밖으로 삐져나와 보이는 걸 막기 위해,
       // 원본 그림의 왼쪽 clipFrac 비율만 그리고 나머지(다리 부분)는 잘라서 그림(스케일은 그대로 유지돼서 확대되지 않음)
-      const drawSlotClip = (accImg, dx, dy, scale, clipFrac) => {
+      const drawSlotClip = (accImg, dx, dy, scale, clipFrac, topFrac) => {
         const sz = baseSize * scale;
         const px = centerX - sz / 2 + dx, py = centerY - sz / 2 + dy;
         const cw = Math.round(accImg.naturalWidth * clipFrac), dw = sz * clipFrac;
+        // v1.116: topFrac을 주면 위쪽(대각선 안경의 반대쪽 안경다리가 위로 삐져나오는 부분)도 함께 잘라냄
+        const sy0 = topFrac ? Math.round(accImg.naturalHeight * topFrac) : 0;
+        const ch = accImg.naturalHeight - sy0, dh = sz * (1 - (topFrac || 0));
+        const dy0 = py + sz * (topFrac || 0);
         c.save();
         if (mirror) c.scale(-1, 1);
         const ddx = mirror ? -(px + sz) : px;
-        c.drawImage(accImg, 0, 0, cw, accImg.naturalHeight, ddx, py, dw, sz);
+        c.drawImage(accImg, 0, sy0, cw, ch, ddx, dy0, dw, dh);
         c.restore();
       };
 
@@ -1603,7 +1607,8 @@ const P2 = {
         const img = getAccImg(accView, getFile(neckDef));
         if (img.complete && img.naturalWidth) {
           const nSize = 24;
-          const neckY = !suffix ? -59 : suffix === 'back' ? -58 : -61; // 정면 -59, 뒷면 -58, 측면/대각선 -61
+          // v1.111: 측면만 위로 1 더
+          const neckY = !suffix ? -59 : suffix === 'back' ? -58 : suffix === 'diag' ? -61 : -62; // 정면-59 뒷면-58 대각선-61 측면-62
           const neckDx = !suffix ? 0 : suffix === 'back' ? 0 : suffix === 'diag' ? -2 : -1; // 대각선 -2, 측면 -1
           put(img, { size: nSize, x: -nSize / 2 + neckDx, y: neckY });
         }
@@ -1617,8 +1622,8 @@ const P2 = {
         const img = getAccImg(accView, getFile(earDef));
         if (img.complete && img.naturalWidth) {
           if (!suffix) {
-            // 정면
-            const EAR_OFFSET = 12.5, dy = 7;
+            // 정면 - v1.111: 아래로 2 더
+            const EAR_OFFSET = 12.5, dy = 9;
             put(img, { size: baseSize, x: accAnchor.x - EAR_OFFSET, y: accAnchor.y + dy });
             c.save();
             c.scale(-1, 1);
@@ -1636,31 +1641,42 @@ const P2 = {
       if (scarfDef) {
         const img = getAccImg(accView, getFile(scarfDef));
         if (img.complete && img.naturalWidth) {
-          // v1.109: 정면만 아래로 3 더
-          const scarfDx = !suffix ? 0 : suffix === 'back' ? 0 : -2; // 대각선/측면 -2
-          const scarfDy = !suffix ? 20 : suffix === 'back' ? 18 : suffix === 'diag' ? 16 : 14; // 정면20 뒷면18 대각선16 측면14
+          // v1.112: 대각선 왼쪽1/위1, 옆면 위1, 뒷면 오른쪽2/위2 더 이동
+          let scarfDx = !suffix ? 0 : suffix === 'back' ? 2 : suffix === 'diag' ? -3 : -2; // 뒷면+2 대각선-3 측면-2
+          let scarfDy = !suffix ? 20 : suffix === 'back' ? 16 : suffix === 'diag' ? 15 : 13; // 정면20 뒷면16 대각선15 측면13
+          // 정면 차콜(scarf3)만 아래로 1 더
+          if (!suffix && scarfId === 'scarf3') scarfDy += 1;
+          // v1.111: 대각선/측면은 그림 자체의 위치가 달라, 레드(scarf1) 기준으로 아이보리(scarf2)·차콜(scarf3)을 보정
+          if (suffix === 'side' || suffix === 'diag') {
+            if (scarfId === 'scarf2') scarfDy += 9;
+            else if (scarfId === 'scarf3') scarfDy += 10;
+          }
           drawSlot(img, scarfDx, scarfDy, 1);
         }
       }
 
-      // 안경: 뒷모습에서는 보이지 않게. 옆면/대각선은 다리 부분을 잘라 머리에 가려진 것처럼 보이게 함
-      // v1.106: 정면 모두 아래로1 더(총7), 안경6만 오른쪽1/아래1 더, 측면 모두 위로1 더(총-2.2), 대각선은 그대로(2)
+      // 안경: 뒷모습에서는 보이지 않게. 측면은 다리 부분을 잘라 머리에 가려진 것처럼 보이게 함.
+      // v1.110: 대각선은 전용으로 그려주신 그림(spr/acc/diagonal)을 사용 — 다리를 자를 필요 없이 그대로 그림
       if (suffix !== 'back') {
         const faceId = o.acc.face, faceDef = faceId && COSM_DEF[faceId];
         if (faceDef) {
-          const img = getAccImg(accView, getFile(faceDef));
+          const useDiagArt = suffix === 'diag' && faceDef.diag;
+          const img = useDiagArt ? getAccImg('diagonal', faceDef.diag) : getAccImg(accView, getFile(faceDef));
           if (img.complete && img.naturalWidth) {
             let faceDx = -1, faceDy;
-            if (!suffix) { // 정면
+            if (!suffix) { // 정면 - v1.117: 크기 살짝 축소(0.8 -> 0.74)
               faceDy = 7;
               if (faceId === 'glass6') { faceDx = 0; faceDy = 8; }
             } else if (suffix === 'side') {
-              faceDy = -2.2;
-            } else { // 대각선
-              faceDy = 2;
+              faceDy = -2.2; faceDx = 0; // v1.112: 오른쪽 1 더(-1→0)
+            } else { // 대각선 - v1.112: 오른쪽1/아래1 더(4,0 -> 5,1)
+              faceDx = 5; faceDy = 1;
             }
-            if (suffix === 'side' || suffix === 'diag') drawSlotClip(img, faceDx, faceDy, 0.8, 0.6);
-            else drawSlot(img, faceDx, faceDy, 0.8);
+            // v1.112: 대각선도 옆테(다리)를 잘라 안경알만 보이게. v1.117: 양쪽 다리 모두 완전히 잘리도록
+            // 잘라내는 비율을 다시 측정해서 조정(위 30%->38%, 좌측폭 78%->76%)
+            if (useDiagArt) drawSlotClip(img, faceDx, faceDy, 0.64, 0.76, 0.38);
+            else if (suffix === 'side' || suffix === 'diag') drawSlotClip(img, faceDx, faceDy, 0.8, 0.6);
+            else drawSlot(img, faceDx, faceDy, 0.74);
           }
         }
       }
@@ -1680,15 +1696,22 @@ const P2 = {
             };
             const p = HEAD_DIAG[headId] || { dx: -1, dy: -3 };
             drawSlot(img, p.dx, p.dy, 1.0);
+          } else if (suffix === 'side') {
+            // v1.111: 측면 전용 아이템별 최종 위치(절대값)
+            const HEAD_SIDE = {
+              cap1: { dx: -3, dy: -8 }, cap2: { dx: -3, dy: -8 },
+              cap3: { dx: -2, dy: -6 }, cap4: { dx: -3, dy: -6 },
+              cap5: { dx: -5, dy: -5 }, ribbon: { dx: -4, dy: -5 },
+            };
+            const p = HEAD_SIDE[headId] || { dx: -2, dy: -5 };
+            drawSlot(img, p.dx, p.dy, 1.0);
           } else {
-            const headDxBase = !suffix ? -1 : (suffix === 'back' ? 1 : -1);
-            const headDyBase = suffix === 'side' ? -3 : -2;
+            const headDxBase = !suffix ? -1 : 1; // 정면 -1, 뒷면 +1
+            const headDyBase = -2;
             let headDxAdj = 0, headDyAdj = 0;
             if (!suffix) {
               if (headId === 'cap1' || headId === 'cap4') headDyAdj = 1;
               if (headId === 'ribbon') headDxAdj = -1;
-            } else if (suffix === 'side') {
-              headDxAdj = -1; headDyAdj = -2;
             }
             drawSlot(img, headDxBase + headDxAdj, headDyBase + headDyAdj, 1.0);
           }
@@ -1740,6 +1763,17 @@ const P2 = {
   // v1.100.47: 정면은 머리 위치가 이미 딱 맞다고 확인됨 -> 정면은 그대로 두고,
   // 뒷모습/옆모습(대각선 포함)만 머리를 4 더 위로 올림 (정면과 별도로 방향별 보정)
   const STAFF_HEAD_EXTRA_UP = { back: 4, side: 4, diag: 4 }; // 방향별 머리 추가 상향 (게임단위)
+  // v1.117: 신규(손그림) 직원 전용 - 옆모습/뒷모습에서 머리가 몸통 중심에서 벗어나 보여 좌우로 보정
+  const ROLE_ART_HEAD_DX = { side: -5, back: -2 };
+  // v1.120: 특정 그림(번호+방향) 전용 미세 보정 - 키: "<staffHead 번호>:<방향(front/back/side/diag)>"
+  const STAFF_HEAD_FIX = {
+    '103:back': { dx: 3 },              // doctor/women face_03: 뒷모습 오른쪽 3
+    '416:back': { dx: 3 },              // hairstylist/man face_16: 뒷모습 오른쪽 3
+    '525:front': { dx: 3, dy: -2 },     // waiter/man face_25: 정면 오른쪽 3, 위로 2
+    '312:front': { dx: -3, dy: -2 },    // chef/man front 전체: 위로 2, 왼쪽 3
+    '313:front': { dx: -3, dy: -2 },
+    '315:front': { dx: -3, dy: -2 },
+  };
   function drawStaffChar(c, o, realDir, faceBack, moving, t, isSit) {
     const effDir = (realDir === 3 && faceBack) ? 1 : realDir;
     const suffix = DIR_SUFFIX[effDir]; // 1:'back' 2:'side' 3:'diag', 정면(0)이면 undefined
@@ -1751,8 +1785,15 @@ const P2 = {
     const mirror = (effDir === 2 || effDir === 3);
     const footCorr = (suffix && STAFF_FOOT_CORR[suffix]) || 0;
     const headExtraUp = (suffix && STAFF_HEAD_EXTRA_UP[suffix]) || 0;
+    // v1.116: 손그림 특수 직업 그림(의사/간호사/요리사/미용사/서빙인원, 번호 100번대 이상)은 캔버스 안에서
+    // 차지하는 비율이 기존 30종 그림보다 작게 그려져 있어, 기존 직원과 비슷한 크기로 보이도록 발 위치는
+    // 그대로 둔 채(발을 기준점으로) 머리+몸을 함께 키움. 또 목선이 비는(얼굴이 몸과 떨어져 보이는) 걸
+    // 막기 위해 머리를 몸 쪽으로 조금 더 내림.
+    const isRoleArt = (o.staffHead >= 100) || (o.staffOutfit >= 100);
+    const ROLE_ART_SCALE = 1.5, ROLE_ART_HEAD_DOWN = 3;
+    const headDx = (isRoleArt && suffix && ROLE_ART_HEAD_DX[suffix]) || 0;
     const bodyPos = footCorr ? { size: STAFF_BODY_POS.size, x: STAFF_BODY_POS.x, y: STAFF_BODY_POS.y + footCorr } : STAFF_BODY_POS;
-    const headPos = (footCorr || headExtraUp) ? { size: STAFF_HEAD_POS.size, x: STAFF_HEAD_POS.x, y: STAFF_HEAD_POS.y + footCorr - headExtraUp } : STAFF_HEAD_POS;
+    const headPos = (footCorr || headExtraUp || headDx) ? { size: STAFF_HEAD_POS.size, x: STAFF_HEAD_POS.x + headDx, y: STAFF_HEAD_POS.y + footCorr - headExtraUp } : STAFF_HEAD_POS;
 
     const canWalk = !isSit;
     const walkT = moving && canWalk ? t * 9 : 0;
@@ -1763,12 +1804,13 @@ const P2 = {
 
     c.save();
     c.translate(0, -bob);
+    if (isRoleArt) { c.translate(0, STAFF_FOOT_Y); c.scale(ROLE_ART_SCALE, ROLE_ART_SCALE); c.translate(0, -STAFF_FOOT_Y); }
     // 옷(몸통+다리 통합 한 장)은 기존 하의와 같은 방식(좌우 반씩 잘라 위아래로 살짝 흔들기)으로 제자리걸음 효과
     drawSplitPart(c, outfitImg, bodyPos, 0, mirror, legStepL, legStepR, outfitCat + '_' + o.staffOutfit);
     c.save();
     if (mirror) c.scale(-1, 1);
     const hdx = mirror ? -(headPos.x + headPos.size) : headPos.x;
-    c.drawImage(headImg, hdx, headPos.y, headPos.size, headPos.size);
+    c.drawImage(headImg, hdx, headPos.y + (isRoleArt ? ROLE_ART_HEAD_DOWN : 0), headPos.size, headPos.size);
     c.restore();
     c.restore();
     return true;

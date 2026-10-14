@@ -719,6 +719,7 @@ PANELS.cafe = () => {
   b += `<div class="t" style="margin-top:10px">⬆️ ${t('cafeUp')}</div><div class="card"><div class="m">📐 ${L.w}×${L.d} · 🪑 ${CAFE_LAYOUT().tables.length} · 🎰 ${CAFE_LAYOUT().slots.length} · 🐾 ${L.pets}</div>`;
   if (nx) { const lock = S.level < nx.ulv; b += `<div class="m">${t('cafeUpNext')} 📐 ${nx.w}×${nx.d} · 🐾 ${nx.pets}</div>${lock ? `<div class="m">🔒 ${t('homeNeedPlayer', { n: nx.ulv })}</div>` : `<button class="btn o block ${S.coins < nx.cost ? 'dis' : ''}" data-a="cafeup">⬆️ ${t('cafeUpBtn')} 🪙${fmt(nx.cost)}</button>`}`; } else b += `<div class="m">${t('cafeUpMax')}</div>`;
   b += '</div>';
+  b += `<button class="btn r block" style="margin-top:8px" data-a="cafedemolish">🧨 ${t('demolishBtn')}</button>`;
   return frameHTML('☕ ' + t('cafeName'), b);
 };
 PANELS.cafecook = () => {
@@ -1233,7 +1234,8 @@ PANELS.hosp = m => {
   b += `<div class="row" style="margin-top:10px;gap:8px"><button class="btn g block" data-a="cafepanel" data-v="hospshop">🛋️ ${t('hospShopBtn')}</button><button class="btn g block" data-a="hospedit">🔨 ${t('hospEditBtn')}</button></div>`;
   b += `<div class="t" style="margin-top:10px">⬆️ ${t('hospUp')}</div><div class="card"><div class="m">📐 ${t('hospLevelNow', { n: hp.lv, w: dm.w, d: dm.d })}</div>`;
   if (nx) { const lock = S.level < nx.ulv, d2 = hospDims(hp.lv + 1), newRooms = nx.rooms.filter(r => !hospRoomsAt(hp.lv).includes(r)).map(r => HOSP_ROOMS[r].icon + ' ' + t('hroom_' + r)).join(', '); b += `<div class="m">${t('cafeUpNext')} 📐 ${d2.w}×${d2.d}${newRooms ? ' · ➕ ' + newRooms : ''}</div>${lock ? `<div class="m">🔒 ${t('homeNeedPlayer', { n: nx.ulv })}</div>` : `<button class="btn o block ${S.coins < nx.cost ? 'dis' : ''}" data-a="hospup">⬆️ ${t('cafeUpBtn')} 🪙${fmt(nx.cost)}</button>`}`; } else b += `<div class="m">${t('cafeUpMax')}</div>`;
-  return frameHTML('🏥 ' + t('hospName'), b + '</div>');
+  b += `</div><button class="btn r block" style="margin-top:8px" data-a="hospdemolish">🧨 ${t('demolishBtn')}</button>`;
+  return frameHTML('🏥 ' + t('hospName'), b);
 };
 function hospEditBar() {
   const sel = World.hospSel, it = sel != null ? World.hospItemById(sel) : null;
@@ -1540,7 +1542,13 @@ function charHTML(editing) {
   }
   return `<button class="swatch${isCurrent ? ' on' : ''}${s.v === 0 ? ' sw-reset' : ''}" data-a="setswatch" data-v="${sub}" data-w="${s.v}"${s.bg ? ` style="background:${s.bg}"` : ''}>${s.v === 0 ? '↺' : (isCurrent ? '✓' : '')}</button>`;
 }).join('')}</div></div>` : '';
-  return `<div class="ov"><div class="panel"><div class="ph">${editing ? t('myChar') : t('welcomeTitle')}</div><div class="pb">
+  // v1.117: 내 캐릭터(편집) 창도 다른 창들처럼 왼쪽에 뒤로가기, 오른쪽에 닫기 버튼을 달아줌
+  // (최초 캐릭터 생성 화면은 필수 단계라 뒤로가기/닫기 없이 그대로 둠)
+  const backLabel2 = typeof CFG !== 'undefined' && CFG.lang === 'ru' ? '◀ Назад' : '◀ 뒤로';
+  const charHead = editing
+    ? `<button class="pback" data-a="panelBack">${backLabel2}</button><span class="phtitle">${t('myChar')}</span><button class="x" data-a="close">✕</button>`
+    : t('welcomeTitle');
+  return `<div class="ov"><div class="panel"><div class="ph">${charHead}</div><div class="pb">
     <div class="cstick"><div class="cprevRow">
       <div class="cprev"><button class="cprevImport" data-a="pngimport" title="${t('importHint')}">📁<span>+</span></button><canvas id="cprevCv" width="300" height="470" style="width:165px;height:226px"></canvas><button class="cdirRotBtn" data-a="rotprev" data-v="1" title="${t('rotateHint')}"><img src="${assetUrl('spr/ui/icon_rotate.png')}" draggable="false" alt="rotate"></button></div>
     </div>
@@ -2121,6 +2129,7 @@ function handle(a, v, w) {
     case 'cafepanel': openPanel({ type: v }); break;
     case 'cafecookgo': { const r = actR({ t: 'cafecook', dish: v }); if (r && r.ok) { SND.coin(); fxAt(innerWidth / 2, innerHeight / 2, (CAFE_DISHES.find(d => d.id === v) || {}).icon || '🍳'); } renderPanel(true); break; }
     case 'cafeup': { const r = actR({ t: 'cafeup' }); if (r && r.ok) { SND.level(); fxAt(innerWidth / 2, innerHeight / 2, '⬆️'); } renderPanel(true); break; }
+    case 'cafedemolish': { if (!confirm(t('cafeDemolishConfirm'))) break; const r = actR({ t: 'cafedemolish' }); if (r && r.ok) closePanel(); renderPanel(true); render(); break; }
     case 'mcat': if (panel && panel.cat !== v) openPanel(Object.assign({}, panel, { cat: v })); break;
     case 'stab': if (panel && panel.tab !== v) openPanel(Object.assign({}, panel, { tab: v })); break;
     case 'heart': if (Net.mode !== 'solo') { act({ t: 'heart' }); fxAt(innerWidth / 2, innerHeight / 2, '💕'); SND.love(); } else openPanel({ type: 'coop' }); break;
@@ -2180,14 +2189,15 @@ function handle(a, v, w) {
     case 'hcatp': if (panel && panel.hcat !== v) openPanel(Object.assign({}, panel, { hcat: v })); break;
     case 'hospedit': startHospEdit(null); break;
     case 'hospskin': actR({ t: 'hospskin', id: +v }); renderPanel(true); break;
-    case 'hospdone': App.hospEdit = false; World.hospSel = null; World.center(); render(); break;
+    case 'hospdone': App.hospEdit = false; World.hospSel = null; render(); break; // v1.114: "가구를 계속 놔야하는데 완료누르면 카메라가 이동해" - 꾸미기 종료해도 카메라는 그대로 둠(캐릭터로 안돌아감)
     case 'hosprot': if (World.hospSel != null) { actR({ t: 'hosprot', iid: World.hospSel }); render(); } break;
     case 'hosptrash': if (World.hospSel != null) { actR({ t: 'hospsell', iid: World.hospSel }); World.hospSel = null; render(); } break;
     case 'hospup': { const r = actR({ t: 'hospup' }); if (r && r.ok) { SND.level(); fxAt(innerWidth / 2, innerHeight / 2, '⬆️'); } renderPanel(true); break; }
+    case 'hospdemolish': { if (!confirm(t('hospDemolishConfirm'))) break; const r = actR({ t: 'hospdemolish' }); if (r && r.ok) closePanel(); renderPanel(true); render(); break; }
     case 'cafebuy': actR({ t: 'cafebuy', k: v }); if (!App.cafeEdit) renderPanel(true); break;
     case 'ccat': if (panel && panel.ccat !== v) openPanel(Object.assign({}, panel, { ccat: v })); break;
     case 'cafeedit': startCafeEdit(null); break;
-    case 'cafedone': App.cafeEdit = false; World.cafeSel = null; World.center(); render(); break;
+    case 'cafedone': App.cafeEdit = false; World.cafeSel = null; render(); break; // v1.114: 꾸미기 종료해도 카메라는 그대로(캐릭터로 안돌아감) - 가구를 계속 놓을 수 있게
     case 'cafetrash': if (World.cafeSel != null) { actR({ t: 'cafesell', iid: World.cafeSel }); World.cafeSel = null; render(); } break;
     case 'caferotate': if (World.cafeSel != null) { actR({ t: 'caferot', iid: World.cafeSel }); render(); } break;
     case 'edit': { // decorate whichever building the screen is looking at: the pet shop, the caf챕 or the hospital

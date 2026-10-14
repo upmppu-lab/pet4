@@ -873,7 +873,7 @@ return true;
     for (const skey in (S.staff || {})) {
       const m = S.staff[skey], role = staffRoleOf(skey), id = 'sf_' + skey; alive.add(id);
       let a = actors.get(id);
-      if (!a) { const R = STAFF_ROLES.find(r => r.id === role); if (!m.seed) m.seed = (ART.hashStr(skey) % 99999) + 1; /* v1.100.35: 예전 저장 데이터엔 seed가 없어서 모든 직원이 똑같은 모습(randomHuman(3))으로 보이던 문제 -> 직원별 고유 고정 시드 부여 */ const lk = ART.randomHuman(m.seed); lk.top = 'tee'; lk.shirt = '#ffffff'; lk.apron = R.col; lk.hat = 'cap'; lk.hatc = R.col; lk.kid = false; lk.old = false; applyStaffArt(lk, m.seed, role === 'sales'); a = mkActor(id, 'staff', door.x, door.y, { look: lk, role, inside: true, idle: 1 }); }
+      if (!a) { const R = STAFF_ROLES.find(r => r.id === role); if (!m.seed) m.seed = (ART.hashStr(skey) % 99999) + 1; /* v1.100.35: 예전 저장 데이터엔 seed가 없어서 모든 직원이 똑같은 모습(randomHuman(3))으로 보이던 문제 -> 직원별 고유 고정 시드 부여 */ const lk = ART.randomHuman(m.seed); lk.top = 'tee'; lk.shirt = '#ffffff'; lk.apron = R.col; lk.hat = 'cap'; lk.hatc = R.col; lk.kid = false; lk.old = false; applyStaffArt(lk, m.seed, role === 'sales', role === 'groomer' ? 'hairstylist' : undefined); a = mkActor(id, 'staff', door.x, door.y, { look: lk, role, inside: true, idle: 1 }); }
       a.m = m; a.speed = 1.6 + m.lv * .3;
       if (m.job && a.jobId !== m.job.id) { a.jobId = m.job.id; goTo(a, m.job.x, m.job.y); }
       if (!m.job && !a.path.length) {
@@ -1036,10 +1036,34 @@ return true;
         const p = m.pid != null && m.tt > 0 ? P.find(q => q.id === m.pid) : null;
         if (p) { if (p.ph === 'deskserve') tgt = { x: rc.px, y: rc.py, fx: rc.x + 1, fy: rc.y + 1.5 }; else if (p.stn) { const st = L.stations.find(z => String(z.id) === p.stn); if (st) tgt = { x: st.px != null ? st.px : st.sx, y: st.py != null ? st.py : st.sy, fx: st.x + st.w / 2, fy: st.y + st.d / 2 }; } }
         let a = actors.get(id);
-        if (!a) { const lk = ART.randomHuman(m.seed); lk.hat = null; lk.top = 'jacket'; lk.jacket = m.role === 'nurse' ? '#f7c6d6' : '#ffffff'; lk.shirt = '#dff1fa'; applyStaffArt(lk, m.seed, false); a = mkActor(id, 'hstaff', tgt.x, tgt.y, { look: lk, speed: 2.6 }); }
+        if (!a) { const lk = ART.randomHuman(m.seed); lk.hat = null; lk.top = 'jacket'; lk.jacket = m.role === 'nurse' ? '#f7c6d6' : '#ffffff'; lk.shirt = '#dff1fa'; applyStaffArt(lk, m.seed, false, m.role === 'doctor' ? 'doctor' : m.role === 'nurse' ? 'nurse' : undefined); a = mkActor(id, 'hstaff', tgt.x, tgt.y, { look: lk, speed: 2.6 }); }
         a.m = m; a.talk = !!p && a.arrived !== false && m.tt > 0;
         const key = Math.floor(tgt.x) + ',' + Math.floor(tgt.y);
         if (a.tkey !== key) { a.tkey = key; a.arrived = false; goTo(a, tgt.x, tgt.y, () => { a.arrived = true; faceTo(a, tgt.fx, tgt.fy); }); }
+        // v1.121: "의사/간호사가 그냥 서있기만 해서 앞모습/옆모습을 볼 수가 없다" - 손님(환자)이 없을 때는
+        // 자기 자리 근처에서 아주 살짝 움직였다가 돌아오게 해서 가만히 멈춰있지 않도록 함. 아무 데나 걷지
+        // 않고 L.solid(벽/가구)에 안 걸리는 바로 옆 칸만 골라서 움직이므로 "길이 없어요" 같은 경로 실패가
+        // 날 일이 없고, 환자가 오면(p가 생기면) 위 tkey 로직이 그 즉시 우선해서 그쪽으로 다시 부름.
+        if (!p) {
+          a._idleT = (a._idleT == null) ? 1.5 + Math.random() * 2.5 : a._idleT - dt;
+          if (a._idleT <= 0 && a.arrived && !a.moving && (!a.path || !a.path.length)) {
+            if (!a._idleOut) {
+              const offs = [[0.7, 0], [-0.7, 0], [0, 0.6], [0, -0.6], [0.5, 0.4], [-0.5, -0.4]].sort(() => Math.random() - .5);
+              let moved = false;
+              for (const [odx, ody] of offs) {
+                const nx = tgt.x + odx, ny = tgt.y + ody, k2 = Math.floor(nx) + ',' + Math.floor(ny);
+                if (L.solid.has(k2)) continue;
+                a._idleOut = true; a._idleT = 1.4 + Math.random() * 1.6;
+                goTo(a, nx, ny, () => { faceTo(a, tgt.fx, tgt.fy); });
+                moved = true; break;
+              }
+              if (!moved) a._idleT = 2 + Math.random() * 3;
+            } else {
+              a._idleOut = false; a._idleT = 3 + Math.random() * 4;
+              goTo(a, tgt.x, tgt.y, () => { a.arrived = true; faceTo(a, tgt.fx, tgt.fy); });
+            }
+          }
+        } else { a._idleOut = false; a._idleT = null; }
       }
     }
     // farmhands: they wait at the field's south edge and walk over to the plot they just worked on
@@ -1238,7 +1262,7 @@ return true;
       const k = idxOf[m.role] = (idxOf[m.role] | 0) + 1, base = m.role === 'cook' ? stove : pass;
       const home = m.role === 'cook' ? { x: base.x + .5 + (k - 1), y: base.y + 1.5 } : cafeHallSpot(L, k);
       let a = actors.get(id);
-      if (!a) { const lk = ART.randomHuman(m.seed); lk.hat = null; lk.top = 'jacket'; lk.jacket = m.role === 'cook' ? '#ffffff' : '#5a4a3a'; applyStaffArt(lk, m.seed, false); a = mkActor(id, 'hstaff', m.px != null ? m.px : home.x, m.py != null ? m.py : home.y, { look: lk, speed: 2.4 }); }
+      if (!a) { const lk = ART.randomHuman(m.seed); lk.hat = null; lk.top = 'jacket'; lk.jacket = m.role === 'cook' ? '#ffffff' : '#5a4a3a'; applyStaffArt(lk, m.seed, false, m.role === 'cook' ? 'chef' : m.role === 'server' ? 'waiter' : undefined); a = mkActor(id, 'hstaff', m.px != null ? m.px : home.x, m.py != null ? m.py : home.y, { look: lk, speed: 2.4 }); }
       a.m = m;
       if (!host) { // partner's screen: glide after the host's copy
         if (m.px != null) { const dx = m.px - a.x, dy = m.py - a.y, d = Math.hypot(dx, dy); a.path = []; a.moving = d > .05; if (d <= .01 && m.fd != null) { a.dir = m.fd; a.face = m.ff; } if (d > 3) { a.x = m.px; a.y = m.py; } else if (d > .01) { const st = Math.min(d, 2.6 * dt); a.x += dx / d * st; a.y += dy / d * st; if (Math.abs(dx - dy) > .05) a.dir = dx - dy > 0 ? 1 : -1; a.face = dx + dy < 0 ? 1 : 0; } }
@@ -3459,7 +3483,7 @@ return true;
       if (m.role === 'cashier') { const dk = L.kit.find(k => k.k === 'cashdesk'); if (!dk) continue; tile = [dk.x + Math.min(dk.w - 1, i - 1), dk.y - 1]; face = { x: dk.x + (i - 1), y: dk.y + 2, w: 1, d: 1 }; } // v9.91: behind the desk (north side), facing the guests
       else if (m.role === 'play') tile = [L.pen.x0 + Math.min(L.pen.x1 - L.pen.x0 - 1, i), L.pen.y0 + Math.min(L.pen.y1 - L.pen.y0 - 1, 1)];
       else { const base = L.kit.find(k => k.k === (m.role === 'cook' ? 'stove' : 'register') || (m.role !== 'cook' && k.k === 'counter')) || L.kit[0]; if (!base) continue; tile = [base.x + (i - 1) * 2, base.y + 1]; face = base; }
-      let a = hospIn.get('c' + m.id); if (!a) { const lk = ART.randomHuman(m.seed); lk.hat = null; lk.top = 'jacket'; lk.jacket = m.role === 'cook' ? '#ffffff' : m.role === 'server' ? '#5a4a3a' : '#f5b342'; applyStaffArt(lk, m.seed, false); a = { id: 'cst' + m.id, type: 'hstaff', inFloor: true, x: tile[0] + .5, y: tile[1] + .5, path: [], dir: 1, face: 0, moving: false, speed: 2, t: Math.random() * 10, idle: 0, look: lk }; hospIn.set('c' + m.id, a); }
+      let a = hospIn.get('c' + m.id); if (!a) { const lk = ART.randomHuman(m.seed); lk.hat = null; lk.top = 'jacket'; lk.jacket = m.role === 'cook' ? '#ffffff' : m.role === 'server' ? '#5a4a3a' : '#f5b342'; applyStaffArt(lk, m.seed, false, m.role === 'cook' ? 'chef' : m.role === 'server' ? 'waiter' : undefined); a = { id: 'cst' + m.id, type: 'hstaff', inFloor: true, x: tile[0] + .5, y: tile[1] + .5, path: [], dir: 1, face: 0, moving: false, speed: 2, t: Math.random() * 10, idle: 0, look: lk }; hospIn.set('c' + m.id, a); }
       if (m.role === 'play') { penPlay(a, L.pen); a.m = m; keepC.add('c' + m.id); if (a.hidden) continue; out.push({ depth: a.x + a.y, fn: () => { drawActor(a); drawPenPlay(a); } }); continue; }
       a.x = tile[0] + .5; a.y = tile[1] + .5; a.m = m; a.moving = false; a.t += 1 / 60; if (face) faceTo(a, face.x + face.w / 2, face.y + face.d / 2); keepC.add('c' + m.id);
       if (!a.hidden) out.push({ depth: a.x + a.y, fn: () => drawActor(a) });

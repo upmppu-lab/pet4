@@ -293,7 +293,9 @@ const TOWN = (() => {
     add(-1, -1, W + 2, H + 2, 1); add(W + 1, VILLAGE_Y0 - 2, 9, 400, 0);   // x를 W-1 → W+1로, 폭 11 → 9로 축소
     if (typeof VILLAGE !== 'undefined') { const b = VILLAGE.BOARD(); add(b.x, b.y, 1, 1, 1); }
     for (const tz of trainZones(s)) add(tz.x, tz.y, tz.w, tz.d, 0);
-    for (const k of TOWN_BIG) { if (k === ignore) continue; const L = LAY(k, s), d = D[k]; if (L && !d.noPlace) add(L.x, L.y, d.w, d.d, 0); }
+    // v1.118: 큰 건물(병원/카페/미용실 등)끼리는 여백 0으로 예약되어 있어서, 둘이 딱 붙어버리면 각자
+    // 그리는 외벽이 같은 자리에 겹쳐 보이는 문제(북쪽벽이 겹쳐 보임)가 생김 - 1칸 여백을 둬서 방지.
+    for (const k of TOWN_BIG) { if (k === ignore) continue; const L = LAY(k, s), d = D[k]; if (L && !d.noPlace) add(L.x, L.y, d.w, d.d, 1); }
     return R;
   }
   let _res = null, _resKey = '';
@@ -1480,10 +1482,20 @@ const roadTileOk = (s, x, y) => {
     }
     return refundCoins;
   }
+  // v1.120: 건물끼리(특히 남북으로 늘어선 큰 건물들) 겹쳤을 때는 아무 방향으로나 밀어내지 않고, 북쪽/남쪽
+  // 관계를 유지하도록 "같은 x, 더 북쪽(y가 더 작은 쪽)"부터 먼저 찾아봄 (가게/카페처럼 항상 남쪽 건물이 위로
+  // 올라오게). 바로 위가 전부 막혀있을 때만 기존의 사방 나선 탐색으로 넘어감.
+  function nearFreeUp(s, k, x0, y0, r, ignore, maxR) {
+    for (let R = 1; R < (maxR || 60); R++) { const y = y0 - R; if (!canPlace(s, k, x0, y, r, ignore)) return { x: x0, y }; }
+    return null;
+  }
   function fitShop(s) {
     const T = s && s.town; if (!T) return;
     const trLv = ((typeof TRAIN !== 'undefined' && s.train && s.train.lv) || 1);
-    const key = Wd(s) + 'x' + Hd(s) + ':' + ((s.cafe && s.cafe.lv) || 0) + ':' + ((s.hosp && s.hosp.lv) || 0) + ':tr' + trLv;
+    // v1.121: 호수(lake)도 TOWN_BIG 멤버라 여백=1 수정(위 v1.118)의 효과를 받지만, 기존 세이브는 fitKey가
+    // 그대로라 다음 레벨업 전까지 재배치가 안 일어남 -> ":fv2" 로 키를 한 번 바꿔서 기존 세이브도 이 배포
+    // 직후 한 번은 강제로 전체 재배치(겹침 해소)를 거치도록 함.
+    const key = Wd(s) + 'x' + Hd(s) + ':' + ((s.cafe && s.cafe.lv) || 0) + ':' + ((s.hosp && s.hosp.lv) || 0) + ':tr' + trLv + ':fv2';
     if (T.fitKey !== key) {
       T.fitKey = key;
       clearBuildingOverlaps(s);
@@ -1491,7 +1503,7 @@ const roadTileOk = (s, x, y) => {
       for (const k of TOWN_BIG) {
         const L = LAY(k, s);
         if (L && !D[k].noPlace && canPlace(s, k, L.x, L.y, 0, k)) {
-          const p = nearFree(s, k, L.x, L.y, 0, k, 70);
+          const p = nearFreeUp(s, k, L.x, L.y, 0, k, 70) || nearFree(s, k, L.x, L.y, 0, k, 70);
           if (p) { L.x = p.x; L.y = p.y; }
         }
       }

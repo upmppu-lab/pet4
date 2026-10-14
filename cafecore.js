@@ -220,7 +220,10 @@ function cafeLayoutErr(L) {
 function cafeCheckPlace(cf, Wv, lv, it) {
   const F0 = cafeFurn(it.k); if (!F0) return 'gone';
   const F = it.r ? Object.assign({}, F0, { w: F0.d, d: F0.w }) : F0; // rotated: the footprint is turned
-  const e = CAFE_LV[lv], others = (cf.items || []).filter(o => o.id !== it.id), L0 = cafeBuildLayout({ items: others }, Wv, lv);
+  // v1.117: kitDone을 안 넘기면 이미 주방(냉장고/화구/싱크대/계산대)이 확정된 뒤에도 그 자리에 "가상의 주방"을
+  // 다시 계산해버려서, 실제로 그 자리에 있는 주방 아이템 자신과 충돌(cafeOverlap)한 것처럼 오판함 -> 레벨업 등으로
+  // 재배치될 때 멀쩡한 주방이 엉뚱한 자리로 흩어지는 버그(병원의 벽 버그와 동일한 원인) - kitDone도 함께 넘겨줌.
+  const e = CAFE_LV[lv], others = (cf.items || []).filter(o => o.id !== it.id), L0 = cafeBuildLayout({ items: others, kitDone: cf.kitDone }, Wv, lv);
   if (F.cat === 'pen') {
     if (it.x < 0 || it.y < 0 || it.x + F.w > e.pen[0] || it.y + F.d > e.pen[1]) return 'cafePenOnly';
     for (const q of L0.equip) if (it.x < q.rx + q.w && it.x + F.w > q.rx && it.y < q.ry + q.d && it.y + F.d > q.ry) return 'cafeOverlap';
@@ -231,7 +234,7 @@ function cafeCheckPlace(cf, Wv, lv, it) {
     if (x < L0.ex || x >= L0.ex + L0.W_ || y < L0.ny || y >= L0.ny + L0.D_) return 'cafeOutside';
     if (L0.solid.has(x + ',' + y) || L0.noPlace.has(x + ',' + y)) return 'cafeOverlap';
   }
-  const L1 = cafeBuildLayout({ items: others.concat([{ id: it.id, k: it.k, x: it.x - Wv, y: it.y - cafeS(), f: it.f, r: it.r }]) }, Wv, lv);
+  const L1 = cafeBuildLayout({ items: others.concat([{ id: it.id, k: it.k, x: it.x - Wv, y: it.y - cafeS(), f: it.f, r: it.r }]), kitDone: cf.kitDone }, Wv, lv);
   return cafeLayoutErr(L1);
 }
 // first free spot for a new piece: the south-east side first, keeping a tile of air around it when possible
@@ -271,6 +274,17 @@ const CAFE = (() => {
     if (!s.cafe) s.cafe = { built: false, orders: [], seq: 1, served: 0, spawnT: 0, dishes: {}, lv: 1, pending: [] };
     const cf = s.cafe;
     if (!cf.orders) cf.orders = []; if (!cf.seq) cf.seq = 1; if (cf.served == null) cf.served = 0; if (cf.spawnT == null) cf.spawnT = 0; if (!cf.dishes) cf.dishes = {}; if (!cf.lv) cf.lv = 1; if (!cf.pending) cf.pending = []; if (!cf.players) cf.players = []; if (!cf.staff) cf.staff = []; if (!cf.sseq) cf.sseq = 1; if (cf.joy == null) cf.joy = 0;
+    // v1.115: 타운 배치(fitShop)가 카페 건물을 다른 자리로 밀 때 저장된 가구 좌표가 예전 기준점 기준으로
+    // 남아 어긋나는 문제 방지 (병원과 동일한 원인) - 기준점이 달라졌으면 그 차이만큼 전부 같이 옮겨줌.
+    if (cf.built) {
+      const Wv0 = cafeW(), S0 = cafeS();
+      if (cf.ax != null && (cf.ax !== Wv0 || cf.ay !== S0)) {
+        const dx = cf.ax - Wv0, dy = cf.ay - S0;
+        for (const it of cf.items || []) { it.x += dx; it.y += dy; }
+        cf.iv = (cf.iv | 0) + 1;
+      }
+      cf.ax = Wv0; cf.ay = S0;
+    }
     if (cf.built && !cf.items) initItems(s, cf);
     if (cf.built && cf.items && !cf.kitDone) { // the kitchen row becomes ordinary stored pieces (movable)
       const Wv = cafeW(), lv = Math.min(CAFE_MAX, Math.max(1, cf.lv || 1)), L = cafeBuildLayout(cf, Wv, lv);
@@ -401,6 +415,13 @@ const CAFE = (() => {
       s.coins -= CAFE_BUILD_COST; cf.built = true; cf.spawnT = 6; initItems(s, cf);
       if (typeof TOWN !== 'undefined' && TOWN.fitShop) TOWN.fitShop(s);
       return { ok: 1, fx: 'coin', msg: 'cafeBuilt' };
+    }
+    if (a.t === 'cafedemolish') { // v1.114: "철거" - 완전히 허물고 1단계부터 다시 지을 수 있게 리셋 (절반 환불)
+      if (!cf.built) return { err: 'gone' };
+      let refund = CAFE_BUILD_COST; for (let i = 2; i <= cf.lv; i++) refund += (CAFE_LV[i] && CAFE_LV[i].cost) || 0;
+      s.coins += Math.round(refund * .5);
+      s.cafe = { built: false, orders: [], seq: 1, served: 0, spawnT: 0, dishes: {}, lv: 1, pending: [] };
+      return { ok: 1, fx: 'coin', msg: 'cafeDemolished' };
     }
     if (a.t === 'cafeup') {
       if (!cf.built) return { err: 'gone' };

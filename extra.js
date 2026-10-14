@@ -21,12 +21,12 @@ const COSM_DEF = {
   cap5:   { slot: 'head', front: 'head_cap5',  side: 'head__side_cap5',  name: '모자 5' },
   ribbon: { slot: 'head', front: 'head_ribon', side: 'head_side_ribon',  name: '리본 머리띠' },
   // === 안경 (face) - 6종 ===
-  glass1: { slot: 'face', front: 'glass_1', side: 'glass_side_1', name: '안경 1' },
-  glass2: { slot: 'face', front: 'glass_2', side: 'glass_side_2', name: '안경 2' },
-  glass3: { slot: 'face', front: 'glass_3', side: 'glass_side_3', name: '안경 3' },
-  glass4: { slot: 'face', front: 'glass_4', side: 'glass_side_4', name: '안경 4' },
-  glass5: { slot: 'face', front: 'glass_5', side: 'glass_side_5', name: '안경 5' },
-  glass6: { slot: 'face', front: 'glass_6', side: 'glass_side_6', name: '안경 6' },
+  glass1: { slot: 'face', front: 'glass_1', side: 'glass_side_1', diag: 'glass_1', name: '안경 1' },
+  glass2: { slot: 'face', front: 'glass_2', side: 'glass_side_2', diag: 'glass_2', name: '안경 2' },
+  glass3: { slot: 'face', front: 'glass_3', side: 'glass_side_3', diag: 'glass_3', name: '안경 3' },
+  glass4: { slot: 'face', front: 'glass_4', side: 'glass_side_4', diag: 'glass_4', name: '안경 4' },
+  glass5: { slot: 'face', front: 'glass_5', side: 'glass_side_5', diag: 'glass_5', name: '안경 5' },
+  glass6: { slot: 'face', front: 'glass_6', side: 'glass_side_6', diag: 'glass_6', name: '안경 6' },
   // === 목걸이 (neck) - 3종 ===
   necklace1: { slot: 'neck', front: 'Necklace_1', side: 'Necklace_side_1', name: '목걸이 1' },
   necklace2: { slot: 'neck', front: 'Necklace_2', side: 'Necklace_side_2', name: '목걸이 2' },

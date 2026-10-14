@@ -118,6 +118,7 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
 #toasts{position:fixed;left:0;right:0;top:calc(188px + env(safe-area-inset-top));display:flex;flex-direction:column;align-items:center;gap:5px;z-index:60;pointer-events:none}
 .toast{background:rgba(59,38,22,.9);color:#fff;padding:8px 14px;border-radius:14px;font-size:13px;font-weight:700;max-width:80%;text-align:center;border:2px solid #e9c48a;animation:toast 2.8s forwards}
 .toast.partner{background:rgba(47,122,90,.92);border-color:#9fd6bf}
+.toast.acc{margin-top:160px}
 @keyframes toast{0%{opacity:0;transform:translateY(-8px)}8%{opacity:1;transform:none}85%{opacity:1}100%{opacity:0}}
 .fx{position:fixed;pointer-events:none;z-index:40;font-size:26px;animation:floatup 1.2s ease-out forwards;transform:translate(-50%,-50%)}
 @keyframes floatup{to{margin-top:-80px;opacity:0;scale:1.3}}

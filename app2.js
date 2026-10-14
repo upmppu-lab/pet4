@@ -194,7 +194,7 @@ const XACT = Object.assign(window.XACT || {}, {
     SND.pop();
     // 알림
     if (accId) {
-      toast('✨ ' + (t('cosm_' + accId) || accId) + ' ' + (CFG.lang === 'ru' ? 'надето' : '착용!'));
+      toast('✨ ' + (t('cosm_' + accId) || accId) + ' ' + (CFG.lang === 'ru' ? 'надето' : '착용!'), 'acc');
     } else {
       toast(CFG.lang === 'ru' ? 'Снято' : '해제했어요');
     }

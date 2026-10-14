@@ -167,6 +167,11 @@ function hospBuildLayout(hp, Rm, lv) {
           parts.push({ x, y: ry1, vert: false, doorway: isDoor, room: id });
         }
       }
+    } else {
+      // v1.119: 벽은 이미 실물 아이템으로 저장되어 매번 다시 그릴 필요 없지만, 출입구 장식 프레임은
+      // (막히지 않도록) 저장하지 않으므로 done 상태에서도 매번 다시 계산해서 그려줘야 함
+      const doorX = rooms[id].door[0], k = doorX + ',' + ry1;
+      if (!partSet.has(k)) { partSet.add(k); parts.push({ x: doorX, y: ry1, vert: false, doorway: true, room: id }); }
     }
     cx = x0 - 1;
   });
@@ -260,7 +265,11 @@ function hospCheckPlace(hp, Rm, lv, it) {
   const F0 = hospFurn(it.k); if (!F0) return 'gone';
   const F = it.r ? Object.assign({}, F0, { w: F0.d, d: F0.w }) : F0; // rotated: the footprint is turned
   if (!F.dps.includes(it.dp)) return 'hospWrongFloor';
-  const R = hospRect(Rm.w, Rm.h, lv), others = (hp.items || []).filter(o => o.id !== it.id), L0 = hospBuildLayout({ items: others, kitDone: hp.kitDone }, Rm, lv);
+  // v1.117: partsDone을 안 넘기면 이미 벽으로 확정된 방까지 "가상의 벽"을 다시 계산해버려서, 그 자리에 실제로
+  // 놓여있는 파티션 아이템 자신과 충돌(hospOverlap)한 것처럼 오판함 -> relocateAll이 멀쩡한 벽들을 전부
+  // "자리가 없다"고 여겨 엉뚱한 로비 바닥으로 흩어놓음(진료실 등에 벽이 사라지고, 이상한 줄로 늘어선 파티션들이
+  // 생기는 버그의 진짜 원인) - kitDone과 마찬가지로 partsDone도 반드시 함께 넘겨줘야 함.
+  const R = hospRect(Rm.w, Rm.h, lv), others = (hp.items || []).filter(o => o.id !== it.id), L0 = hospBuildLayout({ items: others, kitDone: hp.kitDone, partsDone: hp.partsDone }, Rm, lv);
   if (it.dp !== 'lobby' && !L0.rooms[it.dp]) return 'hospWrongFloor';
   for (let i = 0; i < F.w; i++) for (let j = 0; j < F.d; j++) {
     const x = it.x + i, y = it.y + j;
@@ -268,12 +277,27 @@ function hospCheckPlace(hp, Rm, lv, it) {
     if (L0.solid.has(x + ',' + y) || L0.noPlace.has(x + ',' + y)) return 'hospOverlap';
     if (!L0.inRegion(it.dp, x, y) && it.k !== 'part') return 'hospOutside';
   }
-  return hospLayoutErr(hospBuildLayout({ items: others.concat([{ id: it.id, k: it.k, dp: it.dp, x: it.x - R.x1, y: it.y - R.y, r: it.r }]), kitDone: hp.kitDone }, Rm, lv));
+  return hospLayoutErr(hospBuildLayout({ items: others.concat([{ id: it.id, k: it.k, dp: it.dp, x: it.x - R.x1, y: it.y - R.y, r: it.r }]), kitDone: hp.kitDone, partsDone: hp.partsDone }, Rm, lv));
 }
 function hospAutoSpot(hp, Rm, lv, k, dp) {
   const F = hospFurn(k), R = hospRect(Rm.w, Rm.h, lv), cand = [];
   const L0 = hospBuildLayout(hp, Rm, lv);
   for (let y = R.y1 - F.d; y >= R.y; y--) for (let x = R.x1 - F.w; x >= R.x; x--) { let ok = true; for (let i = 0; i < F.w && ok; i++) for (let j = 0; j < F.d; j++) if (!L0.inRegion(dp, x + i, y + j)) { ok = false; break; } if (ok) cand.push({ x, y }); }
+  for (const air of [true, false]) for (const c of cand) {
+    if (air) { let ok = true; for (let i = -1; i <= F.w && ok; i++) for (let j = -1; j <= F.d; j++) if (L0.solid.has((c.x + i) + ',' + (c.y + j))) { ok = false; break; } if (!ok) continue; }
+    if (!hospCheckPlace(hp, Rm, lv, { id: -1, k, dp, x: c.x, y: c.y })) return c;
+  }
+  return null;
+}
+// v1.121: hospAutoSpot은 항상 동(東)-남쪽 모서리부터 채우므로 긴의자가 매번 구석에 몰림 -> 긴의자 전용으로
+// "대기실 가로 중앙에 가까운 자리부터, 같은 거리면 더 남쪽부터" 순서로 고르는 버전. 병원이 커질 때마다
+// 넓어진 대기실 전체 기준으로 다시 계산되어 중앙/남쪽 쪽으로 자연스럽게 재배치됨.
+function hospCenterSpot(hp, Rm, lv, k, dp) {
+  const F = hospFurn(k), R = hospRect(Rm.w, Rm.h, lv), cand = [];
+  const L0 = hospBuildLayout(hp, Rm, lv);
+  for (let y = R.y1 - F.d; y >= R.y; y--) for (let x = R.x1 - F.w; x >= R.x; x--) { let ok = true; for (let i = 0; i < F.w && ok; i++) for (let j = 0; j < F.d; j++) if (!L0.inRegion(dp, x + i, y + j)) { ok = false; break; } if (ok) cand.push({ x, y }); }
+  const cx = (R.x + R.x1) / 2;
+  cand.sort((a, b) => { const da = Math.abs(a.x + F.w / 2 - cx), db = Math.abs(b.x + F.w / 2 - cx); return da !== db ? da - db : b.y - a.y; });
   for (const air of [true, false]) for (const c of cand) {
     if (air) { let ok = true; for (let i = -1; i <= F.w && ok; i++) for (let j = -1; j <= F.d; j++) if (L0.solid.has((c.x + i) + ',' + (c.y + j))) { ok = false; break; } if (!ok) continue; }
     if (!hospCheckPlace(hp, Rm, lv, { id: -1, k, dp, x: c.x, y: c.y })) return c;
@@ -301,11 +325,24 @@ const HOSP = (() => {
   const lvNow = hp => hospLvOf(hp.lv);
   // put every piece back on a legal spot (after the shop / hospital changed): same place if it still fits, else the next free one, else refunded
   function relocateAll(s, hp) {
-    const Rm = roomOf(s), lv = lvNow(hp), old = hp.items || [], R = hospRect(Rm.w, Rm.h, lv);
+    const Rm = roomOf(s), lv = lvNow(hp), old0 = hp.items || [], R = hospRect(Rm.w, Rm.h, lv);
+    // v1.118: 레이아웃 유효성 검사(hospLayoutErr)는 "접수대가 있는지 + 대기줄이 있는지"까지 매번 통째로 확인하는데,
+    // 이 함수가 물건들을 하나씩 다시 채워넣는 동안에는 접수대가 아직 안 들어간 시점이 생겨서, 그 전에 검사받는
+    // 물건(특히 긴 의자)은 "접수대가 없다"는 이유로 번번이 거부되어 영구 환불(=사라짐)되고 있었음 -- 실제 사라진
+    // 긴 의자, 레벨업할 때마다 벽들이 엉뚱한 남동쪽 구석으로 튀어나가던 현상의 진짜 원인. 고정 비품(접수대 포함)을
+    // 먼저 제자리에 넣어두고 나서 나머지(긴의자, 파티션 벽 등)를 검사하도록 순서를 바꿔서 해결.
+    const old = old0.slice().sort((a, b) => { const fa = hospFurn(a.k), fb = hospFurn(b.k); return ((fa && fa.fixed) ? 0 : 1) - ((fb && fb.fixed) ? 0 : 1); });
     hp.items = []; hp.iv = (hp.iv | 0) + 1;
     for (const it of old) {
       const F = hospFurn(it.k); if (!F) continue;
       let dp = F.dps.includes(it.dp) ? it.dp : F.dps[0];
+      // v1.121: 긴의자는 "원래 자리가 아직도 비어있으니 그대로 둔다"를 적용하지 않고, 레벨업마다 넓어진
+      // 대기실 전체 기준으로 중앙/남쪽에 가까운 자리로 매번 다시 배치
+      if (it.k === 'bench') {
+        const p = hospCenterSpot(hp, Rm, lv, it.k, dp);
+        if (p) hp.items.push({ id: it.id, k: it.k, dp, x: p.x - R.x1, y: p.y - R.y, v: it.v, r: it.r }); else s.coins += F.cost;
+        continue;
+      }
       const same = { id: it.id, k: it.k, dp, x: it.x + R.x1, y: it.y + R.y };
       if (!hospCheckPlace(hp, Rm, lv, same)) { hp.items.push({ id: it.id, k: it.k, dp, x: it.x, y: it.y, v: it.v, r: it.r }); continue; }
       const p = hospAutoSpot(hp, Rm, lv, it.k, dp);
@@ -313,10 +350,14 @@ const HOSP = (() => {
     }
     hp.iv = (hp.iv | 0) + 1;
   }
-  function grantBase(s, hp) { // Lv1 comes with two lobby benches and one treatment bed (nothing else is given later)
-    if (hp.baseGiven2) return; hp.baseGiven2 = 1;
+  // v1.119: 긴의자/치료 침상은 레벨이 오를 때마다 그 레벨의 정원(cap)만큼 무료로 채워짐(예전엔 Lv1에서
+  // 딱 한 번만 2개/1개 주고 끝 -> 이후 레벨업해도 늘어나지 않던 문제)
+  function grantBase(s, hp) {
     const Rm = roomOf(s), lv = lvNow(hp), R = hospRect(Rm.w, Rm.h, lv);
-    for (const [k, dp, n] of [['bench', 'lobby', 2], ['tbed', 'clinic', 1]]) { const have = hp.items.filter(i => i.k === k).length; for (let i = have; i < n; i++) { const p = hospAutoSpot(hp, Rm, lv, k, dp); if (p) { hp.items.push({ id: hp.iseq++, k, dp, x: p.x - R.x1, y: p.y - R.y }); hp.iv = (hp.iv | 0) + 1; } } }
+    for (const [k, dp] of [['bench', 'lobby'], ['tbed', 'clinic']]) {
+      const cap = hospCap(lv, k) || 0, have = hp.items.filter(i => i.k === k).length;
+      for (let i = have; i < cap; i++) { const p = k === 'bench' ? hospCenterSpot(hp, Rm, lv, k, dp) : hospAutoSpot(hp, Rm, lv, k, dp); if (p) { hp.items.push({ id: hp.iseq++, k, dp, x: p.x - R.x1, y: p.y - R.y }); hp.iv = (hp.iv | 0) + 1; } else break; }
+    }
   }
   // the rooms' built-in equipment (reception, sink, cabinets, desk ...) becomes ordinary stored pieces, so it can be moved like everything else
   function grantKit(s, hp) {
@@ -329,7 +370,11 @@ const HOSP = (() => {
   // the glass partitions between the rooms become ordinary stored pieces as well (movable, sellable, more can be bought)
   function grantParts(s, hp) {
     const Rm = roomOf(s), lv = lvNow(hp), R = hospRect(Rm.w, Rm.h, lv), L = hospBuildLayout(hp, Rm, lv);
-    for (const q of L.parts) hp.items.push({ id: hp.iseq++, k: 'part', dp: 'lobby', x: q.x - R.x1, y: q.y - R.y, v: q.vert ? 1 : 0 });
+    // v1.119: 방의 "출입구"로 비워둔 타일(doorway:true)까지 똑같이 진짜 벽 아이템으로 저장해버리고 있었음 ->
+    // 한 번 저장되고 나면 다시 불러올 때는 "출입구"라는 정보가 사라진 채 무조건 막힌 벽으로 취급되어, 방에
+    // 들어갈 길이 없어지고(입구가 없음) 그 안의 비품들도 전부 "갈 수 없는 곳"이 되어 엉뚱한 남동쪽 구석으로
+    // 밀려나던 버그의 진짜 원인. 출입구 타일은 벽으로 저장하지 않도록 제외.
+    for (const q of L.parts) { if (q.doorway) continue; hp.items.push({ id: hp.iseq++, k: 'part', dp: 'lobby', x: q.x - R.x1, y: q.y - R.y, v: q.vert ? 1 : 0 }); }
     hp.partsDone = hospRoomsAt(lv).slice(); hp.iv = (hp.iv | 0) + 1;
   }
   function ensure(s) {
@@ -339,12 +384,30 @@ const HOSP = (() => {
     if (!hp.skins) hp.skins = { 0: 1 }; if (hp.skin == null) hp.skin = 0;
     if (hp.built) {
       if (!hp.items) { hp.items = []; hp.iseq = 1; hp.iv = 1; }
+      // v1.115: 타운 배치(fitShop)가 병원 건물을 다른 자리로 밀 때 - 이미 저장된 가구/벽 좌표는 "저장 당시의
+      // 기준점(북동쪽 모서리)"에서 떨어진 상대좌표라, 기준점 자체가 옮겨지면 방(room)들은 새 위치에 맞춰
+      // 다시 계산되는데 저장된 가구/벽만 예전 자리에 그대로 남아 어긋나 보임(진료실 라벨은 제자리인데
+      // 파티션 벽들은 엉뚱한 곳에 줄지어 서있는 문제의 원인) - 기준점이 달라졌으면 그 차이만큼 전부 같이 옮겨줌.
+      { const R0 = hospRect(0, 0, lvNow(hp), s);
+        if (hp.ax != null && (hp.ax !== R0.x1 || hp.ay !== R0.y)) {
+          const dx = hp.ax - R0.x1, dy = hp.ay - R0.y;
+          for (const it of hp.items) { it.x += dx; it.y += dy; }
+          hp.iv = (hp.iv | 0) + 1;
+        }
+        hp.ax = R0.x1; hp.ay = R0.y;
+      }
       // older hospitals were multi-storey: rooms = departments now, the layout changed completely -> re-place everything, drop old patients
       if (!hp.v6) { hp.v6 = 1; hp.patients = []; hp.items.forEach(it => { delete it.fl; if (!hospFurn(it.k)) it.k = null; }); hp.items = hp.items.filter(it => it.k); hp.items.forEach(it => { const F = hospFurn(it.k); if (!F.dps.includes(it.dp)) it.dp = F.dps[0]; }); relocateAll(s, hp); }
       if (!hp.v7) { hp.v7 = 1; relocateAll(s, hp); } // benches now need a free tile in front of them (none may sit against the south wall)
       grantBase(s, hp);
-      if (!hp.kitDone || hospRoomsAt(lvNow(hp)).some(r => !hp.kitDone.includes(r))) grantKit(s, hp);
-      if (!hp.partsDone || hospRoomsAt(lvNow(hp)).some(r => !hp.partsDone.includes(r))) grantParts(s, hp);
+      // v1.113: leveling up claims more of the open lobby ground for the new department rooms, so anything the
+      // player had standing there (benches above all) can end up buried under the new room - bump everything
+      // back to a free spot first, THEN grant the new room's own walls/kit (fixes: benches "replaced" by walls,
+      // and the resulting jumble of overlapping partitions around the newly unlocked rooms).
+      const hospLvNow = lvNow(hp);
+      if ((hp.relocLv || 1) < hospLvNow) { relocateAll(s, hp); hp.relocLv = hospLvNow; }
+      if (!hp.kitDone || hospRoomsAt(hospLvNow).some(r => !hp.kitDone.includes(r))) grantKit(s, hp);
+      if (!hp.partsDone || hospRoomsAt(hospLvNow).some(r => !hp.partsDone.includes(r))) grantParts(s, hp);
     }
     return hp;
   }
@@ -451,6 +514,13 @@ const HOSP = (() => {
       return { ok: 1, fx: 'coin', msg: 'hospBuilt' };
     }
     if (!hp.built) return { err: 'gone' };
+    if (a.t === 'hospdemolish') { // v1.114: "철거" - 완전히 허물고 1단계부터 다시 지을 수 있게 리셋 (절반 환불)
+      if (!hp.built) return { err: 'gone' };
+      let refund = HOSP_BUILD_COST; for (let i = 2; i <= hp.lv; i++) refund += (HOSP_LV[i] && HOSP_LV[i].cost) || 0;
+      s.coins += Math.round(refund * .5);
+      s.hosp = { built: false, lv: 1, patients: [], seq: 1, spawnT: 0, treated: 0 };
+      return { ok: 1, fx: 'coin', msg: 'hospDemolished' };
+    }
     if (a.t === 'hospup') {
       const nx = HOSP_LV[hp.lv + 1]; if (!nx) return { err: 'gone' };
       if (s.level < nx.ulv) return { err: 'homeNeedPlayer', p: { n: nx.ulv } };

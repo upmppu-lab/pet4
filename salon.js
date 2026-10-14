@@ -161,7 +161,7 @@ const SALON = (() => {
     sl.staff.forEach((m, i) => {
       const id = 'ss' + m.id; W.alive.add(id);
       const busy = sl.q.find(c => c.ph === 'groom' && c.by === 'm' + m.id), tb = TABLES[busy ? busy.st : i % TABLES.length], tx = p.x + tb.u + 1.2, ty = p.y + tb.v + 1.6;
-      let a = W.actors.get(id); if (!a) { const lk = ART.randomHuman(m.seed); lk.top = 'jacket'; lk.jacket = '#ff9ec0'; lk.hat = null; applyStaffArt(lk, m.seed, false); a = W.mkActor(id, 'hstaff', tx, ty, { look: lk, speed: 2.4 }); }
+      let a = W.actors.get(id); if (!a) { const lk = ART.randomHuman(m.seed); lk.top = 'jacket'; lk.jacket = '#ff9ec0'; lk.hat = null; applyStaffArt(lk, m.seed, false, 'hairstylist'); a = W.mkActor(id, 'hstaff', tx, ty, { look: lk, speed: 2.4 }); }
       a.m = m; a.talk = false;
       const key = Math.floor(tx) + ',' + Math.floor(ty); if (a.tkey !== key) { a.tkey = key; W.goTo(a, tx, ty, () => W.faceTo(a, p.x + tb.u + 1, p.y + tb.v)); }
     });

@@ -306,7 +306,7 @@ const UPGRADES = [
   {id:'sign', cost:900, lv:4, icon:'🪧'},
   {id:'vipdesk', cost:3000, lv:10, icon:'🎩'},
 ];
-const APP_VER = '1.323'; // build_nosdk.py rewrites this to the version being built
+const APP_VER = '1.700'; // build_nosdk.py rewrites this to the version being built
 // v9.85 economy balance (girlfriend earned too easily with a full staff): one place to tune it
 const BAL = { WAGE_K: 3, FARM_WAGE_K: 1.5, EXPAND_K: 2.5, BUILD_K: 3, SALE_K: .8, TOP_K: .65, BUY_K: 1.35, DECOR_CAP: .25, TIP: .06, COMBO_STEP: .06, COMBO_CAP: .3 }; // v9.98: pet shop margin trimmed (buy cost, decor bonus, tips, rush combos)
 const balCost = c => Math.round(c * BAL.EXPAND_K / 100) * 100;
@@ -573,16 +573,33 @@ const STAFF_OUTFIT_MALE = [1, 6, 9, 10, 12, 13, 15, 16, 18, 22, 24, 25, 26, 28];
 const STAFF_OUTFIT_FEMALE = [2, 3, 4, 5, 7, 8, 11, 14, 17, 19, 20, 21, 23, 27, 29];
 const STAFF_MANAGER_HEAD = 1;
 const STAFF_MANAGER_OUTFIT = 30; // 매니저는 머리1번 + 몸30번(검정 앞치마) 고정, 다른 조합 불가
-function applyStaffArt(lk, seed, isManager) {
+// v1.114: 손으로 그린 특수 직업 전신 그림(의사/간호사/요리사/미용사/서빙인원)을 기존 staffhead/staffoutfit
+// 풀에 새 번호(역할별로 101/201/301/401/501대)로 추가해놓고, 역할별 전용 머리풀/옷풀을 따로 둠(둘 다
+// 있으면 그 역할 전용 룩만 뽑히고, 한쪽만 있으면 그 쪽만 전용 그림을 쓰고 나머지는 기존 풀에서 보충).
+const ROLE_STAFF_ART = {
+  doctor: { man: { head: [101], outfit: [101] }, women: { head: [102, 103, 104, 105], outfit: [102, 103, 104, 105] } },
+  nurse: { man: { head: [206, 209, 210], outfit: [206, 210] }, women: { head: [207, 208], outfit: [207, 208, 209] } },
+  chef: { man: { head: [312, 313, 315], outfit: [311, 314, 315] }, women: { head: [311, 314], outfit: [312, 313] } },
+  hairstylist: { man: { head: [416, 418], outfit: [416, 418, 420] }, women: { head: [417, 419], outfit: [] } },
+  waiter: { man: { head: [525], outfit: [525] }, women: { head: [], outfit: [] } },
+};
+function applyStaffArt(lk, seed, isManager, role) {
   const s2 = Math.floor((Math.abs(seed || 1) * 48271) % 2147483647); // randomHuman과는 다른 값이 나오게 한번 더 섞은 결정적 난수
+  const gender = lk.lash ? 'women' : 'man';
   const headPool = lk.lash ? STAFF_HEAD_FEMALE : STAFF_HEAD_MALE;
   const outfitPool = lk.lash ? STAFF_OUTFIT_FEMALE : STAFF_OUTFIT_MALE;
+  // v1.120: 사용자 요청으로 신규(손그림) 특수 직업 그림 적용을 임시로 끔(새로 그려주실 예정) - 기존 30종
+  // 직원 그림 풀로만 되돌림. ROLE_STAFF_ART 테이블/연결 코드는 남겨둬서 나중에 true로만 바꾸면 재적용 가능.
+  const ROLE_ART_ENABLED = false;
+  const roleArt = ROLE_ART_ENABLED && role && ROLE_STAFF_ART[role] && ROLE_STAFF_ART[role][gender];
+  const headSrc = (roleArt && roleArt.head.length) ? roleArt.head : headPool;
+  const outfitSrc = (roleArt && roleArt.outfit.length) ? roleArt.outfit : outfitPool;
   if (isManager) {
     lk.staffHead = STAFF_MANAGER_HEAD;
     lk.staffOutfit = STAFF_MANAGER_OUTFIT;
   } else {
-    lk.staffHead = headPool[s2 % headPool.length];
-    lk.staffOutfit = outfitPool[Math.floor(s2 / headPool.length) % outfitPool.length];
+    lk.staffHead = headSrc[s2 % headSrc.length];
+    lk.staffOutfit = outfitSrc[Math.floor(s2 / headSrc.length) % outfitSrc.length];
   }
   return lk;
 }
