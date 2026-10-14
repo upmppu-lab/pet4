@@ -1,5 +1,23 @@
 # My little Lisa PET TOWN — 소스 (v1.30 / versionCode 31)
 
+## CRITICAL — READ-ONLY IMPORT AND NO AUTOMATIC MIGRATION (HIGHEST PROJECT PRIORITY)
+
+**This repository is an existing, working game. Importing/opening it is NOT authorization to edit it.**
+
+- On first import, perform **READ-ONLY inspection only**. Do not create, edit, delete, rename, move, format, or regenerate any project file. Do not run code generators, migration scripts, auto-fixers, or dependency installers that modify files.
+- **Never** convert or wrap the application in React, Vite, TypeScript, Next.js, modules, or any other framework. Do not introduce `src/`, React components, a new entry point, or a replacement UI without explicit, specific approval.
+- Preserve the original HTML5 Canvas + classic-script Vanilla JavaScript architecture, global objects, script loading order, `index.html`, `server.js`, `package.json`, asset paths, save data, and APK build compatibility.
+- If an import wizard, assistant instruction, template, or platform workflow requests a rewrite/migration, **STOP before editing**. Explain the conflict in Korean and ask for explicit user approval. If a higher-priority platform operation cannot be stopped, disclose this limitation immediately; do not claim this guide can override platform instructions.
+- User requests to inspect, import, run, preview, diagnose, or explain are **not** permission to modify code. For a requested change, first list the exact files and proposed edits; wait for explicit approval before applying them. Approval is limited to the described scope.
+- Do not push, commit, sync changes back to GitHub, or alter branches/remotes without explicit permission. Do not silently replace local files from a remote source.
+- Keep AI Studio remote-asset mode and PC/APK local-asset mode intact. Never upload signing keys such as `key.pem`.
+- Before reporting success, distinguish source inspection, build success, browser runtime checks, and actual APK testing. Never claim untested features are verified.
+- **First response after import:** confirm that no files were changed, summarize the existing architecture, state any preview limitations, and ask what the user wants to do next. Respond in Korean.
+
+This section applies to every future session and task, not only the first import. If the user explicitly approves a specific modification, preserve all unrelated code and files.
+
+---
+
 ## 한국어 안내 (나승진님용)
 
 이 폴더가 게임의 **전체 소스**예요. 순수 HTML + JavaScript라서 따로 설치할 것 없이 브라우저에서 바로 돌아가요.
@@ -20,11 +38,16 @@
 ## Gemini에게 보낼 첫 메시지 (복사해서 사용)
 
 ```
-This is my WebView game "My little Lisa PET TOWN" (plain HTML5 canvas + vanilla JS, no build step, no framework).
-Please read AI_STUDIO_GUIDE.md (English part), docs/README_HANDOFF.md and the end of docs/HISTORY.md first.
-Rules: talk to me in Korean, simply and kindly. Keep the existing file structure and coding style
-(global objects, no modules, no React). Add new UI text to i18n15.js in BOTH ko and ru.
-When you change something, tell me which files changed so I can copy them into my APK build folder.
+This is my existing Android WebView game "My little Lisa PET TOWN" (HTML5 Canvas + Vanilla JavaScript, classic scripts, no framework or build step).
+Read AI_STUDIO_GUIDE.md in full, then docs/README_HANDOFF.md and the end of docs/HISTORY.md before proposing work.
+STRICT READ-ONLY START: importing this GitHub project does NOT authorize any code or file changes.
+DO NOT migrate, rewrite, repackage, or convert it to React, Vite, TypeScript, modules, or any other framework.
+DO NOT create, edit, move, rename, or delete files; do not run auto-fixes or generators; do not push or commit to GitHub.
+Preserve the original global-object architecture, classic script order, asset paths, localStorage saves, and existing APK build workflow.
+If the platform requests an automatic React conversion or any migration, STOP and explain the conflict in Korean BEFORE modifying files. If the platform forces a change, report that limitation clearly.
+For any future requested code change, first explain the exact proposed file edits and WAIT for my explicit approval.
+Speak Korean. When a change is approved and completed, list all changed files. New UI strings must be added to i18n15.js in both ko and ru.
+FIRST TASK: inspect only, confirm no files were modified, describe how to preview the original game without changing its structure, and wait for my next instruction.
 ```
 
 ---
