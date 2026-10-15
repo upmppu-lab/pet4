@@ -323,6 +323,7 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
 .lvstar.l3{font-size:9.5px;letter-spacing:-.6px}
 
 .plv{position:absolute;top:-10px;left:-10px;background:#8a5a33;color:#fff;font-weight:900;font-size:10px;padding:1px 6px;border-radius:9px;border:2px solid #fff;z-index:2;white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.plv.sm{top:-6px;left:-6px;font-size:8px;padding:0 4px;border-width:1px}
 
 .rtag{display:inline-block;background:#fff6e6;border:1px solid #e8d4b0;border-radius:8px;padding:1px 5px;margin:2px 2px 0 0;font-size:11px}
 
@@ -475,19 +476,29 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
 }
 
 /* ================= pet battle UI (2026-10-15) ================= */
-.bwrap{position:relative;border-radius:16px;overflow:hidden;background:linear-gradient(#bfe6a0,#8fc26a);padding:8px;margin:4px 0}
-.bwrap::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 85%,rgba(255,255,255,.35),transparent 60%);pointer-events:none}
-.bstage{position:relative;height:190px}
+.bwrap{position:relative;border-radius:16px;overflow:hidden;padding:8px;margin:4px 0;
+  background:linear-gradient(180deg,#7fc9ef 0%,#bfe6f5 42%,#9fcf6a 42%,#6fae52 100%)}
+.bwrap::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 28% 92%,rgba(255,255,255,.4),transparent 55%);pointer-events:none}
+.bwrap::after{content:'';position:absolute;left:0;right:0;top:42%;height:4px;background:rgba(255,255,255,.3);box-shadow:0 1px 2px rgba(0,0,0,.08);pointer-events:none}
+.bwrap.flash{animation:bscreenflash .3s ease-out}
+@keyframes bscreenflash{0%{background-color:transparent}15%{background-color:#fff}100%{background-color:transparent}}
+.bwrap.flash::before{animation:bscreenflash .3s ease-out}
+.bstage{position:relative;height:200px}
 .bside{position:absolute;display:flex;flex-direction:column;z-index:2}
-.bside.foe{top:2px;right:4px;align-items:flex-end}
-.bside.me{bottom:2px;left:4px;align-items:flex-start}
+/* diagonal Pokémon layout: foe small & far, upper-right; my pet big & close, lower-left */
+.bside.foe{top:6px;right:18px;align-items:flex-end}
+.bside.me{bottom:8px;left:10px;align-items:flex-start}
 .bcard{background:rgba(255,255,255,.96);border:2px solid #fff;border-radius:12px;padding:5px 10px;box-shadow:0 3px 8px rgba(0,0,0,.18);min-width:112px}
 .bcard .bname{font-size:12px;font-weight:900;color:#3a2418;display:flex;justify-content:space-between;gap:8px;white-space:nowrap}
-.bcard .bhp{height:7px;border-radius:5px;background:#e3d8c0;margin-top:3px;overflow:hidden}
-.bcard .bhp i{display:block;height:100%;border-radius:5px;transition:width .4s ease}
-.bimg{width:80px;height:80px;object-fit:contain;filter:drop-shadow(0 6px 4px rgba(0,0,0,.25));transition:filter .2s ease}
+.bcard .bhp{position:relative;height:11px;border-radius:6px;background:#e3d8c0;margin-top:3px;overflow:hidden}
+.bcard .bhp i{display:block;height:100%;border-radius:6px;transition:width .4s ease}
+.bcard .bhp .bhpnum{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:900;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.65);letter-spacing:.2px;pointer-events:none}
+.bplat{position:absolute;left:50%;bottom:4px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.32),rgba(0,0,0,0) 70%);z-index:1}
+.bside.foe .bplat{width:54px;height:14px;transform:translateX(-50%)}
+.bside.me .bplat{width:88px;height:20px;transform:translateX(-50%)}
+.bimg{width:66px;height:66px;object-fit:contain;filter:drop-shadow(0 6px 4px rgba(0,0,0,.25));transition:filter .2s ease;position:relative;z-index:2}
 .bside.foe .bimg{margin-top:4px}
-.bside.me .bimg{margin-bottom:4px;transform:scaleX(-1)}
+.bside.me .bimg{width:102px;height:102px;margin-bottom:4px;transform:scaleX(-1)}
 .bimg.atkme{animation:batkMe .4s ease-in-out}
 .bimg.atkfoe{animation:batkFoe .4s ease-in-out}
 .bimg.hit{animation:bhit .35s ease-in-out}
@@ -502,3 +513,18 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
 .bfloat.dmg{color:#d6352f;text-shadow:0 1px 0 #fff,0 1px 3px #fff}
 .bfloat.heal{color:#2a9a4a;text-shadow:0 1px 0 #fff,0 1px 3px #fff}
 @keyframes bfloatup{0%{opacity:1;transform:translateX(-50%) translateY(0)}100%{opacity:0;transform:translateX(-50%) translateY(-34px)}}
+/* v2026-10-15 (v3): lightning-bolt zap on hits, layered over whoever got hit */
+.bzap{position:absolute;top:-4px;left:50%;transform:translateX(-50%);font-size:34px;z-index:6;pointer-events:none;
+  animation:bzap .4s ease-out forwards;filter:drop-shadow(0 0 6px #fff9c4) drop-shadow(0 0 3px #ffe066)}
+@keyframes bzap{0%{opacity:0;transform:translateX(-50%) scale(.4) rotate(-8deg)}30%{opacity:1;transform:translateX(-50%) scale(1.25) rotate(4deg)}60%{opacity:1;transform:translateX(-50%) scale(1) rotate(-3deg)}100%{opacity:0;transform:translateX(-50%) scale(1.1) rotate(0)}}
+/* v2026-10-15 (v2): tap-your-own-pet-to-use-a-skill battle UI */
+.bimg.tappable{cursor:pointer;animation:bTapHint 1.1s ease-in-out infinite}
+.bside.me .bimg.tappable{filter:drop-shadow(0 6px 4px rgba(0,0,0,.25)) drop-shadow(0 0 7px rgba(255,214,110,.9))}
+@keyframes bTapHint{0%,100%{transform:scaleX(-1) translateY(0)}50%{transform:scaleX(-1) translateY(-4px)}}
+.bskillmenu{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.bskillbtn{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:#fff8ea;border:2px solid #e2c596;border-radius:10px;padding:7px 10px;font-weight:700;color:#3a2418;font-size:13px}
+.bskillbtn:not(.dis):active{background:#ffe9b8}
+.bskillbtn.dis{opacity:.5;filter:grayscale(.4)}
+.bskillbtn .bsicon{font-size:18px}
+.bskillbtn .bsname{flex:1}
+.bskillbtn .bstag{font-size:11px;font-weight:600;color:#a0602a;white-space:nowrap}

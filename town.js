@@ -5356,7 +5356,15 @@ function getFlowerSprite(kind) {
   function drawFollower(c, a, T) {
     const sx = ISO.wx(a.x, a.y), sy = ISO.wy(a.x, a.y), p = a.pet, sz = .6 * (p.grow != null && G.ageOf ? .6 + .4 * G.ageOf(p) : 1);
     ART.ell(c, sx, sy, 10, 4, 'rgba(0,0,0,.14)');
-    c.save(); c.translate(sx, sy - (a.moving ? Math.abs(Math.sin(T * 10)) * 1.5 : 0)); c.scale(sz * (a.dir || 1), sz); ART.pet(c, p.sp, { t: T, mood: 'happy', seed: p.coat, age: p.grow != null ? G.ageOf(p) : 1, moving: a.moving, dir: a.dir || 1, wear: p.wear }); c.restore();
+    c.save(); c.translate(sx, sy - (a.moving ? Math.abs(Math.sin(T * 10)) * 1.5 : 0)); c.scale(sz * (a.dir || 1), sz);
+    // v2026-10-15: species whose art has been upgraded to a hand-drawn PNG (guinea pigs, some dog
+    // breeds, etc. -- PNG_PETS) were still being drawn with the old vector ART.pet() here, so the pet
+    // walking beside you didn't match the actual pet shown in its own status panel (which already used
+    // the PNG via PIC.my/PET_PNG). Try the PNG first, same as every other pet-on-the-ground render path.
+    const pst = { t: T, mood: 'happy', seed: p.coat || ART.hashStr(p.id || p.name || p.sp), age: p.grow != null ? G.ageOf(p) : 1, moving: a.moving, dir: a.dir || 1, wear: p.wear };
+    const pngOk = (typeof PNG_PETS !== 'undefined' && PNG_PETS[p.sp]) && (typeof World !== 'undefined' && World.drawPngPet) && World.drawPngPet(c, p.sp, pst);
+    if (!pngOk) ART.pet(c, p.sp, pst);
+    c.restore();
     if (!a.moving && Math.sin(T * .7 + (a.pet.coat || 0)) > .97) { c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillText('💕', sx + 6, sy - 30); c.textAlign = 'start'; }
   }
   // ---------------- residential zones: ground (under everything) + entrance sign ----------------

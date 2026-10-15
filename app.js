@@ -385,6 +385,13 @@ function actR(a) {
 }
 function startCafeEdit(sel) { App.editing = false; App.cafeEdit = true; World.cafeSel = sel == null ? null : sel; closePanel(); World.focusCafe(); if (sel != null) toast(t('placeHint')); render(); }
 function startHospEdit(sel, fl) { if (fl) App.hospFloor = fl; App.editing = false; App.cafeEdit = false; App.hospEdit = true; World.hospSel = sel == null ? null : sel; closePanel(); World.focusHosp(); if (sel != null) toast(t('placeHint')); render(); }
+// v2026-10-15: find a villager's live actor in the world so we can walk the player over to them before a
+// pet battle actually starts (battles shouldn't be able to start from across the map).
+function residentActor(rid) {
+  if (!rid || !World.actors) return null;
+  for (const a of World.actors.values()) if (a && a.type === 'vil' && a.residentId === rid) return a;
+  return null;
+}
 function careFx(a) {
   if (!['feed', 'clean', 'play', 'pat', 'groom'].includes(a.t)) return;
   const pa = World.petActor(a.pid);
@@ -560,6 +567,9 @@ function frameHTML(title, body, noClose) {
   return `<div class="ov" data-a="ovclose"><div class="panel"><div class="ph">${backBtn}<span class="phtitle">${title}</span>${closeBtn}</div><div class="pb">${body}</div></div></div>`;
 }
 function bar(v, col, txt) { return `<div class="pbar"><i style="width:${Math.max(0, Math.min(100, v)).toFixed(0)}%;background:${col}"></i><span>${txt != null ? txt : Math.round(v) + '%'}</span></div>`; }
+// v2026-10-15: a small "⚔️Lv.n" battle-level badge for pet preview thumbnails. The wrapping element must be
+// position:relative;overflow:visible (list icons are overflow:hidden by default) for this to show.
+function lvBadge(n, sm) { return `<span class="plv${sm ? ' sm' : ''}">⚔️${n}</span>`; }
 const STATIC = { prompt: 1, welcome: 1 };
 function renderPanel(force) {
   const box = $('#panel');
@@ -624,6 +634,12 @@ PANELS.pet = m => {
       ${bar((p.lv >= PET_MAX_LV ? 1 : (p.exp || 0) / petLvNeed(p.lv || 1)) * 100, 'linear-gradient(#ffe08a,#f0b43c)', p.lv >= PET_MAX_LV ? 'MAX' : Math.floor(p.exp || 0) + ' / ' + petLvNeed(p.lv || 1))}
       <div class="m">🎪 ${tricksOf(p).map(trickName).join(', ') || t('noTrickYet')}</div>
       <div class="m">${t('traitDesc_' + p.trait)}</div></div></div></div>
+    <div class="card"><div class="t">${t('battleLvL')} ${p.blv || 1}</div>${(() => {
+      if (typeof BATTLE === 'undefined') return '';
+      const tree = BATTLE.skillTreeOf(p.sp, p.blv || 1);
+      const row = s => `<div class="m" style="${s.unlocked ? '' : 'opacity:.5'}">${s.icon} <b>${esc(s.name)}</b> · ${s.unlocked ? t(s.kind === 'heal' ? 'battleSkillHealTag' : 'battleSkillAtkTag') : t('battleSkillLockedTag', { n: s.lv })}</div>`;
+      return tree.atk.map(row).join('') + tree.heal.map(row).join('');
+    })()}</div>
     <div class="card"><div class="row"><div class="grow"><div class="t">💞 ${t('breedTitle')}</div>
       <div class="m">${p.grow < 1 ? t('breedAdult') : p.bcd > 0 ? '😴 ' + t('resting', { m: fmtT(p.bcd) }) : mates.length ? t('chooseMate') + ' (' + mates.length + ')' : t('noMate', { sex: t(p.sex === 'm' ? 'female' : 'male'), sp: spName(p.sp) })}</div></div>
       ${p.grow >= 1 && p.bcd <= 0 && mates.length ? `<button class="btn p sm" data-a="mate" data-v="${p.id}">💕</button>` : ''}</div></div>
@@ -639,6 +655,35 @@ PANELS.pet = m => {
     ${p.sp === 'chick' ? `<button class="btn o block" data-a="tocoop" data-v="${p.id}">🐔 ${t('coopSend')}</button>` : ''}
     <button class="btn g block" data-a="release" data-v="${p.id}">${t('release')}</button>`;
   return frameHTML(t('petInfo'), body);
+};
+// v2026-10-15: tap the pet you're walking with (or its row in the home panel) to see ITS status --
+// battle level/exp, current battle stats, and the full skill tree (including skills it hasn't learned
+// yet and the battle level that unlocks them). Mirrors PANELS.villager's "who is this" info, but for
+// your own followed pet, which previously couldn't be tapped at all.
+PANELS.homepet = m => {
+  const p = S.home && (S.home.pets || []).find(x => x && x.id === m.pid); if (!p) return '';
+  const blv = p.blv || 1, needXp = (typeof BATTLE !== 'undefined') ? BATTLE.needXp(blv) : 0, bxp = p.bxp || 0;
+  const stat = (typeof BATTLE !== 'undefined') ? BATTLE.statOf(p.sp, blv) : { hp: 0, atk: 0, heal: 0 };
+  const tree = (typeof BATTLE !== 'undefined') ? BATTLE.skillTreeOf(p.sp, blv) : { atk: [], heal: [] };
+  const hpFrac = (typeof BATTLE !== 'undefined') ? BATTLE.hpFracOf(p) : 1;
+  const following = (S.follow || {})[CFG.id] === p.id;
+  const skillRow = s => `<div class="li" style="${s.unlocked ? '' : 'opacity:.5'}"><div class="ic" style="font-size:22px">${s.icon}</div><div class="grow"><div class="t">${esc(s.name)}</div><div class="m">${s.unlocked ? t(s.kind === 'heal' ? 'battleSkillHealTag' : 'battleSkillAtkTag') : t('battleSkillLockedTag', { n: s.lv })}</div></div></div>`;
+  const body = `<div class="row"><div class="portrait" style="position:relative;overflow:visible"><img src="${PIC.my(p)}" style="border-radius:13px"></div><div class="col grow">
+      <div class="t">${esc(p.name)} <span class="sex ${p.sex}">${p.sex === 'm' ? '♂' : '♀'}</span></div>
+      <div class="m">${esc(spName(p.sp))} · ${t(p.sex === 'm' ? 'male' : 'female')}</div>
+      <div class="m">${following ? t('followHint') : '🏠 ' + t('atHome')}</div></div></div>
+    <div class="card"><div class="t">${t('battleLvL')} Lv.${blv}</div>
+      ${bar((bxp / needXp) * 100, 'linear-gradient(#ffe08a,#f0b43c)', Math.floor(bxp) + ' / ' + needXp)}
+      <div class="m" style="margin-top:4px">${t('battleStatL')} · ❤️ ${t('battleStatHp')} ${stat.hp} · ⚔️ ${t('battleStatAtk')} ${stat.atk} · 💗 ${t('battleStatHeal')} ${stat.heal}</div>
+      ${hpFrac < 1 ? bar(hpFrac * 100, 'linear-gradient(#ff9a8a,#e0604e)', t('battleHpBadge', { n: Math.round(hpFrac * 100) })) : ''}</div>
+    <div class="t" style="margin-top:8px">${t('battleSkillTreeL')}</div>
+    ${tree.atk.map(skillRow).join('')}${tree.heal.map(skillRow).join('')}
+    <div class="row" style="gap:8px;margin-top:10px">
+      <button class="btn ${following ? 'r' : 'o'} sm grow" data-a="hfollow" data-v="${p.id}">${following ? t('followStop') : t('followBtn')}</button>
+      <button class="btn o sm grow" data-a="wearpick" data-v="${p.id}">👕 ${t('wearSec')}</button>
+    </div>
+    <button class="btn g block" style="margin-top:8px" data-a="close">${t('close')}</button>`;
+  return frameHTML(t('petStatusTitle') + ' · ' + esc(p.name), body);
 };
 PANELS.wear = m => {
   const p = S.pets.find(x => x && x.id === m.pid) || (S.home && S.home.pets.find(x => x.id === m.pid)); if (!p) return '';
@@ -799,10 +844,27 @@ PANELS.villager = m => {
     <div class="m">🚶 ${t('villagerWhyVisits', { n: visits })}</div>
     <div class="m">🐾 ${t('villagerWhyPets', { n: pets.length })}</div></div>`;
   const body = pets.length
-    ? `<div class="t" style="margin-top:8px">🐾 ${t('villagerPets')}</div>${pets.map(p => `<div class="li"><div class="ic"><img src="${PIC.pet(p.sp)}"></div><div class="grow"><div class="t">${esc(p.name)}</div><div class="m">${esc(spName(p.sp))}</div></div></div>`).join('')}`
+    ? `<div class="t" style="margin-top:8px">🐾 ${t('villagerPets')}</div>${pets.map((p, i) => `<button class="li" data-a="villagerpet" data-v="${res.id}" data-w="${i}"><div class="ic" style="position:relative;overflow:visible">${lvBadge(p.blv || 1, true)}<img src="${PIC.pet(p.sp)}"></div><div class="grow"><div class="t">${esc(p.name)}</div><div class="m">${esc(spName(p.sp))}</div></div>›</button>`).join('')}`
     : `<div class="card center" style="margin-top:8px"><div class="m">${t('villagerNoPet')}</div></div>`;
   const battleBtn = (pets.length && typeof BATTLE !== 'undefined') ? `<button class="btn r block" style="margin-top:8px" data-a="villagerbattle" data-v="${res.id}" data-w="${esc(m.spHint || '')}">${t('battleChallengeBtn')}</button>` : '';
   return frameHTML('🏠 ' + t('villagerTitle'), head + why + body + battleBtn + `<button class="btn g block" data-a="close">${t('close')}</button>`);
+};
+// v2026-10-15: tap one of a villager's pets (in the panel above) to see its battle level and skill tree --
+// read-only (it's not yours), but answers "what skills does this pet have" just like PANELS.homepet does
+// for your own pet.
+PANELS.villagerpet = m => {
+  const res = typeof TOWN !== 'undefined' && TOWN.residentById ? TOWN.residentById(S, m.rid) : null;
+  const p = res && (res.pets || [])[m.pidx]; if (!p) return '';
+  const blv = p.blv || 1;
+  const tree = (typeof BATTLE !== 'undefined') ? BATTLE.skillTreeOf(p.sp, blv) : { atk: [], heal: [] };
+  const skillRow = s => `<div class="li" style="${s.unlocked ? '' : 'opacity:.5'}"><div class="ic" style="font-size:22px">${s.icon}</div><div class="grow"><div class="t">${esc(s.name)}</div><div class="m">${s.unlocked ? t(s.kind === 'heal' ? 'battleSkillHealTag' : 'battleSkillAtkTag') : t('battleSkillLockedTag', { n: s.lv })}</div></div></div>`;
+  const body = `<div class="row"><div class="portrait" style="position:relative;overflow:visible">${lvBadge(blv)}<img src="${PIC.pet(p.sp, false, p.coat || ART.hashStr(p.name || p.sp))}" style="border-radius:13px"></div><div class="col grow">
+      <div class="t">${esc(p.name)}</div>
+      <div class="m">${esc(spName(p.sp))} · ${esc(res.name || t('villagerTitle'))}</div></div></div>
+    <div class="t" style="margin-top:8px">${t('battleSkillTreeL')}</div>
+    ${tree.atk.map(skillRow).join('')}${tree.heal.map(skillRow).join('')}
+    <button class="btn g block" style="margin-top:10px" data-a="villager" data-v="${res.id}">← ${t('villagerTitle')}</button>`;
+  return frameHTML(t('petStatusTitle') + ' · ' + esc(p.name), body);
 };
 Object.assign(XACT, {
   villagerbattle: (v, w) => {
@@ -1855,6 +1917,7 @@ function onWorldTap(h) {
   if (h.kind === 'partner') { act({ t: 'heart' }); fxAt(innerWidth / 2, innerHeight / 2, '💕'); return; }
   if (App.carry && (h.kind === 'pet' || h.kind === 'crate')) { toast(t('carryBusy')); return; }
   if (h.kind === 'pet') { const a = h.actor; World.walkNear(Math.floor(a.x), Math.floor(a.y)); openPanel({ type: 'pet', pid: a.pet.id }); return; }
+  if (h.kind === 'fpet') { const a = h.actor; if (a && a.pet) openPanel({ type: 'homepet', pid: a.pet.id }); return; } // v2026-10-15: tap the pet you're walking with to see its status/skills
   if (h.kind === 'item') {
     const it = h.item;
     if (it.k === 'hab') {
@@ -2098,7 +2161,9 @@ function handle(a, v, w) {
     case 'panelBack': panelBack(); break;
     case 'open': openPanel(Object.assign({ type: v }, w ? { tab: w } : {})); break;
     case 'pet': openPanel({ type: 'pet', pid: v }); break;
+    case 'homepet': openPanel({ type: 'homepet', pid: v }); break;
     case 'villager': openPanel({ type: 'villager', rid: v }); break;
+    case 'villagerpet': openPanel({ type: 'villagerpet', rid: v, pidx: +w }); break;
     case 'back': openPanel({ type: 'pet', pid: v }); break;
     case 'mate': openPanel({ type: 'mate', pid: v }); break;
     case 'care': { const pa = World.petActor(v); if (pa) World.walkNear(Math.floor(pa.x), Math.floor(pa.y)); act({ t: w, pid: v }); break; }

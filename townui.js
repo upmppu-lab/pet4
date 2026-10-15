@@ -1494,13 +1494,31 @@ Object.assign(I18N.ru, {
   salesSayRestock: '📦 Пополнил полку {n}!'
 });
 
-// ================= Pet Battle UI (random wild encounters while out walking with a followed pet) =================
+// ================= Pet Battle UI (tap a villager's pet, or now the battle screen itself, to fight it out) =================
+// v2 (2026-10-15 session 2): battles are no longer fully auto-simulated. Each round the player taps their
+// OWN pet on the battle screen to open its skill list (every skill it knows, plus any still locked and at
+// what battle level it unlocks) and picks one; the foe keeps auto-picking its strongest move as before.
 let _bPlay = { step: 0, timer: null };
 function battleMyPet() { const b = S.battle; return b && S.home && (S.home.pets || []).find(q => q.id === b.pid); }
 function bHpBar(val, max) {
   const pct = Math.max(0, Math.min(100, max ? val / max * 100 : 0));
   const col = pct > 50 ? '#5fbf5f' : pct > 20 ? '#e8b23a' : '#e05a4a';
-  return `<div class="bhp"><i style="width:${pct}%;background:${col}"></i></div>`;
+  const v = Math.max(0, Math.round(val));
+  return `<div class="bhp"><i style="width:${pct}%;background:${col}"></i><span class="bhpnum">${v}/${max}</span></div>`;
+}
+// the skill-choice menu shown when the player taps their pet: every skill the species category can learn,
+// locked ones greyed out with the battle level that unlocks them -- this IS the "what skills does my pet
+// have" answer, right where the player needs it.
+function battleSkillMenuHtml(p) {
+  const tree = BATTLE.skillTreeOf(p.sp, p.blv || 1);
+  const row = s => {
+    const tag = s.unlocked ? t(s.kind === 'heal' ? 'battleSkillHealTag' : 'battleSkillAtkTag') : t('battleSkillLockedTag', { n: s.lv });
+    return `<button class="bskillbtn ${s.unlocked ? '' : 'dis'}" ${s.unlocked ? `data-a="battleskill" data-v="${s.id}"` : ''}>
+      <span class="bsicon">${s.icon}</span><span class="bsname">${esc(s.name)}</span><span class="bstag">${tag}</span>
+    </button>`;
+  };
+  return `<div class="bskillmenu">${tree.atk.map(row).join('')}${tree.heal.map(row).join('')}</div>
+    <button class="btn o sm block" style="margin-top:6px" data-a="battleauto">${t('battleAutoBtn')}</button>`;
 }
 PANELS.battle = () => {
   const b = S.battle; if (!b) return '';
@@ -1510,7 +1528,7 @@ PANELS.battle = () => {
     return frameHTML(t('battleTitle'), `
       <div class="m center" style="font-size:16px">${t('battleAppear', { o: esc(b.foe.ownerName), p: esc(foeSpName) })}</div>
       <div class="row" style="justify-content:center;gap:18px;margin:10px 0">
-        <div style="text-align:center"><img src="${PIC.my(p)}" style="width:92px;border-radius:14px"><div class="m"><b>${esc(p.name)}</b> Lv.${p.blv || 1}</div></div>
+        <div style="text-align:center"><img src="${PIC.my(p)}" style="width:92px;border-radius:14px"><div class="m"><b>${esc(p.name)}</b> Lv.${p.blv || 1}</div>${(typeof BATTLE !== 'undefined' && BATTLE.hpFracOf(p) < 1) ? `<div class="m" style="color:#d6352f">${t('battleHpBadge', { n: Math.round(BATTLE.hpFracOf(p) * 100) })}</div>` : ''}</div>
         <div style="font-size:28px;align-self:center">⚔️</div>
         <div style="text-align:center"><img src="${PIC.my({ sp: b.foe.sp, coat: b.foe.coat })}" style="width:92px;border-radius:14px"><div class="m"><b>${esc(b.foe.name)}</b></div></div>
       </div>
@@ -1521,6 +1539,7 @@ PANELS.battle = () => {
       </div>`, true);
   }
   const step = Math.max(0, Math.min(_bPlay.step, (b.log || []).length - 1));
+  const caughtUp = step >= (b.log || []).length - 1;
   const cur = b.log[step] || { hpA: b.maxA, hpB: b.maxB };
   const acted = cur.t !== 'start';
   const actedMe = cur.side === 0;
@@ -1531,6 +1550,11 @@ PANELS.battle = () => {
   }
   const floatSide = !acted ? null : (cur.t === 'heal' ? cur.side : 1 - cur.side);
   const floatHtml = floatSide == null ? '' : `<div class="bfloat ${cur.t === 'heal' ? 'heal' : 'dmg'}">${cur.t === 'heal' ? '+' : '-'}${cur.amt}</div>`;
+  // v2026-10-15 (v3): attack hits get a lightning-bolt flash over whoever got hit, and a quick white
+  // screen-flash on crits, so the fight reads as more dramatic instead of just a color-tint wobble.
+  const zapSide = acted && cur.t !== 'heal' ? floatSide : null; // floatSide is already "who got hit" for non-heal actions
+  const zapHtml = zapSide == null ? '' : `<div class="bzap">⚡</div>`;
+  const screenFlash = acted && cur.t !== 'heal' && cur.crit;
   const line = (() => {
     if (!acted) return t('battleStepStart');
     const nm = cur.side === 0 ? p.name : b.foe.name;
@@ -1538,25 +1562,38 @@ PANELS.battle = () => {
     const skillIcon = cur.skill ? `<span class="bicon">${cur.skill.icon}</span>` : '';
     return skillIcon + t(key, { n: esc(nm), s: esc(cur.skill ? cur.skill.name : ''), d: cur.amt }) + (cur.crit ? t('battleStepCrit') : '');
   })();
-  let h = `<div class="bwrap"><div class="bstage">
+  const myTurn = !b.resolved && caughtUp && b.side === 0; // caught up to the latest action AND the fight is still going AND it's my pet's turn
+  // v2026-10-15 (v3): diagonal Pokémon-style stage -- foe small & distant top-right on its own platform,
+  // my pet big & close bottom-left on a bigger platform, plus a sky/ground background instead of flat green.
+  let h = `<div class="bwrap${screenFlash ? ' flash' : ''}"><div class="bstage">
     <div class="bside foe">
       <div class="bcard"><div class="bname"><span>${esc(b.foe.name)}</span><span>Lv.${b.foeBlv || 1}</span></div>${bHpBar(Math.max(0, cur.hpB), b.maxB)}</div>
+      <div class="bplat foe"></div>
       <img class="bimg ${foeAnim}" src="${PIC.my({ sp: b.foe.sp, coat: b.foe.coat })}">
       ${floatSide === 1 ? floatHtml : ''}
+      ${zapSide === 1 ? zapHtml : ''}
     </div>
     <div class="bside me">
-      <img class="bimg ${meAnim}" src="${PIC.my(p)}">
+      <div class="bplat me"></div>
+      <img class="bimg ${meAnim} ${myTurn ? 'tappable' : ''}" ${myTurn ? 'data-a="battletogglemenu"' : ''} src="${PIC.my(p)}">
       ${floatSide === 0 ? floatHtml : ''}
+      ${zapSide === 0 ? zapHtml : ''}
       <div class="bcard"><div class="bname"><span>${esc(p.name)}</span><span>Lv.${p.blv || 1}</span></div>${bHpBar(Math.max(0, cur.hpA), b.maxA)}</div>
     </div>
   </div></div>
   <div class="bskillbox">${line}</div>`;
   if (!b.resolved) {
-    h += `<button class="btn o block" data-a="battleskip">${t('battleSkipBtn')}</button>`;
+    if (myTurn) {
+      h += `<div class="m center" style="margin:5px 0 2px">${t('battleYourTurnHint')}</div>`;
+      if (App.battleSkillOpen) h += battleSkillMenuHtml(p);
+      h += `<button class="btn o block" style="margin-top:6px" data-a="battleskip">${t('battleSkipBtn')}</button>`;
+    } else {
+      h += `<button class="btn o block" data-a="battleskip">${t('battleSkipBtn')}</button>`;
+    }
   } else {
     h += `<div class="card" style="text-align:center">
       <div class="t" style="font-size:18px">${t(b.win ? 'battleWinTitle' : 'battleLoseTitle')}</div>
-      ${b.win ? `<div class="m">${t('battleXpGain', { n: 6 + (b.foeBlv || 1) * 3 })}</div>${b.lvup ? `<div class="m"><b>${t('battleLvUp', { n: b.blvAfter })}</b></div>` : ''}${b.stolen ? `<div class="m">${t('battleStolenMsg', { o: esc(b.foe.ownerName), n: esc(b.stolen) })}</div>` : ''}`
+      ${b.win ? `<div class="m">${t('battleXpGain', { n: 6 + (b.foeBlv || 1) * 3 })}</div>${b.lvup ? `<div class="m"><b>${t('battleLvUp', { n: b.blvAfter })}</b></div>${(b.learned || []).map(sk => `<div class="m">🎓 ${t('battleSkillLearned', { p: esc(p.name), s: sk.icon + ' ' + esc(sk.name) })}</div>`).join('')}` : ''}${b.stolen ? `<div class="m">${t('battleStolenMsg', { o: esc(b.foe.ownerName), n: esc(b.stolen) })}</div>` : ''}`
         : `<div class="m">${t('battleTiredMsg')}</div>${b.lost ? `<div class="m">${t('battleLostMsg', { n: esc(b.lost), o: esc(b.foe.ownerName) })}</div>` : ''}`}
       <button class="btn block" data-a="battleclose" style="margin-top:8px">${t('battleCloseBtn')}</button>
     </div>`;
@@ -1569,28 +1606,84 @@ function battleScheduleStep() {
   _bPlay.timer = setTimeout(() => {
     if (!panel || panel.type !== 'battle') return;
     const bb = S.battle; if (!bb || !bb.log) return;
-    _bPlay.step++;
-    if (typeof SND !== 'undefined' && SND.pop) SND.pop();
-    if (_bPlay.step >= bb.log.length - 1) { actR({ t: 'battleFinish' }); renderPanel(true); }
-    else { renderPanel(true); battleScheduleStep(); }
+    if (_bPlay.step < bb.log.length - 1) {
+      _bPlay.step++;
+      if (typeof SND !== 'undefined' && SND.pop) SND.pop();
+      renderPanel(true);
+      if (_bPlay.step < bb.log.length - 1) { battleScheduleStep(); return; }
+    }
+    if (bb.side === -1 && !bb.resolved) { actR({ t: 'battleFinish' }); renderPanel(true); }
   }, 650);
 }
 Object.assign(XACT, {
+  // v2026-10-15: "전투 시작" no longer teleports straight into the fight -- the player's character now
+  // walks over to the villager first, and the actual battle only opens once they're next to each other.
+  // v2026-10-15 (v2): and if the villager isn't out in the world at all (already indoors) -- or walks
+  // indoors partway through the approach -- the fight is called off with a "상대가 도망갔어" message over
+  // the player's head, instead of silently starting the battle anyway.
   battlestart: () => {
-    const r = actR({ t: 'battleStart' }); if (!r || !r.ok) return;
-    clearTimeout(_bPlay.timer); _bPlay = { step: 0, timer: null };
-    renderPanel(true);
-    battleScheduleStep();
+    const b = S.battle; if (!b || !b.active || b.started) return;
+    if (App.battleWalking) return;
+    const cancelFled = () => {
+      clearInterval(App.battleWalkTimer); App.battleWalkTimer = null;
+      App.battleWalking = false;
+      if (typeof World !== 'undefined' && World.me) { World.me.path = []; World.me.cb = null; if (World.floatMsg) World.floatMsg(World.me, t('battleFoeFled')); }
+      actR({ t: 'battleClose' });
+      closePanel();
+    };
+    const beginFight = () => {
+      clearInterval(App.battleWalkTimer); App.battleWalkTimer = null;
+      App.battleWalking = false;
+      if ((typeof residentActor === 'function') && !residentActor(b.foe.rid)) { cancelFled(); return; } // vanished right as we arrived
+      const r = actR({ t: 'battleStart' });
+      if (r && r.ok) { clearTimeout(_bPlay.timer); _bPlay = { step: 0, timer: null }; App.battleSkillOpen = false; }
+      openPanel({ type: 'battle' });
+    };
+    const a = (typeof residentActor === 'function') ? residentActor(b.foe.rid) : null;
+    if (!a) { cancelFled(); return; } // not currently out in the world (e.g. already indoors) -- nothing to walk to
+    if (typeof World !== 'undefined' && World.walkNear) {
+      App.battleWalking = true;
+      closePanel(); // hide the panel so the player can watch their character walk over
+      if (typeof toast === 'function') toast(t('battleApproach'));
+      // poll while walking: if the villager goes indoors mid-approach, stop and call it off rather than
+      // arriving at an empty tile and starting a fight with nobody there.
+      App.battleWalkTimer = setInterval(() => {
+        if (!App.battleWalking) { clearInterval(App.battleWalkTimer); App.battleWalkTimer = null; return; }
+        if (!residentActor(b.foe.rid)) cancelFled();
+      }, 400);
+      World.walkNear(Math.floor(a.x), Math.floor(a.y), beginFight);
+    } else {
+      beginFight(); // walkNear isn't available for some reason -- just start as before
+    }
   },
-  battleskip: () => {
+  battletogglemenu: () => { App.battleSkillOpen = !App.battleSkillOpen; renderPanel(true); },
+  battleskill: v => {
+    const b = S.battle; if (!b || b.side !== 0) return;
+    const r = actR({ t: 'battleSkill', skillId: v }); if (!r || !r.ok) return;
+    App.battleSkillOpen = false;
+    battleScheduleStep();
+    renderPanel(true);
+  },
+  battleauto: () => {
+    const b = S.battle; if (!b || b.side !== 0) return;
+    const r = actR({ t: 'battleAuto' }); if (!r || !r.ok) return;
+    App.battleSkillOpen = false;
+    battleScheduleStep();
+    renderPanel(true);
+  },
+  battleskip: () => { // mid-animation: jump to the latest known action. Caught up & still ongoing: auto-resolve the rest of the fight first, then jump to the end.
     clearTimeout(_bPlay.timer);
     const b = S.battle; if (!b || !b.log) return;
-    _bPlay.step = b.log.length - 1;
-    if (!b.resolved) actR({ t: 'battleFinish' });
+    const caughtUp = _bPlay.step >= b.log.length - 1;
+    if (b.side === 0 && caughtUp) actR({ t: 'battleAutoAll' });
+    const bb = S.battle;
+    App.battleSkillOpen = false;
+    _bPlay.step = (bb.log || []).length - 1;
+    if (bb.side === -1 && !bb.resolved) actR({ t: 'battleFinish' });
     renderPanel(true);
   },
-  battleignore: () => { clearTimeout(_bPlay.timer); actR({ t: 'battleClose' }); closePanel(); },
-  battleclose: () => { clearTimeout(_bPlay.timer); actR({ t: 'battleClose' }); closePanel(); },
+  battleignore: () => { clearTimeout(_bPlay.timer); App.battleSkillOpen = false; actR({ t: 'battleClose' }); closePanel(); },
+  battleclose: () => { clearTimeout(_bPlay.timer); App.battleSkillOpen = false; actR({ t: 'battleClose' }); closePanel(); },
 });
 Object.assign(I18N.ko, { battleFoeTag: '⚔️ 야생 대결' });
 Object.assign(I18N.ru, { battleFoeTag: '⚔️ Дикая битва' });

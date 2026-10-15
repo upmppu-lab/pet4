@@ -1,15 +1,15 @@
 // ================= My home (across the street): state logic + its own room view =================
-const HOME_LV = [null,
-  { w: 6, cost: 0, ulv: 1, pets: 10, floors: 1 },
-  { w: 7, cost: 15000, ulv: 4, pets: 10, floors: 1 },
-  { w: 8, cost: 35000, ulv: 8, pets: 10, floors: 2 },
-  { w: 10, cost: 70000, ulv: 13, pets: 10, floors: 2 },
-  { w: 12, cost: 130000, ulv: 18, pets: 10, floors: 2 },
-  { w: 14, cost: 220000, ulv: 22, pets: 10, floors: 3 },
-  { w: 16, cost: 330000, ulv: 25, pets: 10, floors: 3 },
-  { w: 18, cost: 470000, ulv: 27, pets: 10, floors: 3 },
-  { w: 20, cost: 650000, ulv: 29, pets: 10, floors: 3 },
-  { w: 22, cost: 900000, ulv: 30, pets: 10, floors: 3 }];
+const HOME_LV = [null, // v2026-10-15: pet capacity raised past 10 and now grows with home level
+  { w: 6, cost: 0, ulv: 1, pets: 12, floors: 1 },
+  { w: 7, cost: 15000, ulv: 4, pets: 14, floors: 1 },
+  { w: 8, cost: 35000, ulv: 8, pets: 16, floors: 2 },
+  { w: 10, cost: 70000, ulv: 13, pets: 18, floors: 2 },
+  { w: 12, cost: 130000, ulv: 18, pets: 20, floors: 2 },
+  { w: 14, cost: 220000, ulv: 22, pets: 22, floors: 3 },
+  { w: 16, cost: 330000, ulv: 25, pets: 24, floors: 3 },
+  { w: 18, cost: 470000, ulv: 27, pets: 26, floors: 3 },
+  { w: 20, cost: 650000, ulv: 29, pets: 28, floors: 3 },
+  { w: 22, cost: 900000, ulv: 30, pets: 30, floors: 3 }];
 HOME_LV.forEach(l => { if (l) l.cost = balCost(l.cost); });
 const HOME_MAX = HOME_LV.length - 1;
 const FLOOR_NAMES = ['1F', '2F', '3F'];

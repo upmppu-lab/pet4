@@ -1500,6 +1500,10 @@ return true;
     ART.rrect(c, x - w / 2, y - 8, w, 15, 7); c.fillStyle = col || 'rgba(255,255,255,.85)'; c.fill();
     c.fillStyle = '#3a2418'; c.textAlign = 'center'; c.fillText(txt, x, y + 3); c.restore();
   }
+  // v2026-10-15: a short floating message above any actor's head (e.g. "상대가 도망갔어" when a pet-battle
+  // target walks indoors mid-approach). Reused later for the autonomous villager-vs-villager battle result
+  // text ("이겼다"/"졌다"/"뺏겼다"), so it lives on the actor rather than being tied to the player specifically.
+  function floatMsg(actor, txt, dur) { if (!actor || !txt) return; actor._floatMsg = { txt, start: T, dur: dur || 2.2 }; }
 
   let _frameDrawList = [], _framePenHits = [];
 
@@ -1748,6 +1752,18 @@ return true;
       const sx = ISO.wx(a.x, a.y), sy = ISO.wy(a.x, a.y);
       if (a.type !== 'me' && !isPtVis(sx, sy, 80, 140)) continue;
       if (VIEW.r) { const q = VIEW.p(a.x, a.y); if ((q[0] < -.15 || q[1] < -.15) && a.type !== 'me') continue; }
+      if (a._floatMsg) {
+        const age = T - a._floatMsg.start;
+        if (age > a._floatMsg.dur) { a._floatMsg = null; }
+        else {
+          const rise = -22 * Math.min(1, age / .35);
+          const fadeIn = Math.min(1, age / .15);
+          const fadeOut = age > a._floatMsg.dur - .5 ? Math.max(0, (a._floatMsg.dur - age) / .5) : 1;
+          c.save(); c.globalAlpha = Math.min(fadeIn, fadeOut);
+          label(sx, sy - 94 + rise, a._floatMsg.txt, null, '#fff3cf');
+          c.restore();
+        }
+      }
       if (a.type === 'cust' && a.cust && a.inside && !a.path.length) {
         const cu = a.cust, ratio = cu.max ? Math.max(0, cu.pat / cu.max) : null, md = humMood(a);
         const moodE = md === 'angry' ? '😠' : md === 'bored' ? '😒' : md === 'love' ? '😍' : md === 'happy' ? '😊' : '';
@@ -2112,7 +2128,12 @@ return true;
     if (a.type !== 'me' && a.type !== 'pet' && a.type !== 'stray' && a.look) {
       window.__log['__details_' + a.type] = { id: a.id, type: a.type, look: a.look, x: a.x, y: a.y };
     }
-    if (a.type === 'fpet') { TOWN.drawFollower(c, a, T); return; } // v9.99
+    if (a.type === 'fpet') { // v9.99
+      TOWN.drawFollower(c, a, T);
+      // v2026-10-15: tappable, so the pet you're walking with can show its own status (battle level, skills) too
+      if (a.pet) { const fsx = ISO.wx(a.x, a.y), fsy = ISO.wy(a.x, a.y); hits.push({ kind: 'fpet', actor: a, x0: fsx - 20, x1: fsx + 20, y0: fsy - 42, y1: fsy + 8 }); }
+      return;
+    }
     let sx = ISO.wx(a.x, a.y), sy = ISO.wy(a.x, a.y);
     // v2026-10-08: "두명이 겹쳐서 걷는건 안되게 해줘" -- 마을주민/손님은 같은 길을 따라 걷거나 같은
     // 지점에 몰릴 때 완전히 겹쳐 보였음. 실제 좌표(길찾기/충돌)는 그대로 두고, 화면에 그릴 때만
@@ -2453,7 +2474,13 @@ return true;
     if (a.type === 'guest') hits.push({ kind: 'guest', actor: a, x0: sx - 22, x1: sx + 22, y0: sy - 50, y1: sy + 6 });
   }
   function drawHeld(a) {
-    c.save(); c.translate(2, -24 + Math.sin(a.t * 3) * .6); c.scale(.46, .46); ART.pet(c, a.hold.sp, { t: a.t, happy: Math.sin(a.t * .8) > -.3, mood: 'love', seed: a.hold.coat || (a.hold.id ? ART.hashStr(a.hold.id) : 0) }); c.restore();
+    c.save(); c.translate(2, -24 + Math.sin(a.t * 3) * .6); c.scale(.46, .46);
+    // v2026-10-15: same PNG-art fix as drawFollower -- a carried pet of a PNG-upgraded species (guinea
+    // pigs etc.) was always drawn with the old vector look instead of its real art.
+    const hst = { t: a.t, happy: Math.sin(a.t * .8) > -.3, mood: 'love', seed: a.hold.coat || (a.hold.id ? ART.hashStr(a.hold.id) : 0) };
+    const pngOk = (typeof PNG_PETS !== 'undefined' && PNG_PETS[a.hold.sp]) && drawPngPet(c, a.hold.sp, hst);
+    if (!pngOk) ART.pet(c, a.hold.sp, hst);
+    c.restore();
     if (Math.random() < .015) fxHeart(ISO.wx(a.x, a.y), ISO.wy(a.x, a.y) - 60);
   }
   const hearts = [];
@@ -4602,7 +4629,7 @@ return true;
   }
 
   return { originFor, itemAt, rotate, goDrop, nearStore, goStore, init, reset, walkNear, goTo, walk, strayPos, screenOf, petActor, markSold, markLeft, goCounter, trick, setPartners, joy, cam, center, farmAction, focusCafe, focusFarm, focusTrain, focusZoo,
-    toGrid, broom: sec => { if (me) me.broomUntil = T + (sec || 1.1); }, get me() { return me; }, set editSel(v) { editSel = v; }, set cafeSel(v) { cafeSel = v; }, set hospSel(v) { hospSel = v; }, get hospSel() { return hospSel; }, hospItemById, focusHosp, hospPerf, get cafeSel() { return cafeSel; }, cafeItemById, get editSel() { return editSel; }, toScreen, actors, buildOccNow: () => { occKey = ''; buildOcc(); }, pathDist };
+    toGrid, broom: sec => { if (me) me.broomUntil = T + (sec || 1.1); }, get me() { return me; }, set editSel(v) { editSel = v; }, set cafeSel(v) { cafeSel = v; }, set hospSel(v) { hospSel = v; }, get hospSel() { return hospSel; }, hospItemById, focusHosp, hospPerf, get cafeSel() { return cafeSel; }, cafeItemById, get editSel() { return editSel; }, toScreen, actors, buildOccNow: () => { occKey = ''; buildOcc(); }, pathDist, floatMsg, drawPngPet };
 })();
 if (typeof window !== 'undefined') window.WORLD = World;
 

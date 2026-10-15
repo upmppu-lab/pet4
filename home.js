@@ -404,8 +404,11 @@ function homeThumb(k) {
 }
 PANELS.home = m => {
   const hh = HOME.ensure(S), tab = m.tab || 'furn';
-  const tabs = ['life', 'furn', 'style', 'up', 'pets'].map(k => `<button class="tab ${tab === k ? 'on' : ''}" data-a="hpanel" data-v="${k}">${{ life: '📋', furn: '🛋️', style: '🎨', up: '⬆️', pets: '🐾' }[k]} ${t({ life: 'homeLife', furn: 'homeFurn', style: 'homeStyle', up: 'homeUp', pets: 'homePets' }[k])}</button>`).join('');
-  let b = `<div class="tabs">${tabs}</div>`;
+  let b = '';
+  if (tab !== 'pets') { // v2026-10-15: the 펫 tab gets its own simple "내펫/가게펫" sub-nav instead of this bar
+    const tabs = ['life', 'furn', 'style', 'up', 'pets'].map(k => `<button class="tab ${tab === k ? 'on' : ''}" data-a="hpanel" data-v="${k}">${{ life: '📋', furn: '🛋️', style: '🎨', up: '⬆️', pets: '🐾' }[k]} ${t({ life: 'homeLife', furn: 'homeFurn', style: 'homeStyle', up: 'homeUp', pets: 'homePets' }[k])}</button>`).join('');
+    b += `<div class="tabs">${tabs}</div>`;
+  }
   if (tab === 'life') b += lifeHTML();
   else if (tab === 'furn') {
     const fc = m.fcat || 'all';
@@ -440,13 +443,15 @@ PANELS.home = m => {
         ${lock ? `<div class="m">🔒 ${t('unlockAt', { n: nx.ulv })}</div>` : `<button class="btn o block ${S.coins < nx.cost ? 'dis' : ''}" data-a="hup">⬆️ ${t('homeUpBtn')} 🪙${fmt(nx.cost)}</button>`}</div>`;
     } else b += `<div class="m center">🏰 ${t('homeMax')}</div>`;
     b += `<div class="card"><div class="t">💤 ${t('napTitle')}</div><div class="m">${t('napDesc')}</div></div>`;
-  } else {
-    const capN = HOME.cap(hh);
-    b += `<div class="m">${t('homePetsDesc', { n: hh.pets.length, m: capN })}</div>`;
-    b += hh.pets.map(p => `<div class="li"><div class="ic"><img src="${PIC.my(p)}"></div><div class="grow"><div class="t">${esc(p.name)} <span class="sex ${p.sex}">${p.sex === 'm' ? '♂' : '♀'}</span></div><div class="m">${esc(spName(p.sp))} · 🏠 ${t('atHome')}${p.blv ? ' · ⚔️ Lv.' + p.blv : ''}${(typeof BATTLE !== 'undefined' && BATTLE.tiredLeft(p) > 0) ? ' · ' + t('battleTiredBadge', { n: Math.ceil(BATTLE.tiredLeft(p) / 60000) }) : ''}</div></div><button class="btn o sm" data-a="wearpick" data-v="${p.id}">👕${p.wear && (p.wear.collar || p.wear.hat || p.wear.cloth) ? ' ' + [p.wear.cloth, p.wear.collar, p.wear.hat].filter(Boolean).map(w => w.icon).join('') : ''}</button>${['fish', 'axolotl'].includes(ART.look(p.sp).t) ? '' : `<button class="btn ${(S.follow || {})[CFG.id] === p.id ? 'r' : ''} sm" data-a="hfollow" data-v="${p.id}">${(S.follow || {})[CFG.id] === p.id ? t('followStop') : t('followBtn')}</button>`}<button class="btn g sm" data-a="hback" data-v="${p.id}">🏪 ${t('sendBack')}</button></div>`).join('');
-    const shop = S.pets.filter(Boolean);
-    if (shop.length) b += `<div class="t" style="margin-top:10px">🏪 ${t('shopPets')}</div>` + shop.map(p => `<div class="li"><div class="ic"><img src="${PIC.my(p)}"></div><div class="grow"><div class="t">${esc(p.name)} <span class="sex ${p.sex}">${p.sex === 'm' ? '♂' : '♀'}</span></div><div class="m">${esc(spName(p.sp))} · Lv${p.lv || 1}</div></div><button class="btn o sm ${hh.pets.length >= capN ? 'dis' : ''}" data-a="htake" data-v="${p.id}">🏠 ${t('takeHome')}</button></div>`).join('');
-    else b += `<div class="m">${t('noShopPets')}</div>`;
+  } else { // v2026-10-15: pets tab is now just two lists behind a tiny "내펫/가게펫" sub-nav, no more mixing both on one screen
+    const capN = HOME.cap(hh), sub = m.petsub === 'shop' ? 'shop' : 'mine';
+    b += `<div class="tabs"><button class="tab ${sub === 'mine' ? 'on' : ''}" data-a="hpetsub" data-v="mine">🐾 ${t('myPetsTab')} (${hh.pets.length}/${capN})</button><button class="tab ${sub === 'shop' ? 'on' : ''}" data-a="hpetsub" data-v="shop">🏪 ${t('shopPetsTab')} (${S.pets.filter(Boolean).length})</button></div>`;
+    if (sub === 'mine') {
+      b += hh.pets.length ? hh.pets.map(p => `<div class="li"><button class="ic" style="border:0;background:none;padding:0;position:relative;overflow:visible" data-a="homepet" data-v="${p.id}">${lvBadge(p.blv || 1, true)}<img src="${PIC.my(p)}"></button><div class="grow"><button style="border:0;background:none;padding:0;text-align:left;display:block;width:100%" data-a="homepet" data-v="${p.id}"><div class="t">${esc(p.name)} <span class="sex ${p.sex}">${p.sex === 'm' ? '♂' : '♀'}</span></div><div class="m">${esc(spName(p.sp))} · 🏠 ${t('atHome')}${(typeof BATTLE !== 'undefined' && BATTLE.hpFracOf(p) < 1) ? ' · ' + t('battleHpBadge', { n: Math.round(BATTLE.hpFracOf(p) * 100) }) : ''}</div></button></div><button class="btn o sm" data-a="wearpick" data-v="${p.id}">👕${p.wear && (p.wear.collar || p.wear.hat || p.wear.cloth) ? ' ' + [p.wear.cloth, p.wear.collar, p.wear.hat].filter(Boolean).map(w => w.icon).join('') : ''}</button>${['fish', 'axolotl'].includes(ART.look(p.sp).t) ? '' : `<button class="btn ${(S.follow || {})[CFG.id] === p.id ? 'r' : ''} sm" data-a="hfollow" data-v="${p.id}">${(S.follow || {})[CFG.id] === p.id ? t('followStop') : t('followBtn')}</button>`}<button class="btn g sm" data-a="hback" data-v="${p.id}">🏪 ${t('sendBack')}</button></div>`).join('') : `<div class="m">${t('noHomePets')}</div>`;
+    } else {
+      const shop = S.pets.filter(Boolean);
+      b += shop.length ? shop.map(p => `<div class="li"><div class="ic" style="position:relative;overflow:visible">${lvBadge(p.blv || 1, true)}<img src="${PIC.my(p)}"></div><div class="grow"><div class="t">${esc(p.name)} <span class="sex ${p.sex}">${p.sex === 'm' ? '♂' : '♀'}</span></div><div class="m">${esc(spName(p.sp))} · ${t('petLv', { n: p.lv || 1 })}</div></div><button class="btn o sm ${hh.pets.length >= capN ? 'dis' : ''}" data-a="htake" data-v="${p.id}">🏠 ${t('takeHome')}</button></div>`).join('') : `<div class="m">${t('noShopPets')}</div>`;
+    }
   }
   return frameHTML('🏠 ' + t('myHome'), b);
 };
@@ -493,6 +498,7 @@ const HOME_ACT = {
   hedit: () => { App.editing = true; Home.sel = null; SND.pop(); render(); },
   hdone: () => { App.editing = false; Home.sel = null; render(); },
   hfcat: v => { if (panel && panel.fcat !== v) openPanel(Object.assign({}, panel, { fcat: v })); },
+  hpetsub: v => { if (panel && panel.petsub !== v) openPanel(Object.assign({}, panel, { petsub: v })); },
   dcat: v => { if (panel && panel.dcat !== v) openPanel(Object.assign({}, panel, { dcat: v })); },
   trashitem: () => { const id = World.editSel; if (typeof id !== 'number') return; const it = S.items.find(i => i.id === id); if (!it) return; const nm = it.k === 'hab' ? t('hm_' + (it.model || 'x')) : t('d_' + it.k); askPrompt({ title: '🗑️ ' + t('trashQ'), text: t('trashText', { n: nm }), okText: t('trashBtn'), cancel: t('no'), ok: () => { const r = actR({ t: 'trash', iid: id }); if (r && r.ok) World.editSel = null; World.buildOccNow && World.buildOccNow(); render(); } }); },
   rotitem: () => { if (typeof World.editSel === 'number') { actR({ t: 'rotate', iid: World.editSel }); render(); } },
@@ -501,3 +507,5 @@ const HOME_ACT = {
   hleave: () => Home.leave(),
   gohome: () => Home.goHome(),
 };
+Object.assign(I18N.ko, { myPetsTab: '내펫', shopPetsTab: '가게펫', noHomePets: '아직 집에 데려온 아이가 없어요' });
+Object.assign(I18N.ru, { myPetsTab: 'Мои питомцы', shopPetsTab: 'Питомцы магазина', noHomePets: 'Дома пока никого нет' });
