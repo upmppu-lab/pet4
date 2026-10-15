@@ -303,27 +303,21 @@ function hospAutoSpot(hp, Rm, lv, k, dp) {
   }
   return null;
 }
-// 병원 대기실 긴의자 전용 정렬: 2열 대칭 그리드와 중앙 보행 통로를 유지하여 단정하고 깔끔한 행/열로 배치
+// 병원 대기실 긴의자 전용 정렬: 중앙 통로 2칸을 사이에 둔 완벽한 좌우 대칭 2열 종대 그리드
 function hospCenterSpot(hp, Rm, lv, k, dp) {
   const F = hospFurn(k), R = hospRect(Rm.w, Rm.h, lv);
   const L0 = hospBuildLayout(hp, Rm, lv);
 
+  // 대기실 유효 너비 기준 중앙 통로를 둔 좌/우 2열 배치
+  const colA = R.x + 2;
+  const colB = R.x + 7;
+  const startY = R.y + 7; // 진료실 칸막이(y: R.y+5) 아래 2칸 여유 통로
+
+  // 대기실 좌우 대칭 2열 종대 고정 슬롯
   const plannedSlots = [];
-  const maxRoomD = 6;
-  const minY = R.y + maxRoomD + 1; // 진료실 칸막이 앞 1칸 여유
-  const maxY = R.y1 - F.d - 1;     // 남쪽 전면 창문 앞 1칸 여유
-
-  // 대기실 유효 너비(동쪽 접수대 구역 제외)
-  const availW = Math.max(8, (R.x1 - 3) - (R.x + 2));
-  // 3인용 의자(너비 3) 2개와 중앙 통로(너비 2) -> 총 너비 8
-  const startX = Math.max(R.x + 2, Math.min(R.x1 - F.w * 2 - 4, R.x + Math.floor((availW - 8) / 2)));
-  const colA = startX;
-  const colB = startX + F.w + 2;
-
-  // 남쪽에서 북쪽 순서로 2칸 간격(행간 1칸 통로) 정돈된 좌우 열 생성
-  for (let y = maxY; y >= minY; y -= 2) {
-    if (colA + F.w <= R.x1 - 3) plannedSlots.push({ x: colA, y });
-    if (colB + F.w <= R.x1 - 3) plannedSlots.push({ x: colB, y });
+  for (let y = startY; y <= R.y1 - F.d - 1; y += 2) {
+    if (colA + F.w <= R.x1 - 2) plannedSlots.push({ x: colA, y });
+    if (colB + F.w <= R.x1 - 2) plannedSlots.push({ x: colB, y });
   }
 
   // 1순위: 계획된 가지런한 2열 행/열 그리드 시도
@@ -333,29 +327,13 @@ function hospCenterSpot(hp, Rm, lv, k, dp) {
     }
   }
 
-  // 예비: 정렬된 열(colA/colB) 기준 후보 탐색
-  const cand = [];
-  for (let y = maxY; y >= minY; y--) {
-    for (let x = R.x + 2; x <= R.x1 - F.w - 3; x++) {
-      let ok = true;
-      for (let i = 0; i < F.w && ok; i++) {
-        for (let j = 0; j < F.d; j++) {
-          if (!L0.inRegion(dp, x + i, y + j)) { ok = false; break; }
-        }
+  // 예비: 정렬된 열(colA/colB) 기준 후보 탐색 (절대 난잡하게 흩어지지 않음)
+  for (let y = startY; y <= R.y1 - F.d - 1; y++) {
+    for (const x of [colA, colB]) {
+      if (x + F.w <= R.x1 - 2 && !hospCheckPlace(hp, Rm, lv, { id: -1, k, dp, x, y })) {
+        return { x, y };
       }
-      if (ok) cand.push({ x, y });
     }
-  }
-  const cx = (colA + colB + F.w) / 2;
-  cand.sort((a, b) => {
-    const aMatch = (a.x === colA || a.x === colB) ? 0 : 1;
-    const bMatch = (b.x === colA || b.x === colB) ? 0 : 1;
-    if (aMatch !== bMatch) return aMatch - bMatch;
-    if (b.y !== a.y) return b.y - a.y;
-    return Math.abs(a.x - cx) - Math.abs(b.x - cx);
-  });
-  for (const c of cand) {
-    if (!hospCheckPlace(hp, Rm, lv, { id: -1, k, dp, x: c.x, y: c.y })) return c;
   }
   return null;
 }
@@ -390,7 +368,12 @@ const HOSP = (() => {
       if (it.k === 'tbed' && lv >= 2 && hospRoomsAt(lv).includes('treat')) {
         dp = 'treat';
       }
+      // 수술실(surgery)에는 일반 침대가 절대 들어가지 않도록 치료실/입원실로 강제 보정
+      if (dp === 'surgery' && (it.k === 'tbed' || it.k === 'bed')) {
+        dp = (it.k === 'bed' && hospRoomsAt(lv).includes('ward')) ? 'ward' : 'treat';
+      }
       if (it.k === 'bench') {
+        dp = 'lobby';
         const p = hospCenterSpot(hp, Rm, lv, it.k, dp);
         if (p) hp.items.push({ id: it.id, k: it.k, dp, x: p.x - R.x1, y: p.y - R.y, v: it.v, r: it.r }); else s.coins += F.cost;
         continue;
@@ -418,14 +401,9 @@ const HOSP = (() => {
     for (const it of L.kit) { const id = hp.iseq++; hp.kitIds.push(id); hp.items.push({ id, k: it.k, dp: it.dp, x: it.x - R.x1, y: it.y - R.y }); }
     hp.kitDone = ['lobby'].concat(hospRoomsAt(lv)); hp.iv = (hp.iv | 0) + 1;
   }
-  // the glass partitions between the rooms become ordinary stored pieces as well (movable, sellable, more can be bought)
+  // the glass partitions between the rooms are drawn as clean architectural walls (not fragmented furniture)
   function grantParts(s, hp) {
-    const Rm = roomOf(s), lv = lvNow(hp), R = hospRect(Rm.w, Rm.h, lv), L = hospBuildLayout(hp, Rm, lv);
-    // v1.119: 방의 "출입구"로 비워둔 타일(doorway:true)까지 똑같이 진짜 벽 아이템으로 저장해버리고 있었음 ->
-    // 한 번 저장되고 나면 다시 불러올 때는 "출입구"라는 정보가 사라진 채 무조건 막힌 벽으로 취급되어, 방에
-    // 들어갈 길이 없어지고(입구가 없음) 그 안의 비품들도 전부 "갈 수 없는 곳"이 되어 엉뚱한 남동쪽 구석으로
-    // 밀려나던 버그의 진짜 원인. 출입구 타일은 벽으로 저장하지 않도록 제외.
-    for (const q of L.parts) { if (q.doorway) continue; hp.items.push({ id: hp.iseq++, k: 'part', dp: 'lobby', x: q.x - R.x1, y: q.y - R.y, v: q.vert ? 1 : 0 }); }
+    const Rm = roomOf(s), lv = lvNow(hp);
     hp.partsDone = hospRoomsAt(lv).slice(); hp.iv = (hp.iv | 0) + 1;
   }
   function ensure(s) {
@@ -435,10 +413,7 @@ const HOSP = (() => {
     if (!hp.skins) hp.skins = { 0: 1 }; if (hp.skin == null) hp.skin = 0;
     if (hp.built) {
       if (!hp.items) { hp.items = []; hp.iseq = 1; hp.iv = 1; }
-      // v1.115: 타운 배치(fitShop)가 병원 건물을 다른 자리로 밀 때 - 이미 저장된 가구/벽 좌표는 "저장 당시의
-      // 기준점(북동쪽 모서리)"에서 떨어진 상대좌표라, 기준점 자체가 옮겨지면 방(room)들은 새 위치에 맞춰
-      // 다시 계산되는데 저장된 가구/벽만 예전 자리에 그대로 남아 어긋나 보임(진료실 라벨은 제자리인데
-      // 파티션 벽들은 엉뚱한 곳에 줄지어 서있는 문제의 원인) - 기준점이 달라졌으면 그 차이만큼 전부 같이 옮겨줌.
+      // v1.115: 타운 배치(fitShop)가 병원 건물을 다른 자리로 밀 때 기준점 동기화
       { const R0 = hospRect(0, 0, lvNow(hp), s);
         if (hp.ax != null && (hp.ax !== R0.x1 || hp.ay !== R0.y)) {
           const dx = hp.ax - R0.x1, dy = hp.ay - R0.y;
@@ -460,6 +435,20 @@ const HOSP = (() => {
           }
         }
         for (const it of hp.items) {
+          if (it.k === 'bench') it.dp = 'lobby';
+        }
+        relocateAll(s, hp);
+      }
+      // v1.120: 조각조각벽/널부러진 벽 완전 제거 및 가구 재정렬 마이그레이션
+      if (!hp.v10) {
+        hp.v10 = 1;
+        // 1. hp.items 내에 잘못 저장되어 바닥에 널부러져 있던 모든 파티션 조각(part) 청소
+        hp.items = (hp.items || []).filter(it => it && it.k !== 'part');
+        // 2. 4번째 방(수술실)에 잘못 들어가 있던 일반 침대(tbed, bed) 퇴출 및 알맞은 방으로 재배치
+        for (const it of hp.items) {
+          if (it.dp === 'surgery' && (it.k === 'tbed' || it.k === 'bed')) {
+            it.dp = (it.k === 'bed') ? 'ward' : 'treat';
+          }
           if (it.k === 'bench') it.dp = 'lobby';
         }
         relocateAll(s, hp);

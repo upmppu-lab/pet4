@@ -5171,9 +5171,15 @@ function getFlowerSprite(kind) {
     frameOn(o, D[o.k].w, D[o.k].d); try { const d = D[o.k]; flowers(c, o.x + .1, o.y + d.d - .45, L === 3 ? 8 : 4, o.x + L); if (L === 3 && d.cat === 'civic' && !d.open) for (const lx of [o.x + .15, o.x + d.w - .15]) { const a = Q(lx, o.y + d.d - .2), b2 = Q(lx, o.y + d.d - .2, 26); c.strokeStyle = '#3a3a44'; c.lineWidth = 1.6; c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b2[0], b2[1]); c.stroke(); ART.ell(c, b2[0], b2[1], 3.5, 4, '#ffe68a', ART.OUT, .8); } } finally { frameOff(); }
   }
   function drawObj(c, o, T, ghost) { const d = D[o.k]; if (!d) return; drawObj_(c, o, T, ghost); if (!ghost) { occTag(c, o); lvBadge(c, o); } }
-  function drawObj_(c, o, T, ghost) { const d = D[o.k]; if (!d) return; if (d.cat === 'house') drawHouse(c, { x: o.x, y: o.y, v: KINDS.indexOf(o.k), cw: o.cw || 0, cr: o.cr || 0, r: o.r, o }, T); else if (d.cat === 'tree') drawTree(c, o, T, ghost); else if (d.cat === 'civic') drawCivic(c, o, T); else drawDeco(c, o, T); }
-  const depthOf = o => { const f = fpOf(o.k, o.r), d = D[o.k]; if (d && d.cat === 'house') return o.x + o.y + 5.0; if (d && d.cat === 'civic' && !d.open) return o.x + o.y + f.w / 2 + f.d / 2 + .3; return o.x + o.y + f.w + f.d - 1.02; };
-  // the ghost while choosing a spot: footprint tiles (green = fine, red = not here) + the building, half see-through
+  const depthOf = o => {
+    const f = fpOf(o.k, o.r), d = D[o.k];
+    const base = o.x + o.y + f.w + f.d - 1.02;
+    // 사용자 요구사항: 건물이 겹쳤을 때는 벽이 있는 건물이 위로 올라가게 해서 벽이 보이게 함
+    if (d && (d.cat === 'house' || (d.cat === 'civic' && !d.open))) {
+      return base + 0.6; // 벽이 있는 건물은 벽의 높이가 있으므로 바닥/평면 오브젝트보다 위에 올라와 벽이 보이도록 우선순위 부여
+    }
+    return base;
+  };
   function drawGhost(c, g, T) {
     if (!g) return false;
     if (g.batch != null && g.batch.size > 0 && !g.mv) {
