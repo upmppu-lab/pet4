@@ -1485,21 +1485,81 @@ const roadTileOk = (s, x, y) => {
   // v1.120: 건물끼리(특히 남북으로 늘어선 큰 건물들) 겹쳤을 때는 아무 방향으로나 밀어내지 않고, 북쪽/남쪽
   // 관계를 유지하도록 "같은 x, 더 북쪽(y가 더 작은 쪽)"부터 먼저 찾아봄 (가게/카페처럼 항상 남쪽 건물이 위로
   // 올라오게). 바로 위가 전부 막혀있을 때만 기존의 사방 나선 탐색으로 넘어감.
+  // v1.120: 건물끼리(특히 남북으로 늘어선 큰 건물들) 겹쳤을 때는 아무 방향으로나 밀어내지 않고, 북쪽/남쪽
+  // 관계를 유지하도록 "같은 x, 더 북쪽(y가 더 작은 쪽)"부터 먼저 찾아봄 (가게/카페처럼 항상 남쪽 건물이 위로
+  // 올라오게). 바로 위가 전부 막혀있을 때만 기존의 사방 나선 탐색으로 넘어감.
   function nearFreeUp(s, k, x0, y0, r, ignore, maxR) {
     for (let R = 1; R < (maxR || 60); R++) { const y = y0 - R; if (!canPlace(s, k, x0, y, r, ignore)) return { x: x0, y }; }
     return null;
   }
+  function hasAnyBuildingOverlap(s) {
+    if (!s || !s.lay) return false;
+    const bigs = TOWN_BIG.filter(k => LAY(k, s) && D[k] && !D[k].noPlace && LAY(k, s).x > -1000);
+    for (let i = 0; i < bigs.length; i++) {
+      const k1 = bigs[i], L1 = LAY(k1, s), d1 = D[k1];
+      const box1 = { x: L1.x, y: L1.y, w: d1.w, d: d1.d };
+      for (let j = i + 1; j < bigs.length; j++) {
+        const k2 = bigs[j], L2 = LAY(k2, s), d2 = D[k2];
+        const box2 = { x: L2.x, y: L2.y, w: d2.w, d: d2.d };
+        if (overlap(box1, box2)) return true;
+      }
+    }
+    return false;
+  }
+  function resolveBuildingOverlaps(s) {
+    const T = s && s.town; if (!T || !s.lay) return false;
+    let anyMoved = false;
+    const bigs = TOWN_BIG.filter(k => LAY(k, s) && D[k] && !D[k].noPlace && LAY(k, s).x > -1000);
+    // 면적이 큰 주요 건물(병원, 카페, 집, 농장)을 먼저 고정하고 작은 건물(미용실 등)을 빈터로 이동
+    bigs.sort((a, b) => (D[b].w * D[b].d) - (D[a].w * D[a].d));
+    for (let i = 0; i < bigs.length; i++) {
+      const k1 = bigs[i], L1 = LAY(k1, s), d1 = D[k1];
+      const box1 = { x: L1.x, y: L1.y, w: d1.w, d: d1.d };
+      for (let j = i + 1; j < bigs.length; j++) {
+        const k2 = bigs[j], L2 = LAY(k2, s), d2 = D[k2];
+        const box2 = { x: L2.x, y: L2.y, w: d2.w, d: d2.d };
+        if (overlap(box1, box2)) {
+          const p = nearFreeUp(s, k2, L2.x, L2.y, 0, k2, 80) || nearFree(s, k2, L2.x, L2.y, 0, k2, 95);
+          if (p) {
+            L2.x = p.x;
+            L2.y = p.y;
+            anyMoved = true;
+            _resKey = '';
+          }
+        }
+      }
+    }
+    if (T.objs) {
+      for (const o of T.objs) {
+        const od = D[o.k]; if (!od || od.noPlace || od.cat === 'tree') continue;
+        const og = fpOf(o.k, o.r);
+        const obox = { x: o.x, y: o.y, w: og.w, d: og.d };
+        for (const bk of bigs) {
+          const bL = LAY(bk, s), bd = D[bk];
+          const bbox = { x: bL.x, y: bL.y, w: bd.w, d: bd.d };
+          if (overlap(obox, bbox)) {
+            const p = nearFreeUp(s, o.k, o.x, o.y, o.r || 0, o.id, 70) || nearFree(s, o.k, o.x, o.y, o.r || 0, o.id, 90);
+            if (p) {
+              o.x = p.x;
+              o.y = p.y;
+              anyMoved = true;
+            }
+          }
+        }
+      }
+    }
+    return anyMoved;
+  }
   function fitShop(s) {
     const T = s && s.town; if (!T) return;
     const trLv = ((typeof TRAIN !== 'undefined' && s.train && s.train.lv) || 1);
-    // v1.121: 호수(lake)도 TOWN_BIG 멤버라 여백=1 수정(위 v1.118)의 효과를 받지만, 기존 세이브는 fitKey가
-    // 그대로라 다음 레벨업 전까지 재배치가 안 일어남 -> ":fv2" 로 키를 한 번 바꿔서 기존 세이브도 이 배포
-    // 직후 한 번은 강제로 전체 재배치(겹침 해소)를 거치도록 함.
-    const key = Wd(s) + 'x' + Hd(s) + ':' + ((s.cafe && s.cafe.lv) || 0) + ':' + ((s.hosp && s.hosp.lv) || 0) + ':tr' + trLv + ':fv2';
-    if (T.fitKey !== key) {
+    const key = Wd(s) + 'x' + Hd(s) + ':' + ((s.cafe && s.cafe.lv) || 0) + ':' + ((s.hosp && s.hosp.lv) || 0) + ':tr' + trLv + ':fv3';
+    const mustResolve = hasAnyBuildingOverlap(s);
+    if (T.fitKey !== key || mustResolve) {
       T.fitKey = key;
       clearBuildingOverlaps(s);
       relocateBuildingsOffTracks(s);
+      resolveBuildingOverlaps(s);
       for (const k of TOWN_BIG) {
         const L = LAY(k, s);
         if (L && !D[k].noPlace && canPlace(s, k, L.x, L.y, 0, k)) {
@@ -7108,7 +7168,7 @@ function getFlowerSprite(kind) {
     return undefined;
   }
   return { houses, drawHouse, houseSolid, followStep, drawFollower, apply, FISH, FISH_MAX,
-    roadSet, roadNearShop, drawPlayerRoads, roadLine, drawRoadTool, ROAD_COST, ROAD_TYPES, pathRects, maxR, rotPt, ground, collect, zonesOf, laneOf, zoneAt, zoneCost, zoneLots, villagerStep, lvOf, capOf, upNeed, upCost, upLevel, canUp, LV_MAX, pow, has, inBig, bigBuilt, ensure, stats, tick, custK, maxAdd, spendK, bestPop, mood, pickHome, doorOf, canPlace, fpOf, kindCost, unlockedK, drawObj, depthOf, drawGhost, stageOf, pop, cap, countOf, occFrac, nearFree, fitShop, clearBuildingOverlaps, trainZones, overlapsTrain, relocateBuildingsOffTracks, syncResidents, pickResidentOf, residentById, residentsOf, addressOf, residentStatus,
+    roadSet, roadNearShop, drawPlayerRoads, roadLine, drawRoadTool, ROAD_COST, ROAD_TYPES, pathRects, maxR, rotPt, ground, collect, zonesOf, laneOf, zoneAt, zoneCost, zoneLots, villagerStep, lvOf, capOf, upNeed, upCost, upLevel, canUp, LV_MAX, pow, has, inBig, bigBuilt, ensure, stats, tick, custK, maxAdd, spendK, bestPop, mood, pickHome, doorOf, canPlace, fpOf, kindCost, unlockedK, drawObj, depthOf, drawGhost, stageOf, pop, cap, countOf, occFrac, nearFree, fitShop, clearBuildingOverlaps, resolveBuildingOverlaps, hasAnyBuildingOverlap, trainZones, overlapsTrain, relocateBuildingsOffTracks, syncResidents, pickResidentOf, residentById, residentsOf, addressOf, residentStatus,
     tierOf, houseCapOf, houseNextReq, houseUpOk, HOUSE_TIER_MAX, HOUSE_TIERS, HOUSE_TIER_NAMES, houseTierName, houseTierBuyCost, nextHouseSlotLevel, canPlaceNewHouse, getTownHouseImg,
     isRoadTile, isCrosswalk, getCrosswalkRows, isRailCrossing, getRailCrossingRows, isRailCrossingTile, drawRailCrossings, facilityEntrances, isEntranceConnected, isFacilityAccessible, isHouseAccessible, drawCrosswalks,
     DEF: TOWN_DEF,

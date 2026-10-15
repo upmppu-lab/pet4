@@ -83,7 +83,7 @@ const HOSP_STAFF = [
   { id: 'doctor', icon: '🩺', hire: 1500, wage: 120, does: ['exam', 'xray', 'ct', 'surgery'], col: '#7ec8e3' },
   { id: 'nurse', icon: '💉', hire: 900, wage: 70, does: ['drip', 'vaccine', 'bandage', 'medbath', 'incubate', 'rest'], col: '#ef8fa8' },
 ];
-const HOSP_STAFF_MAX = 2, HOSP_STAFF_LV_MAX = 10;
+const HOSP_STAFF_MAX = 10, HOSP_STAFF_LV_MAX = 10;
 const HOSP_STAFF_DUR = [0, 9, 8, 7, 6, 5, 4.4, 3.8, 3.2, 2.7, 2.2]; // seconds a staff member needs to get to the next patient, by level
 const hospStaffRole = id => HOSP_STAFF.find(r => r.id === id);
 // v9.96: with two of a role they split the rooms: doctor 1 = exam room, doctor 2 = X-ray / CT / surgery;
@@ -94,10 +94,11 @@ const HOSP_SPEC_NAME = { doctor: ['spec_exam', 'spec_surg'], nurse: ['spec_treat
 function hospSpecOf(hp, m, L) {
   const R = hospStaffRole(m.role); if (!R) return { does: [], k: -1 };
   const same = (hp.staff || []).filter(x => x.role === m.role), k = same.indexOf(m), sp = HOSP_SPEC[m.role];
-  if (!sp || same.length < 2 || k < 0 || k > 1) return { does: R.does, k: -1 };
-  const kinds = new Set(HOSP_TX.filter(x => sp[k].includes(x.id) && x.stn).map(x => x.stn));
+  if (!sp || same.length < 2 || k < 0) return { does: R.does, k: -1 };
+  const specIdx = k % sp.length;
+  const kinds = new Set(HOSP_TX.filter(x => sp[specIdx].includes(x.id) && x.stn).map(x => x.stn));
   if (L && !L.stations.some(z => kinds.has(z.k))) return { does: R.does, k: -1 }; // that room isn't there yet
-  return { does: sp[k], k };
+  return { does: sp[specIdx], k: specIdx };
 }
 const hospStaffHire = (r, n) => Math.round(r.hire * (1 + n * .6) / 10) * 10;
 const hospStaffWage = (r, lv) => Math.round(r.wage * BAL.WAGE_K * STAFF_WAGE_K[lv] / 5) * 5;

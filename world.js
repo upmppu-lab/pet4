@@ -1030,20 +1030,29 @@ return true;
         // v9.93: each staff member gets their OWN post -- two doctors used to stand on exactly the same tile (5 hired, 3 visible)
         const k = roleN[m.role] = (roleN[m.role] | 0) + 1, R = hospStaffRole(m.role), sp = hospSpecOf(hp, m, L), kinds = new Set(HOSP_TX.filter(x => R && sp.does.includes(x.id) && x.stn).map(x => x.stn)); // v9.96: posted in their own room
         const mine = L.stations.filter(z => kinds.has(z.k)), fb = m.role === 'doctor' ? (ex0 || rc) : (tb0 || ex0 || rc);
-        const home = m.role === 'recept' ? rc : (mine.length ? mine[sp.k >= 0 ? 0 : (k - 1) % mine.length] : fb);
+        const home = m.role === 'recept' ? rc : (mine.length ? mine[(k - 1) % mine.length] : fb);
         let tgt = { x: home.px != null ? home.px : home.x + .5, y: home.py != null ? home.py : home.y + 1.5, fx: home.x + home.w / 2, fy: home.y + home.d / 2 };
-        if (k > 1 && (m.role === 'recept' || mine.length < k)) { tgt.x += (k - 1) * (m.role === 'recept' ? -1 : 1); } // no spare station: stand beside the first one
+        if (k > 1) {
+          const offCol = (k - 1) % 3;
+          const offRow = Math.floor((k - 1) / 3);
+          tgt.x += (offCol === 1 ? -0.85 : offCol === 2 ? 0.85 : 0) * (m.role === 'recept' ? 1 : 1);
+          tgt.y += offRow * 0.75;
+        }
         const p = m.pid != null && m.tt > 0 ? P.find(q => q.id === m.pid) : null;
         if (p) { if (p.ph === 'deskserve') tgt = { x: rc.px, y: rc.py, fx: rc.x + 1, fy: rc.y + 1.5 }; else if (p.stn) { const st = L.stations.find(z => String(z.id) === p.stn); if (st) tgt = { x: st.px != null ? st.px : st.sx, y: st.py != null ? st.py : st.sy, fx: st.x + st.w / 2, fy: st.y + st.d / 2 }; } }
         let a = actors.get(id);
         if (!a) { const lk = ART.randomHuman(m.seed); lk.hat = null; lk.top = 'jacket'; lk.jacket = m.role === 'nurse' ? '#f7c6d6' : '#ffffff'; lk.shirt = '#dff1fa'; applyStaffArt(lk, m.seed, false, m.role === 'doctor' ? 'doctor' : m.role === 'nurse' ? 'nurse' : undefined); a = mkActor(id, 'hstaff', tgt.x, tgt.y, { look: lk, speed: 2.6 }); }
         a.m = m; a.talk = !!p && a.arrived !== false && m.tt > 0;
         const key = Math.floor(tgt.x) + ',' + Math.floor(tgt.y);
-        if (a.tkey !== key) { a.tkey = key; a.arrived = false; goTo(a, tgt.x, tgt.y, () => { a.arrived = true; faceTo(a, tgt.fx, tgt.fy); }); }
-        // v1.121: "의사/간호사가 그냥 서있기만 해서 앞모습/옆모습을 볼 수가 없다" - 손님(환자)이 없을 때는
-        // 자기 자리 근처에서 아주 살짝 움직였다가 돌아오게 해서 가만히 멈춰있지 않도록 함. 아무 데나 걷지
-        // 않고 L.solid(벽/가구)에 안 걸리는 바로 옆 칸만 골라서 움직이므로 "길이 없어요" 같은 경로 실패가
-        // 날 일이 없고, 환자가 오면(p가 생기면) 위 tkey 로직이 그 즉시 우선해서 그쪽으로 다시 부름.
+        if (a.tkey !== key) {
+          a.tkey = key; a.arrived = false;
+          goTo(a, tgt.x, tgt.y, () => {
+            a.arrived = true;
+            if (p) faceTo(a, tgt.fx, tgt.fy);
+            else { a.dir = 1; a.face = 0; a.faceBack = false; a.diag = false; }
+          });
+        }
+        // v1.121: 서있을 때 앞모습이 보이도록 하고, 가벼운 제자리 활동 후에도 정면을 바라봄
         if (!p) {
           a._idleT = (a._idleT == null) ? 1.5 + Math.random() * 2.5 : a._idleT - dt;
           if (a._idleT <= 0 && a.arrived && !a.moving && (!a.path || !a.path.length)) {
@@ -1054,13 +1063,13 @@ return true;
                 const nx = tgt.x + odx, ny = tgt.y + ody, k2 = Math.floor(nx) + ',' + Math.floor(ny);
                 if (L.solid.has(k2)) continue;
                 a._idleOut = true; a._idleT = 1.4 + Math.random() * 1.6;
-                goTo(a, nx, ny, () => { faceTo(a, tgt.fx, tgt.fy); });
+                goTo(a, nx, ny, () => { a.dir = 1; a.face = 0; a.faceBack = false; a.diag = false; });
                 moved = true; break;
               }
               if (!moved) a._idleT = 2 + Math.random() * 3;
             } else {
               a._idleOut = false; a._idleT = 3 + Math.random() * 4;
-              goTo(a, tgt.x, tgt.y, () => { a.arrived = true; faceTo(a, tgt.fx, tgt.fy); });
+              goTo(a, tgt.x, tgt.y, () => { a.arrived = true; a.dir = 1; a.face = 0; a.faceBack = false; a.diag = false; });
             }
           }
         } else { a._idleOut = false; a._idleT = null; }
@@ -2178,6 +2187,7 @@ return true;
     }
     let [vdir, vface] = VIEW.df(a.dir || 1, a.face || 0);
     if (vface === 1 && sweeping(a)) vface = 0; // v1.19: sweep facing the camera so face and broom show
+    if (a.type === 'hstaff' && !a.moving && !a.talk) { vface = 0; a.faceBack = false; a.diag = false; }
     c.save(); c.translate(sx, sy);
     if (a.type === 'me' || a.type === 'partner' || a.type === 'cust' || a.type === 'insp' || a.type === 'reg' || a.type === 'staff' || a.type === 'thief' || a.type === 'cafeguest' || a.type === 'patient' || a.type === 'hstaff' || a.type === 'vil') {
       // v1.100.14: 필드 캐릭터가 프리뷰보다 가로로 좁아 보인다는 피드백 - 가로로 12% 더 넓게
@@ -2903,7 +2913,7 @@ return true;
         break; }
       case 'part': { // 테마 호스피탈 스타일의 품격 있는 일체형 클리닉 솔리드 벽체
         if (it.doorway) {
-          // 출입구: 바닥 문지방 + 견고한 좌우 도어 프레임 + 상단 린텔 빔 (사각형 푯말 제거)
+          // 출입구: 바닥 문지방 + 견고한 좌우 도어 프레임 + 상단 린텔 빔 + 방 간판 명판
           // 1. 바닥 스테인리스 문지방
           B(0, .42, 1, .16, 2, '#cbd5e1', 0, '#f1f5f9');
           // 2. 좌/우 도어 프레임 기둥 (높이 38)
@@ -2911,6 +2921,37 @@ return true;
           B(.86, .42, .14, .16, 38, '#334155', 0, '#94a3b8');
           // 3. 상단 헤더 린텔 빔 (높이 34~38)
           B(0, .42, 1.001, .16, 4, '#334155', 34, '#cbd5e1');
+          // 4. 출입구 상단 각 방 고유 간판 (진료실/치료실/영상실/수술실/입원실)
+          if (it.room) {
+            const rIcon = (typeof HOSP_ROOMS !== 'undefined' && HOSP_ROOMS[it.room] && HOSP_ROOMS[it.room].icon) || '🩺';
+            const rRaw = (typeof t === 'function' ? t('hroom_' + it.room) : it.room) || '';
+            const rTitle = rRaw.replace(/\([^)]*\)/g, '').trim(); // e.g. "영상실(X-ray·CT)" -> "영상실"
+            const signText = rIcon + ' ' + rTitle;
+            const sp = P3(.5, .42, 46);
+            // 2개의 크롬 행거 체인
+            line(P3(.26, .42, 38), P3(.26, .42, 44), '#64748b', 1.5);
+            line(P3(.74, .42, 38), P3(.74, .42, 44), '#64748b', 1.5);
+            // 간판 명판 플레이트
+            c.save();
+            c.font = 'bold 9.5px sans-serif';
+            c.textAlign = 'center';
+            const tw = c.measureText(signText).width + 12;
+            const pw = Math.max(38, tw), ph = 16;
+            // 입체 그림자
+            ART.rrect(c, sp[0] - pw / 2 + 1, sp[1] - ph / 2 + 1, pw, ph, 4);
+            c.fillStyle = 'rgba(15,23,42,.35)'; c.fill();
+            // 명판 본체 (소프트 민트/화이트 클리닉 컬러)
+            ART.rrect(c, sp[0] - pw / 2, sp[1] - ph / 2, pw, ph, 4);
+            c.fillStyle = '#f0fdfa'; c.fill();
+            c.strokeStyle = '#0d9488'; c.lineWidth = 1.4; c.stroke();
+            // 내부 테두리 디테일
+            ART.rrect(c, sp[0] - pw / 2 + 1.5, sp[1] - ph / 2 + 1.5, pw - 3, ph - 3, 2.5);
+            c.strokeStyle = 'rgba(45,212,191,.45)'; c.lineWidth = 0.8; c.stroke();
+            // 텍스트
+            c.fillStyle = '#0f766e';
+            c.fillText(signText, sp[0], sp[1] + 3.5);
+            c.restore();
+          }
         } else if (it.vert) {
           // 세로(Y축) 방간 연속 솔리드 벽체: 이음새/틈새 없이 전체 깊이를 매끄럽게 연결
           // 1. 하단 걸레받이 (z=0~6)
