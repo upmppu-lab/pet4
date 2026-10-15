@@ -131,7 +131,6 @@ const HOSP_FURN = [
   { k: 'aquarium', cat: 'deco', w: 1, d: 2, cost: 1200, dps: ['lobby'] },
   { k: 'fountain', cat: 'deco', w: 1, d: 1, cost: 700, dps: ['lobby'] },
   { k: 'vending', cat: 'deco', w: 1, d: 1, cost: 900, dps: ['lobby'] },
-  { k: 'part', cat: 'deco', w: 1, d: 1, cost: 120, dps: ['lobby'] }, // a glass partition panel: build your own walls (rotate it in edit mode)
 ];
 const hospFurn = k => HOSP_FURN.find(f => f.k === k);
 // the fixed equipment of each room (north wall row); the lobby's sits at the east end by the door
@@ -155,34 +154,26 @@ function hospBuildLayout(hp, Rm, lv) {
   // rooms along the north wall, west of the lobby zone; partitions between them + along their south sides, with a 2-tile door in each south side
   const rooms = {}, parts = [], partSet = new Set();
   let cx = R.x1 - HOSP_LOBBY_W;
-  const pd = (hp && hp.partsDone) || [];
   const addPart = (x, y, vert) => { const k = x + ',' + y; if (partSet.has(k)) return; partSet.add(k); parts.push({ x, y, vert }); };
   rs.forEach((id, i) => {
     const sp = HOSP_ROOMS[id], x1 = cx, x0 = cx - sp.w, ry1 = ny + sp.d;
     rooms[id] = { id, x0, x1, y0: ny, y1: ry1, w: sp.w, d: sp.d, door: [x0 + 2] };
-    if (!pd.includes(id)) {
-      // East column partition up to ry1 - 1 (stops flush at south wall corner, does not stick out!)
-      for (let y = ny; y < ry1; y++) addPart(x1, y, true);
-      // Corner post at (x1, ry1)
-      addPart(x1, ry1, true);
-      // South side partitions and framed clinic doorway
-      for (let x = x0; x < x1; x++) {
-        const isDoor = rooms[id].door.includes(x);
-        const k = x + ',' + ry1;
-        if (!partSet.has(k)) {
-          partSet.add(k);
-          parts.push({ x, y: ry1, vert: false, doorway: isDoor, room: id });
-        }
+    // East column partition up to ry1 - 1 (stops flush at south wall corner, does not stick out!)
+    for (let y = ny; y < ry1; y++) addPart(x1, y, true);
+    // Corner post at (x1, ry1)
+    addPart(x1, ry1, true);
+    // South side partitions and framed clinic doorway
+    for (let x = x0; x < x1; x++) {
+      const isDoor = rooms[id].door.includes(x);
+      const k = x + ',' + ry1;
+      if (!partSet.has(k)) {
+        partSet.add(k);
+        parts.push({ x, y: ry1, vert: false, doorway: isDoor, room: id });
       }
-    } else {
-      // v1.119: 벽은 이미 실물 아이템으로 저장되어 매번 다시 그릴 필요 없지만, 출입구 장식 프레임은
-      // (막히지 않도록) 저장하지 않으므로 done 상태에서도 매번 다시 계산해서 그려줘야 함
-      const doorX = rooms[id].door[0], k = doorX + ',' + ry1;
-      if (!partSet.has(k)) { partSet.add(k); parts.push({ x: doorX, y: ry1, vert: false, doorway: true, room: id }); }
     }
     cx = x0;
   });
-  if (rs.length && !pd.includes(rs[rs.length - 1])) {
+  if (rs.length) {
     const lastR = rooms[rs[rs.length - 1]];
     if (lastR) {
       for (let y = ny; y < lastR.y1; y++) addPart(lastR.x0, y, true);
@@ -203,6 +194,7 @@ function hospBuildLayout(hp, Rm, lv) {
   for (const id of rs) { if (kitDone.includes(id)) continue; const r = rooms[id]; let kx = r.x0; for (const k of HOSP_KIT[id] || []) { const F = hospFurn(k); if (kx + F.w > r.x1) break; const it = { k, id: 'k' + ki++, x: kx, y: ny, w: F.w, d: F.d, solid: true, fixed: true, dp: id }; kit.push(it); mark(it.x, it.y, it.w, it.d); kx += F.w; } }
   const items = [];
   for (const it of (hp && hp.items) || []) {
+    if (it.k === 'part') continue; // Clean design: walls are never loose movable items
     if (!rooms[it.dp] && it.dp !== 'lobby') continue;
     const F = hospFurn(it.k); if (!F) continue;
     const o = { id: it.id, k: it.k, x: it.x + R.x1, y: it.y + R.y, w: it.r ? F.d : F.w, d: it.r ? F.w : F.d, r: it.r ? 1 : 0, solid: true, cat: F.cat, dp: it.dp, vert: !!it.v };
@@ -240,24 +232,24 @@ function hospBuildLayout(hp, Rm, lv) {
     if (wait.length > 1 && Math.floor(wait[0].x) === Math.floor(recv.px) && Math.floor(wait[0].y) === Math.floor(recv.py)) wait.shift();
     recv.sx = wait.length ? wait[0].x : recv.x + .5; recv.sy = wait.length ? wait[0].y : recv.y + 1.5;
   }
-  // bench seats: facing outward into the open lobby room towards reception (never facing the wall!)
+  // bench seats: facing forward (south) into the open lounge so characters and pets face the player
   const seats = [];
   for (const b of items) if (b.k === 'bench') {
     for (let i = 0; i < b.w; i++) {
       const bx = Math.floor(b.x + i);
       const southOk = reach.has(bx + ',' + (b.y + b.d));
       const northOk = reach.has(bx + ',' + (b.y - 1));
-      // User request: 병원로비 의자는 반대로 돌려놓아 접수대를 바라보게 설정 (남쪽 등받이, 북쪽 접수대 방향)
-      const faceNorth = northOk || !southOk;
-      const oy = faceNorth ? b.y - .5 : b.y + b.d + .2;
-      const sy = faceNorth ? b.y + .35 : b.y + .65;
+      // Standard front-facing: face south into open hallway when south is open (clear view of pet & owner)
+      const faceSouth = southOk || !northOk;
+      const oy = faceSouth ? b.y + b.d + .35 : b.y - .4;
+      const sy = faceSouth ? b.y + .55 : b.y + .35;
       seats.push({
         dep: b.x + b.w + b.y + b.d - 1.02 + .01,
         x: b.x + i + .5,
         y: sy,
         ox: b.x + i + .5,
         oy,
-        faceSouth: !faceNorth,
+        faceSouth: faceSouth,
         bench: b.id
       });
     }
@@ -303,34 +295,34 @@ function hospAutoSpot(hp, Rm, lv, k, dp) {
   }
   return null;
 }
-// 병원 대기실 긴의자 전용 정렬: 중앙 통로 2칸을 사이에 둔 완벽한 좌우 대칭 2열 종대 그리드
+// 병원 대기실 긴의자 전용 정렬: 중앙 통로와 이동 동선을 고려한 완벽한 격자 대칭 배치
 function hospCenterSpot(hp, Rm, lv, k, dp) {
   const F = hospFurn(k), R = hospRect(Rm.w, Rm.h, lv);
   const L0 = hospBuildLayout(hp, Rm, lv);
 
-  // 대기실 유효 너비 기준 중앙 통로를 둔 좌/우 2열 배치
-  const colA = R.x + 2;
-  const colB = R.x + 7;
-  const startY = R.y + 7; // 진료실 칸막이(y: R.y+5) 아래 2칸 여유 통로
-
-  // 대기실 좌우 대칭 2열 종대 고정 슬롯
+  // 로비 대기실: 진료실 남쪽 출입구 통로(y: R.y+5, R.y+6)를 비워두고 R.y+7부터 시작
+  const startY = R.y + 7;
   const plannedSlots = [];
+
+  // 가로 너비에 맞춰 4칸 간격(3칸 의자 + 1칸 통로)으로 균등하게 열(Column) 배치
+  // 동쪽 출입문 통로(R.x1 - 2 ~ R.x1)는 넉넉하게 비워둠
   for (let y = startY; y <= R.y1 - F.d - 1; y += 2) {
-    if (colA + F.w <= R.x1 - 2) plannedSlots.push({ x: colA, y });
-    if (colB + F.w <= R.x1 - 2) plannedSlots.push({ x: colB, y });
+    for (let x = R.x + 1; x + F.w <= R.x1 - 2; x += 4) {
+      plannedSlots.push({ x, y });
+    }
   }
 
-  // 1순위: 계획된 가지런한 2열 행/열 그리드 시도
+  // 1순위: 계획된 정렬 그리드 슬롯 중 빈 자리
   for (const s of plannedSlots) {
     if (L0.inRegion(dp, s.x, s.y) && !hospCheckPlace(hp, Rm, lv, { id: -1, k, dp, x: s.x, y: s.y })) {
       return s;
     }
   }
 
-  // 예비: 정렬된 열(colA/colB) 기준 후보 탐색 (절대 난잡하게 흩어지지 않음)
-  for (let y = startY; y <= R.y1 - F.d - 1; y++) {
-    for (const x of [colA, colB]) {
-      if (x + F.w <= R.x1 - 2 && !hospCheckPlace(hp, Rm, lv, { id: -1, k, dp, x, y })) {
+  // 2순위: 1칸씩 남쪽으로 탐색하되 반드시 지정된 열(x)에만 정렬되도록 제한 (임의로 흩어지지 않음)
+  for (let y = startY; y <= R.y1 - F.d; y++) {
+    for (let x = R.x + 1; x + F.w <= R.x1 - 2; x += 4) {
+      if (L0.inRegion(dp, x, y) && !hospCheckPlace(hp, Rm, lv, { id: -1, k, dp, x, y })) {
         return { x, y };
       }
     }
@@ -439,16 +431,18 @@ const HOSP = (() => {
         }
         relocateAll(s, hp);
       }
-      // v1.120: 조각조각벽/널부러진 벽 완전 제거 및 가구 재정렬 마이그레이션
-      if (!hp.v10) {
-        hp.v10 = 1;
-        // 1. hp.items 내에 잘못 저장되어 바닥에 널부러져 있던 모든 파티션 조각(part) 청소
+      // v1.121: 병원 대기실 긴의자 대칭 격자 정렬 및 조각 벽체 잔여물 완전 청소
+      if (!hp.v11) {
+        hp.v11 = 1;
         hp.items = (hp.items || []).filter(it => it && it.k !== 'part');
-        // 2. 4번째 방(수술실)에 잘못 들어가 있던 일반 침대(tbed, bed) 퇴출 및 알맞은 방으로 재배치
+        if (hp.kitIds) {
+          hp.kitIds = hp.kitIds.filter(id => {
+            const it = (hp.items || []).find(x => x.id === id);
+            return it && it.k !== 'part';
+          });
+        }
+        delete hp.partsDone;
         for (const it of hp.items) {
-          if (it.dp === 'surgery' && (it.k === 'tbed' || it.k === 'bed')) {
-            it.dp = (it.k === 'bed') ? 'ward' : 'treat';
-          }
           if (it.k === 'bench') it.dp = 'lobby';
         }
         relocateAll(s, hp);

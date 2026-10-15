@@ -2643,6 +2643,11 @@ return true;
     // entrance welcome clinic runner mat
     fillP([pt(R.x1 - 1.8, R.y + 2), pt(R.x1, R.y + 2), pt(R.x1, R.y + 3.8), pt(R.x1 - 1.8, R.y + 3.8)], '#10b981', 'rgba(6,95,70,.4)', 1.2);
     fillP([pt(R.x1 - 1.6, R.y + 2.2), pt(R.x1 - .2, R.y + 2.2), pt(R.x1 - .2, R.y + 3.6), pt(R.x1 - 1.6, R.y + 3.6)], '#34d399');
+
+    // Central hallway guide strip: elegant medical wayfinding line connecting lobby to clinic doors
+    const minRx = L.roomIds.length ? Math.min(...L.roomIds.map(id => (L.rooms[id] && L.rooms[id].x0) || R.x)) : R.x + 1;
+    fillP([pt(minRx + .2, R.y + 5.3), pt(R.x1 - .4, R.y + 5.3), pt(R.x1 - .4, R.y + 5.6), pt(minRx + .2, R.y + 5.6)], '#0d9488', 'rgba(13,148,136,.4)', 1);
+
     fillP([pt(R.x, R.y), pt(R.x1, R.y), pt(R.x1, R.y1), pt(R.x, R.y1)], 'rgba(0,0,0,0)', '#5fa89d', 2);
     c.restore();
   }
