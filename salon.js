@@ -13,7 +13,7 @@ const SALON_SPECIES = ['pomeranian', 'maltese', 'maltese_cream', 'maltese_brown'
 const SALON = (() => {
   // lot-local layout: two grooming tables along the back wall, a waiting bench on the west wall, the counter by the east entrance
   const TABLES = [{ u: 2, v: 1 }, { u: 5.5, v: 1 }], SEATS = [{ u: .65, v: 3.85 }, { u: .65, v: 4.95 }, { u: .65, v: 6.05 }, { u: 1.8, v: 6.6 }], COUNTER = { u: 7.4, v: 4.6 };
-  const ensure = s => { const sl = s.salon = s.salon || {}; if (!sl.q) sl.q = []; if (!sl.staff) sl.staff = []; if (!sl.seq) sl.seq = 1; if (sl.spawnT == null) sl.spawnT = 8; return sl; };
+  const ensure = s => { const sl = s.salon = s.salon || {}; if (!sl.q) sl.q = []; if (!sl.staff) sl.staff = []; if (!sl.seq) sl.seq = 1; if (sl.spawnT == null) sl.spawnT = 8; if (sl.built && sl.bldSeq == null) sl.bldSeq = 1; return sl; };
   const built = () => !!(typeof S !== 'undefined' && S && S.salon && S.salon.built);
   const payOf = sp => 200 + Math.round(((SPECIES[sp] && SPECIES[sp].sell) || 600) * .3);
   // ---------------- core ----------------
@@ -50,10 +50,10 @@ const SALON = (() => {
   function apply(s, a) {
     const sl = ensure(s);
     switch (a.t) {
-      case 'buildsalon': { if (!(s.lay && s.lay.salon)) return { err: 'tUseBuildMenu' }; if (sl.built) return { err: 'gone' }; if (s.coins < SALON_COST) return { err: 'notEnough' }; s.coins -= SALON_COST; sl.built = s.clock ? s.clock.day : 1; sl.spawnT = 6; return { ok: 1, fx: 'coin', msg: 'salonBuilt' }; }
+      case 'buildsalon': { if (!(s.lay && s.lay.salon)) return { err: 'tUseBuildMenu' }; if (sl.built) return { err: 'gone' }; if (s.coins < SALON_COST) return { err: 'notEnough' }; s.coins -= SALON_COST; sl.built = s.clock ? s.clock.day : 1; sl.spawnT = 6; s.bldSeq = (s.bldSeq || 0) + 1; sl.bldSeq = s.bldSeq; return { ok: 1, fx: 'coin', msg: 'salonBuilt' }; }
       case 'salongroom': { const c = sl.q.find(x => x.id === a.cid); if (!c || c.ph !== 'wait') return { err: 'gone' }; const st = freeTable(sl); if (st < 0) return { err: 'salonBusy' }; start(sl, c, st, 'me'); return { ok: 1, msg: 'salonStart' }; }
       case 'salonhire': { if (!sl.built || sl.staff.length >= SALON_STAFF_MAX) return { err: 'gone' }; if (s.coins < SALON_STAFF.hire) return { err: 'notEnough' }; s.coins -= SALON_STAFF.hire; const L = (typeof NAMES !== 'undefined' && (NAMES[s.lang || 'ko'] || NAMES.ko)) || ['?']; sl.staff.push({ id: sl.seq++, role: 'groomer', lv: 1, seed: 1 + Math.floor(Math.random() * 99999), name: L[Math.floor(Math.random() * L.length)], done: 0 }); return { ok: 1, fx: 'coin', msg: 'hired' }; }
-      case 'salonup': { const m = sl.staff.find(x => x.id === a.sid); if (!m || m.lv >= 10) return { err: 'gone' }; const c = 700 * m.lv; if (s.coins < c) return { err: 'notEnough' }; s.coins -= c; m.lv++; return { ok: 1, fx: 'coin' }; }
+      case 'salonup': { const m = sl.staff.find(x => x.id === a.sid); if (!m || m.lv >= 10) return { err: 'gone' }; const c = 700 * m.lv; if (s.coins < c) return { err: 'notEnough' }; s.coins -= c; m.lv++; s.bldSeq = (s.bldSeq || 0) + 1; sl.bldSeq = s.bldSeq; return { ok: 1, fx: 'coin' }; }
       case 'salonfire': { const i = sl.staff.findIndex(x => x.id === a.sid); if (i < 0) return { err: 'gone' }; sl.staff.splice(i, 1); return { ok: 1, msg: 'fired' }; }
       case 'salongroomall': { if (!sl.built) return { err: 'gone' }; const ps = s.pets.filter(p => p && !p.groomed); if (!ps.length) return { err: 'salonNoneToGroom' }; const n = Math.min(ps.length, Math.floor(s.coins / SALON_GROOM_ALL)); if (!n) return { err: 'notEnough' };
         for (let i = 0; i < n; i++) { ps[i].groomed = true; ps[i].happy = Math.min(100, (ps[i].happy || 0) + 10); ps[i].clean = 100; } s.coins -= n * SALON_GROOM_ALL; return { ok: 1, fx: 'coin', msg: 'salonGroomedAll', p: { n } }; }
@@ -150,7 +150,7 @@ const SALON = (() => {
     const out = [];
     if (!built()) { const s = SALON_SIGN(); out.push({ depth: s.x + s.y + 1, fn: () => { at(c, s.x + .5, s.y + .5, () => sign(c, T)); const sx = ISO.wx(s.x + .5, s.y + .5), sy = ISO.wy(s.x + .5, s.y + .5); addHit({ kind: 'salonsign', x0: sx - 56, x1: sx + 56, y0: sy - 110, y1: sy + 6 }); } }); return out; }
     const p = SALON_POS(), sl = S.salon;
-    out.push({ depth: p.x + p.y + 0.05, fn: () => walls(c, T) });
+    out.push({ depth: p.x + p.y + 0.05 + ((sl.bldSeq || 1) * 0.0001), fn: () => walls(c, T) });
     TABLES.forEach((tb, i) => { const cu = sl.q.find(q => q.ph === 'groom' && q.st === i); out.push({ depth: p.x + tb.u + 2 + p.y + tb.v + 1 - 1.02, fn: () => at(c, p.x + tb.u, p.y + tb.v, () => table(c, T, i, cu)) }); });
     out.push({ depth: p.x + COUNTER.u + 2 + p.y + COUNTER.v + 1 - 1.02, fn: () => at(c, p.x + COUNTER.u, p.y + COUNTER.v, () => counter(c)) });
     out.push({ depth: p.x + 1.0 + p.y + 6.7, fn: () => at(c, p.x + .15, p.y + 3.3, () => bench(c)) });

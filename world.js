@@ -1554,24 +1554,48 @@ return true;
     c.drawImage(bgCanvas, bgCanvas.ox, bgCanvas.oy, bgCanvas.width / bgCanvas.k, bgCanvas.height / bgCanvas.k);
     TOWN.ground(c, T); // 모든 도로와 주택가 바닥을 먼저 렌더링
     const hospVis = (S.hosp && S.hosp.built) ? isBoxVis(HOSP_POS().x, HOSP_POS().y, HOSP_POS().w, HOSP_POS().d) : isBoxVis(HOSP_LOT().x, HOSP_LOT().y, HOSP_LOT().w, HOSP_LOT().d);
-    if (hospVis) { drawHospLot(); drawHospFloor(); }
     const farmVis = LAY('farm') && isBoxVis(FARM_POS().x - 2, FARM_POS().y - 2, FARM_POS().w + 6, FARM_POS().d + 6);
-    if (farmVis) drawFarmGround();
     const cafeVis = isBoxVis(CAFE_POS().x, CAFE_POS().y, CAFE_POS().w, CAFE_POS().d);
-    if (cafeVis) drawCafeGround();
     const parkVis = isBoxVis(PARK_POS().x, PARK_POS().y, PARK_POS().w, PARK_POS().d);
-    if (parkVis) PARK.ground(c, T);
     const vilVis = isBoxVis(VILLAGE_X0, VILLAGE_Y0, W() + VILLAGE_XE - VILLAGE_X0, VILLAGE_S_MAX() - VILLAGE_Y0);
-    if (vilVis) VILLAGE.ground(c, T);
     const ranchVis = (typeof RANCH_POS === 'function') && isBoxVis(RANCH_POS().x, RANCH_POS().y, RANCH_POS().w, RANCH_POS().d);
-    if (ranchVis) RANCH.ground(c, T);
     const salonVis = (typeof SALON_POS === 'function') && isBoxVis(SALON_POS().x, SALON_POS().y, SALON_POS().w, SALON_POS().d);
-    if (salonVis) {
-      if (SALON.floor) SALON.floor(c, T); else SALON.ground(c, T);
+
+    const hospSeq = (S.hosp && (S.hosp.bldSeq || S.hosp.lv || 1)) || 1;
+    const salonSeq = (S.salon && (S.salon.bldSeq || (S.salon.built ? 1 : 0))) || 0;
+
+    const drawHospFloorPass = () => { if (hospVis) { drawHospLot(); drawHospFloor(); } };
+    const drawSalonFloorPass = () => { if (salonVis) { if (SALON.floor) SALON.floor(c, T); else SALON.ground(c, T); } };
+    const drawHospWallPass = () => { if (hospVis) drawHospWalls(); };
+    const drawSalonWallPass = () => { if (salonVis && SALON.walls) SALON.walls(c, T); };
+
+    // 바닥 렌더링: 먼저 지어진 건물의 바닥 -> 나중에 지어지거나 확장된 건물의 바닥 순서로 그려 겹침 완벽 해소
+    if (hospSeq <= salonSeq) {
+      drawHospFloorPass();
+      if (farmVis) drawFarmGround();
+      if (cafeVis) drawCafeGround();
+      if (parkVis) PARK.ground(c, T);
+      if (vilVis) VILLAGE.ground(c, T);
+      if (ranchVis) RANCH.ground(c, T);
+      drawSalonFloorPass();
+    } else {
+      drawSalonFloorPass();
+      if (farmVis) drawFarmGround();
+      if (cafeVis) drawCafeGround();
+      if (parkVis) PARK.ground(c, T);
+      if (vilVis) VILLAGE.ground(c, T);
+      if (ranchVis) RANCH.ground(c, T);
+      drawHospFloorPass();
     }
-    // 건물이 겹쳤을 때는 벽이 바닥 위로 올라오도록 벽 렌더링을 바닥 렌더링 이후에 실행
-    if (salonVis && SALON.walls) SALON.walls(c, T);
-    if (hospVis) drawHospWalls();
+
+    // 벽 렌더링: 나중에 지어진 건물의 벽이 무조건 위로 올라와 보이도록 시퀀스 순서 적용
+    if (hospSeq <= salonSeq) {
+      drawHospWallPass();
+      drawSalonWallPass();
+    } else {
+      drawSalonWallPass();
+      drawHospWallPass();
+    }
     if (wallCanvas && TOWN.roadNearShop()) {
       c.drawImage(wallCanvas, wallCanvas.ox, wallCanvas.oy, wallCanvas.width / wallCanvas.k, wallCanvas.height / wallCanvas.k);
       drawRoadBehindWall(c);
@@ -2751,8 +2775,9 @@ return true;
     if (!(S.hosp && S.hosp.built)) return [];
     const L = HOSP_LAYOUT(), out = [], sel = App.hospEdit ? hospSel : null;
     const R = HOSP_POS();
+    const hospSeq = (S.hosp && (S.hosp.bldSeq || S.hosp.lv || 1)) || 1;
     // 건물 확장 및 신축 시 서쪽, 북쪽 벽이 기존 건물보다 위에 확실히 오도록 depth 정렬 레이어 추가
-    out.push({ depth: R.x + R.y + 0.05, fn: drawHospWalls });
+    out.push({ depth: R.x + R.y + 0.05 + hospSeq * 0.0001, fn: drawHospWalls });
     for (const it of L.all) out.push({ depth: it.x + it.w + it.y + it.d - 1.02, fn: () => { if (sel != null && sel === it.id) { c.globalAlpha = .6; drawHospItem(it); c.globalAlpha = 1; } else drawHospItem(it); } });
     for (const q of L.parts) { const pq = { k: 'part', x: q.x, y: q.y, w: 1, d: 1, vert: !!q.vert, doorway: q.doorway, room: q.room }; out.push({ depth: q.x + q.y + 1 - 1.02 + .2, fn: () => drawHospItem(pq) }); }
     // low walls along the south and east sides (the back walls are the tall ones): the door in the east wall is the only way in
@@ -2878,7 +2903,7 @@ return true;
         break; }
       case 'part': { // 테마 호스피탈 스타일의 품격 있는 일체형 클리닉 솔리드 벽체
         if (it.doorway) {
-          // 출입구: 바닥 문지방 + 견고한 좌우 도어 프레임 + 상단 린텔 빔 + 3D 아이소메트릭 진료과목 명패
+          // 출입구: 바닥 문지방 + 견고한 좌우 도어 프레임 + 상단 린텔 빔 (사각형 푯말 제거)
           // 1. 바닥 스테인리스 문지방
           B(0, .42, 1, .16, 2, '#cbd5e1', 0, '#f1f5f9');
           // 2. 좌/우 도어 프레임 기둥 (높이 38)
@@ -2886,42 +2911,6 @@ return true;
           B(.86, .42, .14, .16, 38, '#334155', 0, '#94a3b8');
           // 3. 상단 헤더 린텔 빔 (높이 34~38)
           B(0, .42, 1.001, .16, 4, '#334155', 34, '#cbd5e1');
-          // 4. 게임 각도(아이소메트릭)에 맞춘 3D 아크릴 진료과목 명패
-          c.save();
-          const midX = ISO.wx(it.x + 0.5, it.y + 0.5);
-          const midY = ISO.wy(it.x + 0.5, it.y + 0.5) - 42;
-          c.translate(midX, midY);
-          c.transform(1, 0.5, 0, 1, 0, 0); // 아이소메트릭 26.56° 경사
-
-          const rcol = {
-            clinic: '#059669', // 진료실
-            treat: '#0284c7',  // 치료실
-            radio: '#4f46e5',  // 영상실
-            surgery: '#dc2626',// 수술실
-            ward: '#d97706'    // 입원실
-          }[it.room] || '#0d9488';
-
-          const sw = 46, sh = 17;
-          c.fillStyle = 'rgba(0,0,0,.25)';
-          c.fillRect(-sw / 2 + 1.5, -sh / 2 + 1.5, sw, sh);
-          c.fillStyle = '#ffffff';
-          c.strokeStyle = rcol;
-          c.lineWidth = 1.8;
-          c.beginPath();
-          c.rect(-sw / 2, -sh / 2, sw, sh);
-          c.fill();
-          c.stroke();
-          // 상단 테마 컬러바
-          c.fillStyle = rcol;
-          c.fillRect(-sw / 2, -sh / 2, sw, 3.5);
-          // 텍스트
-          c.fillStyle = '#0f172a';
-          c.font = 'bold 8.5px sans-serif';
-          c.textAlign = 'center';
-          c.textBaseline = 'middle';
-          const rname = it.room ? (HOSP_ROOMS[it.room] ? HOSP_ROOMS[it.room].icon + ' ' + t('hroom_' + it.room) : '🩺 진료실') : '🩺 진료실';
-          c.fillText(rname, 0, 2);
-          c.restore();
         } else if (it.vert) {
           // 세로(Y축) 방간 연속 솔리드 벽체: 이음새/틈새 없이 전체 깊이를 매끄럽게 연결
           // 1. 하단 걸레받이 (z=0~6)
