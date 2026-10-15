@@ -232,24 +232,21 @@ function hospBuildLayout(hp, Rm, lv) {
     if (wait.length > 1 && Math.floor(wait[0].x) === Math.floor(recv.px) && Math.floor(wait[0].y) === Math.floor(recv.py)) wait.shift();
     recv.sx = wait.length ? wait[0].x : recv.x + .5; recv.sy = wait.length ? wait[0].y : recv.y + 1.5;
   }
-  // bench seats: facing forward (south) into the open lounge so characters and pets face the player
+  // bench seats: facing north (반대방향/북쪽) into the hospital rooms so patients face north
   const seats = [];
   for (const b of items) if (b.k === 'bench') {
     for (let i = 0; i < b.w; i++) {
       const bx = Math.floor(b.x + i);
-      const southOk = reach.has(bx + ',' + (b.y + b.d));
-      const northOk = reach.has(bx + ',' + (b.y - 1));
-      // Standard front-facing: face south into open hallway when south is open (clear view of pet & owner)
-      const faceSouth = southOk || !northOk;
-      const oy = faceSouth ? b.y + b.d + .35 : b.y - .4;
-      const sy = faceSouth ? b.y + .55 : b.y + .35;
+      const faceSouth = false; // Always face north (towards the rooms)
+      const oy = b.y - .4; // Stand/approach tile in front of the bench (north of bench)
+      const sy = b.y + .35; // Sit on the cushion
       seats.push({
         dep: b.x + b.w + b.y + b.d - 1.02 + .01,
         x: b.x + i + .5,
         y: sy,
         ox: b.x + i + .5,
         oy,
-        faceSouth: faceSouth,
+        faceSouth: false,
         bench: b.id
       });
     }
@@ -300,13 +297,18 @@ function hospCenterSpot(hp, Rm, lv, k, dp) {
   const F = hospFurn(k), R = hospRect(Rm.w, Rm.h, lv);
   const L0 = hospBuildLayout(hp, Rm, lv);
 
-  // 로비 대기실: 진료실 남쪽 출입구 통로(y: R.y+5, R.y+6)를 비워두고 R.y+7부터 시작
-  const startY = R.y + 7;
+  // 로비 대기실: 중앙(Center) 정렬
+  // 진료실 남쪽 출입구 통로와 남쪽 외벽 사이의 정중앙에 위치하도록 배치
+  // Lv4 (깊이 19): R.y + 10, R.y + 13 (위 5칸, 중간 2칸, 아래 5칸 대칭)
+  // Lv3 (깊이 16): R.y + 9, R.y + 12 (위 4칸, 중간 2칸, 아래 3칸 대칭)
+  // Lv2 (깊이 13): R.y + 8 (위 3칸, 아래 4칸 대칭)
+  // Lv1 (깊이 10): R.y + 7 (위 2칸, 아래 2칸 대칭)
+  const startY = (lv >= 4) ? (R.y + 10) : (lv === 3) ? (R.y + 9) : (lv === 2) ? (R.y + 8) : (R.y + 7);
   const plannedSlots = [];
 
   // 가로 너비에 맞춰 4칸 간격(3칸 의자 + 1칸 통로)으로 균등하게 열(Column) 배치
-  // 동쪽 출입문 통로(R.x1 - 2 ~ R.x1)는 넉넉하게 비워둠
-  for (let y = startY; y <= R.y1 - F.d - 1; y += 2) {
+  // 1열과 2열 사이는 통로 2칸 확보(y += 3)
+  for (let y = startY; y <= R.y1 - F.d - 1; y += 3) {
     for (let x = R.x + 1; x + F.w <= R.x1 - 2; x += 4) {
       plannedSlots.push({ x, y });
     }
@@ -319,7 +321,7 @@ function hospCenterSpot(hp, Rm, lv, k, dp) {
     }
   }
 
-  // 2순위: 1칸씩 남쪽으로 탐색하되 반드시 지정된 열(x)에만 정렬되도록 제한 (임의로 흩어지지 않음)
+  // 2순위: 1칸씩 남쪽으로 탐색하되 지정된 열(x)에 정렬
   for (let y = startY; y <= R.y1 - F.d; y++) {
     for (let x = R.x + 1; x + F.w <= R.x1 - 2; x += 4) {
       if (L0.inRegion(dp, x, y) && !hospCheckPlace(hp, Rm, lv, { id: -1, k, dp, x, y })) {
@@ -442,6 +444,14 @@ const HOSP = (() => {
           });
         }
         delete hp.partsDone;
+        for (const it of hp.items) {
+          if (it.k === 'bench') it.dp = 'lobby';
+        }
+        relocateAll(s, hp);
+      }
+      // v1.122: 긴 의자 위치를 로비 중앙으로 재배치 및 북쪽 방향(반대방향) 적용
+      if (!hp.v12) {
+        hp.v12 = 1;
         for (const it of hp.items) {
           if (it.k === 'bench') it.dp = 'lobby';
         }
