@@ -4238,7 +4238,7 @@ function getFlowerSprite(kind) {
   function drawDeco2(c, o, T, f, cx, cy, q, lit) {
     const k = o.k, sh2 = (x0, y0, x1, y1, col) => poly(c, [Q(x0, y0), Q(x1, y0), Q(x1, y1), Q(x0, y1)], col);
     const pole = (x, y, z0, z1, col, lw) => { const a = Q(x, y, z0), b = Q(x, y, z1); c.strokeStyle = col; c.lineWidth = lw || 2; c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); };
-    const shadow = (rx, ry) => ART.ell(c, q[0], q[1], rx, ry, 'rgba(0,0,0,.13)');
+    const shadow = (rx, ry) => ART.shadow(c, q[0], q[1], rx, ry);
     const emo = (e, z, px) => { const p = Q(cx, cy, z); c.font = (px || 14) + 'px sans-serif'; c.textAlign = 'center'; c.fillStyle = '#000'; c.fillText(e, p[0], p[1]); c.textAlign = 'start'; };
     switch (k) {
       case 'fence': { const [a, b] = [[o.x + .05, cy], [o.x + .95, cy]];

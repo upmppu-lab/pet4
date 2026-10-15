@@ -21,9 +21,9 @@ const ART = (() => {
   }
   function shadow(c, x, y, rx, ry) {
     const rY = ry || rx * .4;
-    ell(c, x + .8, y + .8, rx * 1.25, rY * 1.25, 'rgba(30,18,8,.12)');
-    ell(c, x + .4, y + .4, rx, rY, 'rgba(35,20,10,.26)');
-    ell(c, x, y, rx * .68, rY * .55, 'rgba(25,12,5,.42)');
+    ell(c, x + .8, y + .8, rx * 1.25, rY * 1.25, 'rgba(30,18,8,.20)');
+    ell(c, x + .4, y + .4, rx, rY, 'rgba(35,20,10,.36)');
+    ell(c, x, y, rx * .68, rY * .55, 'rgba(25,12,5,.55)');
   }
 
   // ---------------- eyes/faces ----------------

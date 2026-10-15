@@ -2526,11 +2526,11 @@ const FURN = (() => {
   function homeFenceFront(c, W, H, lv, name) { WORLD = true; try { myHome(c, W, H, lv, name, 'frontFence'); } finally { WORLD = false; } }
   function outsideW(c, W, H, t, names) {
     const g = 8, gs = 26; // gs: how far the ground/road run south -- the home can now sit further south than H+8 (see HOME_POS)
-    poly(c, [P(-g, -22), P(W + 27, -22), P(W + 27, H + gs), P(-g, H + gs)], '#a8d88e', null);
+    poly(c, [P(-g, -22), P(W + 27, -22), P(W + 27, H + gs), P(-g, H + gs)], '#86c860', null);
     // grass texture (tone patches, tufts, a few flowers) -- kept clear of the shop's surroundings and the street
     groundTex(c, -g, -22, W + 27, H + gs, (x, y) => (x > -2 && x < W + 1.1 && y > -2 && y < H + 1.5) || (x > W + .9 && x < W + 8.7), 1);
     // soft shadow rim round the shop's footprint so it sits IN the ground rather than on it
-    for (const [e, a] of [[.45, .08], [.22, .1]]) poly(c, [P(-e * .3, -e * .3), P(W + e, -e * .3), P(W + e, H + e), P(-e * .3, H + e)], `rgba(40,70,20,${a})`, null);
+    for (const [e, a] of [[.45, .18], [.22, .26]]) poly(c, [P(-e * .3, -e * .3), P(W + e, -e * .3), P(W + e, H + e), P(-e * .3, H + e)], `rgba(40,70,20,${a})`, null);
     // street + sidewalks on both sides (the far one reaches the home/stall/farm row)
     road(c, W, -22, H + gs);
     // crosswalk near the entrance

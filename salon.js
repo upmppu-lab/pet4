@@ -71,12 +71,28 @@ const SALON = (() => {
     for (let u = -1; u <= p.w; u++) { set.add((p.x + u) + ',' + (p.y - 1)); } for (let v = -1; v <= p.d; v++) set.add((p.x - 1) + ',' + (p.y + v)); // back walls
     return set;
   }
+  // 건물 밑동 그림자(카페/병원과 동일 패턴) -- 살롱엔 없었어서 추가
+  function groundShadowSalon(c, x, y, w, d) {
+    for (const [e, a] of [[.45, .18], [.22, .26]]) {
+      const q = [Q(x - e * .3, y - e * .3), Q(x + w + e, y - e * .3), Q(x + w + e, y + d + e), Q(x - e * .3, y + d + e)];
+      poly(c, q, `rgba(40,70,20,${a})`, null);
+    }
+  }
+  const salonFloorRnd = (ix, iy) => { const v = Math.sin(ix * 12.9898 + iy * 78.233 + 4.17) * 43758.5453; return v - Math.floor(v); };
   function floor(c, T) {
     const p = SALON_POS(), x0 = p.x, y0 = p.y, x1 = x0 + p.w, y1 = y0 + p.d;
     c.save();
     if (!built()) { poly(c, [Q(x0, y0), Q(x1, y0), Q(x1, y1), Q(x0, y1)], 'rgba(120,160,70,.25)'); c.setLineDash([10, 7]); poly(c, [Q(x0 + .1, y0 + .1), Q(x1 - .1, y0 + .1), Q(x1 - .1, y1 - .1), Q(x0 + .1, y1 - .1)], null, 'rgba(255,255,255,.85)', 2); c.setLineDash([]); c.restore(); return; }
-    // floor: pastel checker
-    for (let u = 0; u < p.w; u++) for (let v = 0; v < p.d; v++) poly(c, [Q(x0 + u, y0 + v), Q(x0 + u + 1, y0 + v), Q(x0 + u + 1, y0 + v + 1), Q(x0 + u, y0 + v + 1)], (u + v) % 2 ? '#fde7ef' : '#e7f4fb');
+    groundShadowSalon(c, x0, y0, p.w, p.d);
+    // floor: pastel checker -> 타일별 그라데이션(위 밝게/아래 어둡게) + 밝기 미세 랜덤(텍스처)
+    for (let u = 0; u < p.w; u++) for (let v = 0; v < p.d; v++) {
+      const tile = [Q(x0 + u, y0 + v), Q(x0 + u + 1, y0 + v), Q(x0 + u + 1, y0 + v + 1), Q(x0 + u, y0 + v + 1)];
+      const jitter = (salonFloorRnd(u, v) - .5) * .08;
+      const base = ART.shade((u + v) % 2 ? '#fde7ef' : '#e7f4fb', jitter);
+      const g = c.createLinearGradient(tile[0][0], tile[0][1], tile[2][0], tile[2][1]);
+      g.addColorStop(0, ART.shade(base, .1)); g.addColorStop(1, ART.shade(base, -.12));
+      poly(c, tile, g);
+    }
     // a rug by the bench and a paw mat at the entrance
     poly(c, [Q(x0 + 7.6, y0 + 6.2), Q(x0 + 9.6, y0 + 6.2), Q(x0 + 9.6, y0 + 7.6), Q(x0 + 7.6, y0 + 7.6)], '#ffd6e2', 'rgba(200,120,150,.5)');
     c.restore();

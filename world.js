@@ -1538,7 +1538,7 @@ return true;
     }
     buildBg();
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
-    c.fillStyle = '#8fc262'; c.fillRect(0, 0, vw, vh);
+    c.fillStyle = '#5fa23a'; c.fillRect(0, 0, vw, vh);
     c.setTransform(dpr * cam.z, 0, 0, dpr * cam.z, dpr * (vw / 2 - cam.x * cam.z), dpr * (vh / 2 - cam.y * cam.z));
 
     // Viewport cull metrics (generous padding for roofs, trees, balloons, tall characters)
@@ -2601,7 +2601,7 @@ return true;
     const poly = (pts, col) => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.fillStyle = col; c.fill(); };
     const vs = VILLAGE_S_MAX() + 7;
     const X0 = VILLAGE_X0 - 5, Y0 = VILLAGE_Y0 - 5, XE = w + VILLAGE_XE + 5;
-    poly([q(X0, Y0), q(XE, Y0), q(XE, vs), q(X0, vs)], '#a8d88e');
+    poly([q(X0, Y0), q(XE, Y0), q(XE, vs), q(X0, vs)], '#86c860');
     // grass texture outside the baked bg canvas, only for the tiles actually on screen (tufts/flowers only when zoomed in enough to see them)
     { const cs = [toGrid(0, 0), toGrid(vw, 0), toGrid(0, vh), toGrid(vw, vh)];
       const x0 = Math.max(X0, Math.min(...cs.map(p => p.x)) - 1), x1 = Math.min(XE, Math.max(...cs.map(p => p.x)) + 1);
@@ -2656,7 +2656,7 @@ return true;
   // a soft shadow rim on the grass round a building's footprint (mostly to the south/east, where the light falls away)
   function groundShadow(x, y, w, d) {
     const pt = (px, py) => [ISO.wx(px, py), ISO.wy(px, py)];
-    for (const [e, a] of [[.45, .08], [.22, .1]]) { const q = [pt(x - e * .3, y - e * .3), pt(x + w + e, y - e * .3), pt(x + w + e, y + d + e), pt(x - e * .3, y + d + e)]; c.beginPath(); q.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.fillStyle = `rgba(40,70,20,${a})`; c.fill(); }
+    for (const [e, a] of [[.45, .18], [.22, .26]]) { const q = [pt(x - e * .3, y - e * .3), pt(x + w + e, y - e * .3), pt(x + w + e, y + d + e), pt(x - e * .3, y + d + e)]; c.beginPath(); q.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.fillStyle = `rgba(40,70,20,${a})`; c.fill(); }
   }
   function drawHospFloor() {
     if (!(S.hosp && S.hosp.built)) return;
@@ -2674,8 +2674,16 @@ return true;
         fillP([pt(px, py), pt(px + 0.45, py), pt(px + 0.45, py + 0.45), pt(px, py + 0.45)], '#faf8f2', 'rgba(140,130,110,.25)', 0.8);
       }
     }
-    // clean porcelain/marble lobby tiles with subtle gloss sheen
-    for (let j = 0; j < R.d; j++) for (let i = 0; i < R.w; i++) fillP([pt(R.x + i, R.y + j), pt(R.x + i + 1, R.y + j), pt(R.x + i + 1, R.y + j + 1), pt(R.x + i, R.y + j + 1)], (i + j) % 2 ? '#fbfdfd' : '#f0f8f6', 'rgba(140,195,185,.2)');
+    // clean porcelain/marble lobby tiles with subtle gloss sheen -> 타일별 그라데이션 + 밝기 미세 랜덤(텍스처)
+    const hospFloorRnd = (ix, iy) => { const v = Math.sin(ix * 12.9898 + iy * 78.233 + 9.31) * 43758.5453; return v - Math.floor(v); };
+    const fillFloorGrad = (tile, baseCol, ix, iy, lightK, darkK) => {
+      const jitter = (hospFloorRnd(ix, iy) - .5) * .06;
+      const base = ART.shade(baseCol, jitter);
+      const g = c.createLinearGradient(tile[0][0], tile[0][1], tile[2][0], tile[2][1]);
+      g.addColorStop(0, ART.shade(base, lightK != null ? lightK : .08)); g.addColorStop(1, ART.shade(base, darkK != null ? darkK : -.1));
+      path(tile); c.fillStyle = g; c.fill(); c.strokeStyle = 'rgba(140,195,185,.2)'; c.lineWidth = 1; c.stroke();
+    };
+    for (let j = 0; j < R.d; j++) for (let i = 0; i < R.w; i++) fillFloorGrad([pt(R.x + i, R.y + j), pt(R.x + i + 1, R.y + j), pt(R.x + i + 1, R.y + j + 1), pt(R.x + i, R.y + j + 1)], (i + j) % 2 ? '#fbfdfd' : '#f0f8f6', i, j);
     // each room's hygienic medical floor coating
     for (const id of L.roomIds) { const r = L.rooms[id]; fillP([pt(r.x0, r.y0), pt(r.x1, r.y0), pt(r.x1, r.y1), pt(r.x0, r.y1)], HOSP_ROOM_COL[id] || '#f0faf8', 'rgba(80,175,165,.35)', 1.5);
       for (let j = 0; j < r.d; j++) for (let i = 0; i < r.w; i++) if ((i + j) % 2) fillP([pt(r.x0 + i, r.y0 + j), pt(r.x0 + i + 1, r.y0 + j), pt(r.x0 + i + 1, r.y0 + j + 1), pt(r.x0 + i, r.y0 + j + 1)], 'rgba(255,255,255,.5)', null);
@@ -3220,11 +3228,21 @@ return true;
     const path = pts => { c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); };
     const fillP = (pts, col, stroke, lw) => { path(pts); c.fillStyle = col; c.fill(); if (stroke) { c.strokeStyle = stroke; c.lineWidth = lw || 1; c.stroke(); } };
     // ---- floor: warm plank wood, tiled kitchen strip along the north wall
+    // v2026-10-15: flat fill -> per-tile gradient(위 밝게/아래 어둡게) + 타일별 밝기 미세 랜덤(텍스처 변화)
+    const floorRnd = (ix, iy) => { const v = Math.sin(ix * 12.9898 + iy * 78.233 + cp.x * 3.1 + cp.y * 7.7) * 43758.5453; return v - Math.floor(v); };
+    const fillTileGrad = (tile, baseCol, strokeCol, ix, iy) => {
+      const jitter = (floorRnd(ix, iy) - .5) * .08; // ±4% 밝기
+      const jCol = ART.shade(baseCol, jitter);
+      const g = c.createLinearGradient(tile[0][0], tile[0][1], tile[2][0], tile[2][1]);
+      g.addColorStop(0, ART.shade(jCol, .12)); g.addColorStop(1, ART.shade(jCol, -.14));
+      path(tile); c.fillStyle = g; c.fill();
+      if (strokeCol) { c.strokeStyle = strokeCol; c.lineWidth = 1; c.stroke(); }
+    };
     for (let j = 0; j < cp.d; j++) for (let i = 0; i < cp.w; i++) {
       const tile = [pt(cp.x + i, cp.y + j), pt(cp.x + i + 1, cp.y + j), pt(cp.x + i + 1, cp.y + j + 1), pt(cp.x + i, cp.y + j + 1)];
-      if (j < 2) { fillP(tile, (i + j) % 2 ? '#efe9de' : '#d6cfc1', 'rgba(120,110,95,.22)'); }
+      if (j < 2) { fillTileGrad(tile, (i + j) % 2 ? '#efe9de' : '#d6cfc1', 'rgba(120,110,95,.22)', i, j); }
       else {
-        fillP(tile, (j % 2) ? '#d9b78d' : '#cfaa7e', 'rgba(110,80,50,.18)');
+        fillTileGrad(tile, (j % 2) ? '#d9b78d' : '#cfaa7e', 'rgba(110,80,50,.18)', i, j);
         // plank seam, offset every other row
         const off = (j % 2) * .5 + .25, a = pt(cp.x + i + off, cp.y + j), b = pt(cp.x + i + off, cp.y + j + 1);
         c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.strokeStyle = 'rgba(110,80,50,.16)'; c.lineWidth = 1; c.stroke();
