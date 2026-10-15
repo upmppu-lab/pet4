@@ -245,36 +245,40 @@ const EXTRA = (() => {
       }
       case 'giftclaim': { if (!x.gift) return { err: 'gone' }; const g = x.gift; x.gift = null; return { ok: 1, fx: 'coin', got: reward(s, g), msg: 'giftOk' }; }
       case 'gacha': {
-      if (!s.x) s.x = {};
-      if (!s.x.tickets || s.x.tickets <= 0) return { err: 'noTicket' };
-      s.x.tickets--;
-      
-      const r = Math.random();
-      let prize;
-      
-      if (r < 0.30) {
-        prize = { k: 'coins', n: 100 + lvE(s) * 20 };
-      } else if (r < 0.50) {
-        prize = { k: 'food', n: 1 };
-      } else if (r < 0.70) {
-        prize = { k: 'kit', n: 3 };
-      } else if (r < 0.98) {
-        // 🆕 소품 뽑기 (COSM_ALL 사용 - 모든 슬롯 포함)
+        if (!s.x) s.x = {};
+        if (!s.x.tickets || s.x.tickets <= 0) return { err: 'noTicket' };
+        s.x.tickets--;
+        
+        const r = Math.random();
+        let prize;
+        
+        // 🆕 소품 뽑기 우선 (미보유 소품이 있으면 75% 확률로 획득)
         const unowned = COSM_ALL.filter(id => !(s.x.cosm && s.x.cosm[id]));
-        if (!unowned.length) {
-          prize = { k: 'coins', n: 500 };
-        } else {
+        if (unowned.length && r < 0.75) {
           const id = unowned[Math.floor(Math.random() * unowned.length)];
           s.x.cosm = s.x.cosm || {};
           s.x.cosm[id] = 1;
           prize = { k: 'cosm', id };
+        } else {
+          // 기타 보상 (실제 재화 및 보상 지급)
+          const subR = Math.random();
+          if (subR < 0.40) {
+            const n = 200 + lvE(s) * 30;
+            s.coins += n;
+            prize = { k: 'coins', n };
+          } else if (subR < 0.65) {
+            const l = giveFood(s, 10, 2);
+            prize = { k: 'food', line: l, n: 10 };
+          } else if (subR < 0.90) {
+            s.kits += 3;
+            prize = { k: 'kit', n: 3 };
+          } else {
+            prize = { k: 'rare', sp: rareVoucher(s) };
+          }
         }
-      } else {
-        prize = { k: 'rare', sp: H.pick(unlocked(s)) };
-      }
-      
-      return { ok: 1, prize, fx: 'coin' };
-    }   
+        
+        return { ok: 1, prize, fx: 'coin' };
+      }   
       case 'photo': { const p = s.pets.find(q => q && q.id === a.pid); if (!p) return { err: 'gone' }; if (x.lastPhoto && Date.now() - x.lastPhoto < 3000) return { ok: 1 }; x.lastPhoto = Date.now(); photo(s, p); H.addXp(s, 1); return { ok: 1, msg: 'photoOk', fx: 'love' }; }
       case 'storylater': { const v = x.visitor; if (!v || v.rid !== a.rid) return { err: 'gone' }; x.visitor = null; H.ev(s, { k: 'regLeft', rid: v.rid, sad: 1 }); return { ok: 1 }; } // PET TOWN: "다음에요" -> leaves, a bit hurt
       case 'story': {

@@ -1463,11 +1463,8 @@ function charHTML(editing) {
         const isCurrent = curId === id;
         
         if (!isOwned) {
-          // 미보유: 잠금 표시
-          accHTML += `<button class="th locked" disabled title="${CFG.lang === 'ru' ? 'Получите в гаче' : '뽑기에서 획득'}">
-            <span style="font-size:20px;">🔒</span>
-            <span style="font-size:10px;">${CFG.lang === 'ru' ? 'Гача' : '뽑기'}</span>
-          </button>`;
+          // 미보유: 목록에 표시하지 않고 뽑은 것만 표시
+          continue;
         } else {
           // 보유: 착용 버튼 (실제 그려주신 그림으로 미리보기)
           accHTML += `<button class="th ${isCurrent ? 'on' : ''}" data-a="setacc" data-v="${slot}" data-w="${id}">

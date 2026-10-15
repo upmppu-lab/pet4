@@ -72,16 +72,23 @@ PANELS.quest = m => {
     });
   } else {
     const tk = x.tickets || 0, last = m.last;
+    const ownedIds = COSM_ALL.filter(id => !!(x.cosm || {})[id]);
+    const cosmListHtml = ownedIds.length
+      ? ownedIds.map(id => {
+          const def = COSM_DEF[id];
+          if (!def) return '';
+          const cur = (CFG.look && CFG.look.acc && CFG.look.acc[def.slot] === id);
+          return `<button class="chip ${cur ? 'on' : ''}" data-a="setacc" data-v="${def.slot}" data-w="${id}" style="display:inline-flex;align-items:center;gap:4px;">
+            <img src="${assetUrl('spr/acc/front/' + def.front + '.png')}" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;">${cur ? '✓ ' : ''}${t('cosm_' + id) || def.name}</button>`;
+        }).join('')
+      : `<div class="m" style="padding:10px 0;opacity:.7;">${CFG.lang === 'ru' ? 'Пока нет полученных аксессуаров. Откройте подарок!' : '아직 뽑은 소품이 없어요. 상자를 열어 소품을 모아보세요!'}</div>`;
+
     h += `<div class="gacha"><div class="gbox ${m.anim ? 'shake' : ''}">🎁</div><div class="t">🎟️ ${t('tickets')}: ${tk}</div>
       ${last ? `<div class="gprize">${prizeText(last)}</div>` : `<div class="m">${t('gachaDesc')}</div>`}
       <button class="btn o block ${tk ? '' : 'dis'}" data-a="xgacha">🎁 ${t('gachaOpen')} (🎟️1)</button>
       <div class="m">${t('gachaWhere')}</div>
-      <div class="t" style="margin-top:8px">🎀 ${t('cosmTitle')}</div><div class="chips">${COSM_ALL.map(id => {
-        const def = COSM_DEF[id], owned = !!(x.cosm || {})[id], cur = (CFG.look && CFG.look.acc && CFG.look.acc[def.slot] === id);
-        if (!owned) return `<span class="chip lockc">🔒 ${t('cosm_' + id) || def.name}</span>`;
-        return `<button class="chip ${cur ? 'on' : ''}" data-a="setacc" data-v="${def.slot}" data-w="${id}" style="display:inline-flex;align-items:center;gap:4px;">
-          <img src="${assetUrl('spr/acc/front/' + def.front + '.png')}" style="width:18px;height:18px;object-fit:contain;vertical-align:middle;">${cur ? '✓ ' : ''}${t('cosm_' + id) || def.name}</button>`;
-      }).join('')}</div><div class="m">${t('cosmTap')}</div></div>`;
+      <div class="t" style="margin-top:8px">🎀 ${t('cosmTitle')} (${ownedIds.length}/${COSM_ALL.length})</div>
+      <div class="chips">${cosmListHtml}</div>${ownedIds.length ? `<div class="m">${t('cosmTap')}</div>` : ''}</div>`;
   }
   return frameHTML('📜 ' + t('questTitle'), h);
 };
@@ -186,10 +193,22 @@ const XACT = Object.assign(window.XACT || {}, {
     }
     // CFG.look.acc에 슬롯별로 저장
     CFG.look.acc = CFG.look.acc || {};
+    // 이미 착용 중인 소품을 다시 누르면 벗기 (토글)
+    if (accId && CFG.look.acc[slot] === accId) {
+      CFG.look.acc[slot] = null;
+      saveCfg();
+      if (typeof rerenderChar === 'function') rerenderChar();
+      if (typeof renderPanel === 'function') renderPanel(true);
+      if (typeof render === 'function') render();
+      SND.pop();
+      toast(CFG.lang === 'ru' ? 'Снято' : '소품을 벗었어요');
+      return;
+    }
     CFG.look.acc[slot] = accId;
     saveCfg();
     // 캐릭터 미리보기 & 게임 화면 갱신
     if (typeof rerenderChar === 'function') rerenderChar();
+    if (typeof renderPanel === 'function') renderPanel(true);
     if (typeof render === 'function') render();
     SND.pop();
     // 알림

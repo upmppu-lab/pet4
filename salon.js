@@ -71,12 +71,20 @@ const SALON = (() => {
     for (let u = -1; u <= p.w; u++) { set.add((p.x + u) + ',' + (p.y - 1)); } for (let v = -1; v <= p.d; v++) set.add((p.x - 1) + ',' + (p.y + v)); // back walls
     return set;
   }
-  function ground(c, T) {
+  function floor(c, T) {
     const p = SALON_POS(), x0 = p.x, y0 = p.y, x1 = x0 + p.w, y1 = y0 + p.d;
     c.save();
     if (!built()) { poly(c, [Q(x0, y0), Q(x1, y0), Q(x1, y1), Q(x0, y1)], 'rgba(120,160,70,.25)'); c.setLineDash([10, 7]); poly(c, [Q(x0 + .1, y0 + .1), Q(x1 - .1, y0 + .1), Q(x1 - .1, y1 - .1), Q(x0 + .1, y1 - .1)], null, 'rgba(255,255,255,.85)', 2); c.setLineDash([]); c.restore(); return; }
     // floor: pastel checker
     for (let u = 0; u < p.w; u++) for (let v = 0; v < p.d; v++) poly(c, [Q(x0 + u, y0 + v), Q(x0 + u + 1, y0 + v), Q(x0 + u + 1, y0 + v + 1), Q(x0 + u, y0 + v + 1)], (u + v) % 2 ? '#fde7ef' : '#e7f4fb');
+    // a rug by the bench and a paw mat at the entrance
+    poly(c, [Q(x0 + 7.6, y0 + 6.2), Q(x0 + 9.6, y0 + 6.2), Q(x0 + 9.6, y0 + 7.6), Q(x0 + 7.6, y0 + 7.6)], '#ffd6e2', 'rgba(200,120,150,.5)');
+    c.restore();
+  }
+  function walls(c, T) {
+    if (!built()) return;
+    const p = SALON_POS(), x0 = p.x, y0 = p.y, x1 = x0 + p.w, y1 = y0 + p.d;
+    c.save();
     // back walls (north + west) with windows, a big sign and a shelf of shampoos
     const WH = 70;
     poly(c, [Q(x0, y0, WH), Q(x1, y0, WH), Q(x1, y0), Q(x0, y0)], '#fff5f8', ART.OUT, 1.2); poly(c, [Q(x0, y0, 22), Q(x1, y0, 22), Q(x1, y0), Q(x0, y0)], '#f7b9cc');
@@ -87,9 +95,11 @@ const SALON = (() => {
     // roof edge
     poly(c, [Q(x0 - .2, y0 - .2, WH), Q(x1 + .2, y0 - .2, WH), Q(x1 + .2, y0 + .3, WH + 6), Q(x0 - .2, y0 + .3, WH + 6)], '#e0607e', ART.OUT, 1);
     poly(c, [Q(x0 - .2, y0 - .2, WH), Q(x0 - .2, y1 + .2, WH), Q(x0 + .3, y1 + .2, WH + 6), Q(x0 + .3, y0 - .2, WH + 6)], '#d9506f', ART.OUT, 1);
-    // a rug by the bench and a paw mat at the entrance
-    poly(c, [Q(x0 + 7.6, y0 + 6.2), Q(x0 + 9.6, y0 + 6.2), Q(x0 + 9.6, y0 + 7.6), Q(x0 + 7.6, y0 + 7.6)], '#ffd6e2', 'rgba(200,120,150,.5)');
     c.restore();
+  }
+  function ground(c, T) {
+    floor(c, T);
+    walls(c, T);
   }
   function table(c, T, i, cust) { // grooming table with a bathtub corner; the guest's pet on top while being groomed
     const box = FURN.box, P = FURN.P;
@@ -166,7 +176,7 @@ const SALON = (() => {
       const key = Math.floor(tx) + ',' + Math.floor(ty); if (a.tkey !== key) { a.tkey = key; W.goTo(a, tx, ty, () => W.faceTo(a, p.x + tb.u + 1, p.y + tb.v)); }
     });
   }
-  return { tick, apply, ground, collect, solid, sync, wagesOf, built, ensure };
+  return { tick, apply, ground, floor, walls, collect, solid, sync, wagesOf, built, ensure };
 })();
 Object.assign(I18N.ko, {
   salonName: '펫 미용실', salonLot: '펫 미용실 부지', salonBuildConfirm: '펫 미용실을 지을까요? 🪙{c}\n주민들이 펫을 데려오면 목욕 → 드라이 → 커트 → 리본으로 예쁘게 꾸며주고 돈을 받아요.', salonBuildBtn: '짓기', salonBuilt: '✂️ 펫 미용실이 문을 열었어요!',

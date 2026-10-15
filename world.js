@@ -1554,7 +1554,7 @@ return true;
     c.drawImage(bgCanvas, bgCanvas.ox, bgCanvas.oy, bgCanvas.width / bgCanvas.k, bgCanvas.height / bgCanvas.k);
     TOWN.ground(c, T); // 모든 도로와 주택가 바닥을 먼저 렌더링
     const hospVis = (S.hosp && S.hosp.built) ? isBoxVis(HOSP_POS().x, HOSP_POS().y, HOSP_POS().w, HOSP_POS().d) : isBoxVis(HOSP_LOT().x, HOSP_LOT().y, HOSP_LOT().w, HOSP_LOT().d);
-    if (hospVis) { drawHospLot(); drawHospGround(); }
+    if (hospVis) { drawHospLot(); drawHospFloor(); }
     const farmVis = LAY('farm') && isBoxVis(FARM_POS().x - 2, FARM_POS().y - 2, FARM_POS().w + 6, FARM_POS().d + 6);
     if (farmVis) drawFarmGround();
     const cafeVis = isBoxVis(CAFE_POS().x, CAFE_POS().y, CAFE_POS().w, CAFE_POS().d);
@@ -1566,7 +1566,12 @@ return true;
     const ranchVis = (typeof RANCH_POS === 'function') && isBoxVis(RANCH_POS().x, RANCH_POS().y, RANCH_POS().w, RANCH_POS().d);
     if (ranchVis) RANCH.ground(c, T);
     const salonVis = (typeof SALON_POS === 'function') && isBoxVis(SALON_POS().x, SALON_POS().y, SALON_POS().w, SALON_POS().d);
-    if (salonVis) SALON.ground(c, T);
+    if (salonVis) {
+      if (SALON.floor) SALON.floor(c, T); else SALON.ground(c, T);
+    }
+    // 건물이 겹쳤을 때는 벽이 바닥 위로 올라오도록 벽 렌더링을 바닥 렌더링 이후에 실행
+    if (salonVis && SALON.walls) SALON.walls(c, T);
+    if (hospVis) drawHospWalls();
     if (wallCanvas && TOWN.roadNearShop()) {
       c.drawImage(wallCanvas, wallCanvas.ox, wallCanvas.oy, wallCanvas.width / wallCanvas.k, wallCanvas.height / wallCanvas.k);
       drawRoadBehindWall(c);
@@ -2619,20 +2624,19 @@ return true;
     const pt = (px, py) => [ISO.wx(px, py), ISO.wy(px, py)];
     for (const [e, a] of [[.45, .08], [.22, .1]]) { const q = [pt(x - e * .3, y - e * .3), pt(x + w + e, y - e * .3), pt(x + w + e, y + d + e), pt(x - e * .3, y + d + e)]; c.beginPath(); q.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.fillStyle = `rgba(40,70,20,${a})`; c.fill(); }
   }
-  function drawHospGround() {
+  function drawHospFloor() {
     if (!(S.hosp && S.hosp.built)) return;
     const R = HOSP_POS(), L = HOSP_LAYOUT();
     groundShadow(R.x, R.y, R.w, R.d);
-    const pt = (px, py) => [ISO.wx(px, py), ISO.wy(px, py)], ptz = (px, py, z) => [ISO.wx(px, py), ISO.wy(px, py) - z];
+    const pt = (px, py) => [ISO.wx(px, py), ISO.wy(px, py)];
     const path = pts => { c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); };
     const fillP = (pts, col, stroke, lw) => { path(pts); c.fillStyle = col; c.fill(); if (stroke) { c.strokeStyle = stroke; c.lineWidth = lw || 1; c.stroke(); } };
-    const wallFace = (a, b, z0, z1) => [ptz(a[0], a[1], z1), ptz(b[0], b[1], z1), ptz(b[0], b[1], z0), ptz(a[0], a[1], z0)];
     c.save();
     // paving from the road side into the entrance
     fillP([pt(R.x1, R.y + .2), pt(R.x1 + 1.1, R.y + .2), pt(R.x1 + 1.1, R.y + 3.2), pt(R.x1, R.y + 3.2)], '#f0ede6', 'rgba(150,140,120,.4)', 1);
     // clean porcelain/marble lobby tiles with subtle gloss sheen
     for (let j = 0; j < R.d; j++) for (let i = 0; i < R.w; i++) fillP([pt(R.x + i, R.y + j), pt(R.x + i + 1, R.y + j), pt(R.x + i + 1, R.y + j + 1), pt(R.x + i, R.y + j + 1)], (i + j) % 2 ? '#fbfdfd' : '#f0f8f6', 'rgba(140,195,185,.2)');
-    // each room's hygienic medical floor coating (NO duplicate floor text; signs are tilted overhead at doorways!)
+    // each room's hygienic medical floor coating
     for (const id of L.roomIds) { const r = L.rooms[id]; fillP([pt(r.x0, r.y0), pt(r.x1, r.y0), pt(r.x1, r.y1), pt(r.x0, r.y1)], HOSP_ROOM_COL[id] || '#f0faf8', 'rgba(80,175,165,.35)', 1.5);
       for (let j = 0; j < r.d; j++) for (let i = 0; i < r.w; i++) if ((i + j) % 2) fillP([pt(r.x0 + i, r.y0 + j), pt(r.x0 + i + 1, r.y0 + j), pt(r.x0 + i + 1, r.y0 + j + 1), pt(r.x0 + i, r.y0 + j + 1)], 'rgba(255,255,255,.5)', null);
     }
@@ -2640,6 +2644,16 @@ return true;
     fillP([pt(R.x1 - 1.8, R.y + 2), pt(R.x1, R.y + 2), pt(R.x1, R.y + 3.8), pt(R.x1 - 1.8, R.y + 3.8)], '#10b981', 'rgba(6,95,70,.4)', 1.2);
     fillP([pt(R.x1 - 1.6, R.y + 2.2), pt(R.x1 - .2, R.y + 2.2), pt(R.x1 - .2, R.y + 3.6), pt(R.x1 - 1.6, R.y + 3.6)], '#34d399');
     fillP([pt(R.x, R.y), pt(R.x1, R.y), pt(R.x1, R.y1), pt(R.x, R.y1)], 'rgba(0,0,0,0)', '#5fa89d', 2);
+    c.restore();
+  }
+  function drawHospWalls() {
+    if (!(S.hosp && S.hosp.built)) return;
+    const R = HOSP_POS();
+    const pt = (px, py) => [ISO.wx(px, py), ISO.wy(px, py)], ptz = (px, py, z) => [ISO.wx(px, py), ISO.wy(px, py) - z];
+    const path = pts => { c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); };
+    const fillP = (pts, col, stroke, lw) => { path(pts); c.fillStyle = col; c.fill(); if (stroke) { c.strokeStyle = stroke; c.lineWidth = lw || 1; c.stroke(); } };
+    const wallFace = (a, b, z0, z1) => [ptz(a[0], a[1], z1), ptz(b[0], b[1], z1), ptz(b[0], b[1], z0), ptz(a[0], a[1], z0)];
+    c.save();
     const WALL_H = 112;
     const WW = [[R.x, R.y], [R.x, R.y1]], NW = [[R.x, R.y], [R.x1, R.y]];
     for (const [wa, wb, up] of [[WW[0], WW[1], '#f8fcfa'], [NW[0], NW[1], '#fcfffe']]) {
@@ -2656,6 +2670,10 @@ return true;
       ART.rrect(c, nx - tw / 2, ny - 12, tw, 20, 8); c.fillStyle = '#3fa79b'; c.fill(); c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 1.4; c.stroke();
       c.fillStyle = '#fff'; c.fillText('🏥 ' + nm, nx, ny + 2); c.textAlign = 'start'; }
     c.restore();
+  }
+  function drawHospGround() {
+    drawHospFloor();
+    drawHospWalls();
   }
   function collectHospSign() {
     if (S.hosp && S.hosp.built) return [];
@@ -2806,35 +2824,34 @@ return true;
         B(0, 0, .14, .12, 38, '#94a3b8', 0, '#e2e8f0');
         B(-.02, -.02, .18, .16, 4, '#10b981', 38, '#34d399');
         break; }
-      case 'part': { // 모던 프라이버시 글래스 칸막이 & 아이소메트릭 기울임 진료과목 명패
+      case 'part': { // 테마 호스피탈 스타일의 품격 있는 일체형 클리닉 솔리드 벽체
         if (it.doorway) {
-          // 1. 개방형 출입문 바닥 스테인리스 문지방
-          B(0, .40, 1, .20, 2, '#e2e8f0', 0, '#f8fafc');
-          // 2. 좌/우 슬림 알루미늄 도어 프레임 (높이 42)
-          B(.04, .40, .10, .14, 42, '#94a3b8', 0, '#e2e8f0');
-          B(.86, .40, .10, .14, 42, '#94a3b8', 0, '#e2e8f0');
-          // 3. 상단 도어 린텔 아치 빔 (높이 38~42)
-          B(0, .40, 1.001, .14, 4, '#94a3b8', 38, '#e2e8f0');
-          // 4. 게임 각도(아이소메트릭)에 맞게 완벽히 기울인 아크릴 진료과목 명패
+          // 출입구: 바닥 문지방 + 견고한 좌우 도어 프레임 + 상단 린텔 빔 + 3D 아이소메트릭 진료과목 명패
+          // 1. 바닥 스테인리스 문지방
+          B(0, .42, 1, .16, 2, '#cbd5e1', 0, '#f1f5f9');
+          // 2. 좌/우 도어 프레임 기둥 (높이 38)
+          B(0, .42, .14, .16, 38, '#334155', 0, '#94a3b8');
+          B(.86, .42, .14, .16, 38, '#334155', 0, '#94a3b8');
+          // 3. 상단 헤더 린텔 빔 (높이 34~38)
+          B(0, .42, 1.001, .16, 4, '#334155', 34, '#cbd5e1');
+          // 4. 게임 각도(아이소메트릭)에 맞춘 3D 아크릴 진료과목 명패
           c.save();
           const midX = ISO.wx(it.x + 0.5, it.y + 0.5);
-          const midY = ISO.wy(it.x + 0.5, it.y + 0.5) - 44;
+          const midY = ISO.wy(it.x + 0.5, it.y + 0.5) - 42;
           c.translate(midX, midY);
-          c.transform(1, 0.5, 0, 1, 0, 0); // 아이소메트릭 X축 기울임 (26.56° 경사)
+          c.transform(1, 0.5, 0, 1, 0, 0); // 아이소메트릭 26.56° 경사
 
           const rcol = {
-            clinic: '#059669', // 진료실 (에메랄드 그린)
-            treat: '#0284c7',  // 치료실 (스카이 블루)
-            radio: '#4f46e5',  // 방사선실 (인디고)
-            surgery: '#dc2626',// 수술실 (레드)
-            ward: '#d97706'    // 입원실 (앰버)
+            clinic: '#059669', // 진료실
+            treat: '#0284c7',  // 치료실
+            radio: '#4f46e5',  // 영상실
+            surgery: '#dc2626',// 수술실
+            ward: '#d97706'    // 입원실
           }[it.room] || '#0d9488';
 
-          const sw = 44, sh = 17;
-          // 부드러운 그림자
-          c.fillStyle = 'rgba(0,0,0,.22)';
+          const sw = 46, sh = 17;
+          c.fillStyle = 'rgba(0,0,0,.25)';
           c.fillRect(-sw / 2 + 1.5, -sh / 2 + 1.5, sw, sh);
-          // 아크릴 본체
           c.fillStyle = '#ffffff';
           c.strokeStyle = rcol;
           c.lineWidth = 1.8;
@@ -2845,7 +2862,7 @@ return true;
           // 상단 테마 컬러바
           c.fillStyle = rcol;
           c.fillRect(-sw / 2, -sh / 2, sw, 3.5);
-          // 명패 텍스트
+          // 텍스트
           c.fillStyle = '#0f172a';
           c.font = 'bold 8.5px sans-serif';
           c.textAlign = 'center';
@@ -2854,30 +2871,32 @@ return true;
           c.fillText(rname, 0, 2);
           c.restore();
         } else if (it.vert) {
-          // 방 사이 세로(Y축) 일체형 민트-실버 글래스 파티션
-          B(.45, 0, .10, .10, 36, '#94a3b8', 0, '#cbd5e1');
-          B(.45, .90, .10, .10, 36, '#94a3b8', 0, '#cbd5e1');
-          // 하단 소프트 민트 웨인스코팅 패널 (z=0~12)
-          B(.44, 0, .12, 1.001, 12, '#0f766e', 0, '#14b8a6');
-          // 상단 강화유리 (z=12~32)
-          B(.46, .02, .08, .96, 20, 'rgba(224,242,254,.6)', 12, 'rgba(240,249,255,.85)');
-          quad([P3(.54, .06, 18), P3(.54, .94, 18), P3(.54, .94, 25), P3(.54, .06, 25)], 'rgba(255,255,255,.6)', '#94a3b8');
-          // 크롬 탑 레일 (z=32~34)
-          B(.45, 0, .10, 1.001, 2, '#94a3b8', 32, '#e2e8f0');
+          // 세로(Y축) 방간 연속 솔리드 벽체: 이음새/틈새 없이 전체 깊이를 매끄럽게 연결
+          // 1. 하단 걸레받이 (z=0~6)
+          B(.42, 0, .16, 1.001, 6, '#334155', 0, '#475569');
+          // 2. 하단 소프트 민트 웨인스코팅 (z=6~18)
+          B(.42, 0, .16, 1.001, 12, '#0f766e', 6, '#14b8a6');
+          // 3. 중간 크롬/화이트 악센트 띠 (z=18~20)
+          B(.41, 0, .18, 1.001, 2, '#cbd5e1', 18, '#ffffff');
+          // 4. 상단 클리닉 화이트 벽체 (z=20~35)
+          B(.42, 0, .16, 1.001, 15, '#e2e8f0', 20, '#f8fafc');
+          // 5. 상단 연속 마감 캡 레일 (z=35~38)
+          B(.40, 0, .20, 1.001, 3, '#94a3b8', 35, '#cbd5e1');
         } else {
-          // 남쪽 복도 대면 가로(X축) 일체형 민트-실버 글래스 파티션
-          B(0, .45, .10, .10, 36, '#94a3b8', 0, '#cbd5e1');
-          B(.90, .45, .10, .10, 36, '#94a3b8', 0, '#cbd5e1');
-          // 하단 소프트 민트 웨인스코팅 패널 (z=0~12)
-          B(0, .44, 1.001, .12, 12, '#0f766e', 0, '#14b8a6');
-          // 상단 강화유리 (z=12~32)
-          B(.02, .46, .96, .08, 20, 'rgba(224,242,254,.6)', 12, 'rgba(240,249,255,.85)');
-          quad([P3(.06, .54, 18), P3(.94, .54, 18), P3(.94, .54, 25), P3(.06, .54, 25)], 'rgba(255,255,255,.6)', '#94a3b8');
-          // 크롬 탑 레일 (z=32~34)
-          B(0, .45, 1.001, .10, 2, '#94a3b8', 32, '#e2e8f0');
+          // 가로(X축) 복도면 연속 솔리드 벽체: 전체 폭(1.001)을 틈새 없이 완벽 결합
+          // 1. 하단 걸레받이 (z=0~6)
+          B(0, .42, 1.001, .16, 6, '#334155', 0, '#475569');
+          // 2. 하단 소프트 민트 웨인스코팅 (z=6~18)
+          B(0, .42, 1.001, 12, '#0f766e', 6, '#14b8a6');
+          // 3. 중간 크롬/화이트 악센트 띠 (z=18~20)
+          B(0, .41, 1.001, .18, 2, '#cbd5e1', 18, '#ffffff');
+          // 4. 상단 클리닉 화이트 벽체 (z=20~35)
+          B(0, .42, 1.001, 15, '#e2e8f0', 20, '#f8fafc');
+          // 5. 상단 연속 마감 캡 레일 (z=35~38)
+          B(0, .40, 1.001, .20, 3, '#94a3b8', 35, '#cbd5e1');
         }
         break; }
-      case 'bench': { // 현대식 병원 대기 라운지 3인용 벤치 소파 (등받이 높이 & 방석 겹침 완벽 수정)
+      case 'bench': { // 현대식 병원 대기 라운지 3인용 벤치 소파
         const w = it.w;
         // 1. 하단 크롬/스테인리스 튜브 다리 (바닥 z=0~7)
         for (const lx of [.14, w - .26]) {
@@ -2886,23 +2905,21 @@ return true;
         }
         B(.12, .20, w - .24, .56, 2, '#475569', 5, '#94a3b8');
 
-        // 2. 등받이: 북쪽(뒤쪽)에 배치되어 방석에 가려지지 않고 높게 솟음 (z=6~34, 높이 28)
+        // 2. 등받이: 북쪽(뒤쪽)에 배치 (z=6~34, 높이 28)
         B(.06, .12, w - .12, .14, 28, '#0f766e', 6, '#14b8a6');
         for (let k = 0; k < w; k++) {
           const sx = k + .10;
-          // 등받이 볼륨 세로 패딩 스티치
           quad([P3(sx, .26, 12), P3(sx + .80, .26, 12), P3(sx + .80, .26, 32), P3(sx, .26, 32)], '#2dd4bf', '#0f766e');
         }
 
-        // 3. 방석: 등받이 앞쪽(남쪽 ly=.26~.78, z=6~16, 높이 10)에 도톰하게 안착
+        // 3. 방석: 도톰한 가죽 패딩 쿠션 (ly=.26~.78, z=6~16)
         for (let k = 0; k < w; k++) {
           const sx = k + .08;
           B(sx, .26, .84, .52, 10, '#0f766e', 6, '#2dd4bf');
-          // 푹신한 방석 쿠션 상단 하이라이트
           quad([P3(sx + .08, .32, 16), P3(sx + .76, .32, 16), P3(sx + .76, .72, 16), P3(sx + .08, .72, 16)], '#5eead4', '#14b8a6');
         }
 
-        // 4. 좌우 끝 측면 크롬/패딩 팔걸이 (z=6~18)
+        // 4. 측면 크롬/패딩 팔걸이 (z=6~18)
         B(.02, .24, .08, .52, 12, '#334155', 6, '#cbd5e1');
         B(w - .10, .24, .08, .52, 12, '#334155', 6, '#cbd5e1');
         break; }
@@ -2937,37 +2954,45 @@ return true;
         line(P3(.88, .20, 52), P3(.60, .35, 48), '#64748b', 2.4);
         ell(P3(.60, .35, 48), 6, 3.5, '#fef08a', '#eab308', 1.4);
         break; }
-      case 'tbed': { // 치료실 처치 침대 (이동식 캐스터 & 크롬 링거 스탠드 일체형 & 의료용 트레이 카트)
+      case 'tbed': { // 치료실 전문 처치 스테이션 (이동식 트레이 카트 + IV 수액대 + 접이식 프라이버시 스크린)
         const w = it.w;
-        // 바퀴 달린 스테인리스 프레임
-        B(.06, .12, w - .12, .76, 12, '#64748b', 0, '#94a3b8');
-        // 파스텔 민트 클린 치료 매트리스
-        B(.04, .10, w - .08, .80, 8, '#0f766e', 12, '#2dd4bf');
-        quad([P3(.06, .14, 20), P3(w - .06, .14, 20), P3(w - .06, .86, 20), P3(.06, .86, 20)], '#5eead4', '#14b8a6');
+        // 바퀴 달린 스테인리스 수술/처치 프레임
+        B(.14, .12, w - .20, .76, 12, '#64748b', 0, '#94a3b8');
+        // 파스텔 민트 클린 치료 매트리스 (등받이 틸트 형태)
+        B(.12, .10, w - .16, .80, 8, '#0f766e', 12, '#2dd4bf');
+        quad([P3(.14, .14, 20), P3(w - .06, .14, 20), P3(w - .06, .86, 20), P3(.14, .86, 20)], '#5eead4', '#14b8a6');
         // 푹신한 동물용 베개
-        ell(P3(.28, .50, 21), 10, 5.5, '#ffffff', '#cbd5e1', 1);
+        ell(P3(.32, .50, 21), 10, 5.5, '#ffffff', '#cbd5e1', 1);
         // 침대 일체형 크롬 IV 수액대 폴 & 수액백
-        line(P3(w - .12, .16, 12), P3(w - .12, .16, 68), '#94a3b8', 2.4);
-        line(P3(w - .18, .16, 66), P3(w - .06, .16, 66), '#94a3b8', 2);
-        // 투명 수액백 & 점적통
-        quad([P3(w - .16, .16, 56), P3(w - .08, .16, 56), P3(w - .08, .16, 65), P3(w - .16, .16, 65)], 'rgba(224,242,254,.85)', '#0284c7');
-        line(P3(w - .12, .16, 56), P3(.50, .45, 22), 'rgba(255,255,255,.7)', 1.2);
-        // 이동식 의료용 트레이 카트 & 시약병
+        line(P3(w - .10, .16, 12), P3(w - .10, .16, 68), '#94a3b8', 2.4);
+        line(P3(w - .16, .16, 66), P3(w - .04, .16, 66), '#94a3b8', 2);
+        quad([P3(w - .14, .16, 56), P3(w - .06, .16, 56), P3(w - .06, .16, 65), P3(w - .14, .16, 65)], 'rgba(224,242,254,.85)', '#0284c7');
+        line(P3(w - .10, .16, 56), P3(.55, .45, 22), 'rgba(255,255,255,.7)', 1.2);
+        // 이동식 의료용 3단 트레이 카트 & 시약병
         B(w - .26, .74, .24, .22, 16, '#94a3b8', 0, '#e2e8f0');
         B(w - .24, .76, .20, .18, 2, '#64748b', 16, '#cbd5e1');
         ell(P3(w - .14, .85, 19), 3, 2, '#38bdf8');
+        // 침대 옆 3단 접이식 의료 프라이버시 스크린 (테마 호스피탈 스타일)
+        B(.02, .10, .08, .74, 34, '#0284c7', 0, '#38bdf8');
+        quad([P3(.04, .12, 4), P3(.04, .82, 4), P3(.04, .82, 32), P3(.04, .12, 32)], 'rgba(56,189,248,.85)', '#0284c7');
         break; }
-      case 'bed': { // 입원실 동물 회복용 편안한 침대 (포근한 퀼팅 이불 & 환자 차트)
+      case 'bed': { // 입원실 동물 회복용 편안한 침대 (테마 호스피탈 스타일 클래식 그린 튜브 프레임)
         const w = it.w;
-        // 안정감 있는 원목 침대 프레임
-        B(.06, .10, w - .12, .80, 10, '#78350f', 0, '#b45309');
-        // 정형외과 메모리폼 매트리스
-        B(.08, .12, w - .16, .76, 8, '#d97706', 10, '#fef3c7');
-        // 포근한 퀼팅 블랭킷
-        quad([P3(w * .40, .14, 18), P3(w - .10, .14, 18), P3(w - .10, .86, 18), P3(w * .40, .86, 18)], '#60a5fa', '#2563eb');
-        ell(P3(.30, .50, 19), 10, 5, '#ffffff', '#cbd5e1', 1);
-        // 침대 발치 환견/환묘 바이탈 기록 차트
+        // 클래식 커브드 튜블러 메탈 프레임 (헤드보드 & 풋보드)
+        B(.04, .10, .08, .80, 24, '#0f766e', 0, '#2dd4bf'); // 헤드보드
+        B(w - .08, .10, .08, .80, 18, '#0f766e', 0, '#2dd4bf'); // 풋보드
+        // 침대 하부 크롬 지지 프레임
+        B(.08, .12, w - .16, .76, 8, '#64748b', 0, '#cbd5e1');
+        // 도톰한 정형외과 화이트 매트리스
+        B(.10, .14, w - .20, .72, 6, '#e2e8f0', 8, '#ffffff');
+        // 포근한 블루 퀼팅 블랭킷
+        quad([P3(w * .40, .16, 14), P3(w - .12, .16, 14), P3(w - .12, .84, 14), P3(w * .40, .84, 14)], '#3b82f6', '#1d4ed8');
+        ell(P3(.26, .50, 15), 10, 5, '#ffffff', '#cbd5e1', 1);
+        // 발치 환견/환묘 메디컬 차트 클립보드
         quad([P3(w - .06, .35, 12), P3(w - .06, .65, 12), P3(w - .06, .65, 20), P3(w - .06, .35, 20)], '#f8fafc', '#64748b');
+        // 침대 옆 미니 협탁 & 물병
+        B(.04, .84, .20, .20, 14, '#b45309', 0, '#fde68a');
+        ell(P3(.14, .94, 16), 2.5, 2, '#38bdf8');
         break; }
       case 'pharmacy': { // 전문 약제 진열장 (다채로운 앰플 & 약병)
         B(.06, .18, .88, .64, 60, '#cbd5e1', 0, '#f8fafc');
