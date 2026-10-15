@@ -135,11 +135,11 @@ const HOSP_FURN = [
 const hospFurn = k => HOSP_FURN.find(f => f.k === k);
 // the fixed equipment of each room (north wall row); the lobby's sits at the east end by the door
 const HOSP_KIT = {
-  lobby: ['cabinet', 'sink', 'reception'],
+  lobby: ['reception'],
   clinic: ['exam', 'desk', 'cabinet', 'tbed'],
-  treat: ['tbed', 'cabinet', 'sink'],
+  treat: ['cabinet', 'sink', 'tbed'],
   radio: ['ct', 'xray', 'monitor'],
-  surgery: ['surgery', 'cabinet', 'sink'],
+  surgery: ['cabinet', 'sink', 'surgery'],
   ward: ['incubator', 'medbath', 'bed', 'bed', 'bed']
 };
 const HOSP_SELL_BACK = .5;
@@ -185,17 +185,11 @@ function hospBuildLayout(hp, Rm, lv) {
   const kit = []; let ki = 0;
   const kitDone = (hp && hp.kitDone) || [];
   if (!kitDone.includes('lobby')) {
-    let kx = R.x1;
-    for (const k of HOSP_KIT.lobby) {
-      const F = hospFurn(k);
-      kx -= F.w;
-      if (kx <= R.x1 - HOSP_LOBBY_W) break;
-      // Reception desk moved south by 1 tile (y: ny + 1) so clerk can enter and stand behind it
-      const ky = k === 'reception' ? ny + 1 : ny;
-      const it = { k, id: 'k' + ki++, x: kx, y: ky, w: F.w, d: F.d, solid: true, fixed: true, dp: 'lobby' };
-      kit.push(it);
-      mark(it.x, it.y, it.w, it.d);
-    }
+    // Reception desk placed so clerk can enter behind it (no cabinet/sink beside it)
+    const F = hospFurn('reception');
+    const it = { k: 'reception', id: 'k' + ki++, x: R.x1 - 3, y: ny + 1, w: F.w, d: F.d, solid: true, fixed: true, dp: 'lobby' };
+    kit.push(it);
+    mark(it.x, it.y, it.w, it.d);
   }
   for (const id of rs) {
     if (kitDone.includes(id)) continue;
@@ -228,14 +222,26 @@ function hospBuildLayout(hp, Rm, lv) {
         mark(it.x, it.y, it.w, it.d);
       }
     } else if (id === 'treat') {
-      // Treatment room: exactly 1 tbed, 1 cabinet, 1 sink
+      // Treatment room: 1 tbed at lower spot (y: ny + 3), cabinet and sink on north wall (upper bed removed)
       const treatItems = [
-        { k: 'tbed', x: r.x0, y: ny + 1, w: 2, d: 1 },
-        { k: 'cabinet', x: r.x0 + 2, y: ny, w: 1, d: 1 },
+        { k: 'cabinet', x: r.x0, y: ny, w: 1, d: 1 },
         { k: 'sink', x: r.x0 + 3, y: ny, w: 1, d: 1 },
+        { k: 'tbed', x: r.x0, y: ny + 3, w: 2, d: 1 },
       ];
       for (const tIt of treatItems) {
         const it = { k: tIt.k, id: 'k' + ki++, x: tIt.x, y: tIt.y, w: tIt.w, d: tIt.d, solid: true, fixed: true, dp: 'treat' };
+        kit.push(it);
+        mark(it.x, it.y, it.w, it.d);
+      }
+    } else if (id === 'surgery') {
+      // Surgery room: 1 surgical bed in exact center (x: r.x0 + 1, y: ny + 2), cabinet and sink on north wall
+      const surgItems = [
+        { k: 'cabinet', x: r.x0, y: ny, w: 1, d: 1 },
+        { k: 'sink', x: r.x0 + 3, y: ny, w: 1, d: 1 },
+        { k: 'surgery', x: r.x0 + 1, y: ny + 2, w: 2, d: 1 },
+      ];
+      for (const sIt of surgItems) {
+        const it = { k: sIt.k, id: 'k' + ki++, x: sIt.x, y: sIt.y, w: sIt.w, d: sIt.d, solid: true, fixed: true, dp: 'surgery' };
         kit.push(it);
         mark(it.x, it.y, it.w, it.d);
       }
@@ -359,11 +365,10 @@ function hospCenterSpot(hp, Rm, lv, k, dp) {
 
   const plannedSlots = [];
   if (lv === 1) {
-    // 레벨 1: 로비 중간에 2개 (w=3 의자 2개, 중간 통로 1칸)
-    // 로비 너비는 x: R.x + 4 ~ R.x1 (총 6칸). 정중앙 R.x + 5.0
-    // R.y + 6 (윗줄 1개), R.y + 8 (아랫줄 1개)
-    plannedSlots.push({ x: R.x + 5, y: R.y + 6 });
-    plannedSlots.push({ x: R.x + 5, y: R.y + 8 });
+    // 레벨 1: 로비 긴의자 세로 2개 동쪽벽(R.x1) 밀착 배치
+    // 벤치 w=3이므로 x = R.x1 - 3에 배치하여 동쪽벽에 붙임
+    plannedSlots.push({ x: R.x1 - 3, y: R.y + 6 });
+    plannedSlots.push({ x: R.x1 - 3, y: R.y + 8 });
   } else if (lv === 2) {
     // 레벨 2: 4개 (윗줄 2개, 아랫줄 2개)
     const yTop = R.y + 7, yBot = R.y + 10;
@@ -430,6 +435,10 @@ const HOSP = (() => {
     for (const it of old) {
       const F = hospFurn(it.k); if (!F) continue;
       let dp = F.dps.includes(it.dp) ? it.dp : F.dps[0];
+      // 로비의 불필요한 cabinet, sink는 자동 제거 (접수대 옆 정리)
+      if (dp === 'lobby' && (it.k === 'cabinet' || it.k === 'sink')) {
+        continue;
+      }
       // Lv2 이상에서 치료실(treat)이 있으면 치료 침대(tbed)는 치료실로 배치하되 치료실 침대는 1개로 엄격 제한
       if (it.k === 'tbed') {
         if (lv >= 2 && hospRoomsAt(lv).includes('treat')) {
@@ -440,17 +449,61 @@ const HOSP = (() => {
           dp = 'treat';
         } else {
           dp = 'clinic';
+          const clinicTbeds = hp.items.filter(x => x.k === 'tbed' && x.dp === 'clinic');
+          if (clinicTbeds.length >= 1) {
+            continue; // 진료실 침대도 1개로 엄격 제한
+          }
         }
       }
       // 수술실(surgery)에는 일반 침대가 절대 들어가지 않도록 치료실/입원실로 강제 보정
       if (dp === 'surgery' && (it.k === 'tbed' || it.k === 'bed')) {
         dp = (it.k === 'bed' && hospRoomsAt(lv).includes('ward')) ? 'ward' : 'treat';
       }
+      // 수술실(surgery) 수술대 1개로 제한
+      if (it.k === 'surgery' && dp === 'surgery') {
+        const surgTables = hp.items.filter(x => x.k === 'surgery' && x.dp === 'surgery');
+        if (surgTables.length >= 1) {
+          continue;
+        }
+      }
       if (it.k === 'bench') {
         dp = 'lobby';
         const p = hospCenterSpot(hp, Rm, lv, it.k, dp);
         if (p) hp.items.push({ id: it.id, k: it.k, dp, x: p.x - R.x1, y: p.y - R.y, v: it.v, r: it.r }); else s.coins += F.cost;
         continue;
+      }
+      if (it.k === 'tbed' && dp === 'clinic') {
+        const L_cur = hospBuildLayout(hp, Rm, lv);
+        const rClinic = L_cur.rooms.clinic;
+        if (rClinic) {
+          const pClinic = { x: rClinic.x0, y: R.y + 2 };
+          if (!hospCheckPlace(hp, Rm, lv, { id: it.id, k: 'tbed', dp: 'clinic', x: pClinic.x, y: pClinic.y })) {
+            hp.items.push({ id: it.id, k: it.k, dp, x: pClinic.x - R.x1, y: pClinic.y - R.y, v: it.v, r: it.r });
+            continue;
+          }
+        }
+      }
+      if (it.k === 'tbed' && dp === 'treat') {
+        const L_cur = hospBuildLayout(hp, Rm, lv);
+        const rTreat = L_cur.rooms.treat;
+        if (rTreat) {
+          const pTreat = { x: rTreat.x0, y: R.y + 3 };
+          if (!hospCheckPlace(hp, Rm, lv, { id: it.id, k: 'tbed', dp: 'treat', x: pTreat.x, y: pTreat.y })) {
+            hp.items.push({ id: it.id, k: it.k, dp, x: pTreat.x - R.x1, y: pTreat.y - R.y, v: it.v, r: it.r });
+            continue;
+          }
+        }
+      }
+      if (it.k === 'surgery' && dp === 'surgery') {
+        const L_cur = hospBuildLayout(hp, Rm, lv);
+        const rSurg = L_cur.rooms.surgery;
+        if (rSurg) {
+          const pSurg = { x: rSurg.x0 + 1, y: R.y + 2 };
+          if (!hospCheckPlace(hp, Rm, lv, { id: it.id, k: 'surgery', dp: 'surgery', x: pSurg.x, y: pSurg.y })) {
+            hp.items.push({ id: it.id, k: it.k, dp, x: pSurg.x - R.x1, y: pSurg.y - R.y, v: it.v, r: it.r });
+            continue;
+          }
+        }
       }
       const same = { id: it.id, k: it.k, dp, x: it.x + R.x1, y: it.y + R.y };
       if (!hospCheckPlace(hp, Rm, lv, same)) { hp.items.push({ id: it.id, k: it.k, dp, x: it.x, y: it.y, v: it.v, r: it.r }); continue; }
@@ -557,6 +610,54 @@ const HOSP = (() => {
           }
           return true;
         });
+        delete hp.kitDone;
+        delete hp.partsDone;
+        relocateAll(s, hp);
+      }
+      // v1.124: 사용자 세부 요구사항 전면 반영
+      // 1. 접수대 옆 상자(sink) 및 진열대(cabinet) 삭제 (로비의 cabinet, sink 제거)
+      // 2. 진료실(clinic) 침대 1개로 제한 (중복 tbed 제거)
+      // 3. 치료실(treat) 침대 2개 중 위쪽 침대 삭제 -> 아래쪽 침대(y=ny+3) 1개만 유지
+      // 4. 수술실(surgery) 수술대 1개 중앙(x=r.x0+1, y=ny+2) 배치
+      // 5. 로비 긴의자 세로 2개 동쪽벽(x=R.x1-3) 밀착
+      if (!hp.v14) {
+        hp.v14 = 1;
+        // 로비의 cabinet, sink 삭제
+        hp.items = (hp.items || []).filter(it => it && !(it.dp === 'lobby' && (it.k === 'cabinet' || it.k === 'sink')));
+        if (hp.kitIds) {
+          hp.kitIds = hp.kitIds.filter(id => {
+            const it = (hp.items || []).find(x => x.id === id);
+            return it && !(it.dp === 'lobby' && (it.k === 'cabinet' || it.k === 'sink'));
+          });
+        }
+        // 진료실 침대 1개로 제한
+        let clinicTbedFound = false;
+        hp.items = hp.items.filter(it => {
+          if (it.k === 'tbed' && it.dp === 'clinic') {
+            if (clinicTbedFound) return false;
+            clinicTbedFound = true;
+          }
+          return true;
+        });
+        // 치료실 침대 2개 중 위쪽 침대 삭제 (아래쪽 침대만 유지)
+        let treatTbeds = hp.items.filter(it => it.k === 'tbed' && it.dp === 'treat');
+        if (treatTbeds.length > 1) {
+          treatTbeds.sort((a, b) => a.y - b.y);
+          const upperBedId = treatTbeds[0].id;
+          hp.items = hp.items.filter(it => it.id !== upperBedId);
+        }
+        // 수술실 수술대 1개로 제한
+        let surgFound = false;
+        hp.items = hp.items.filter(it => {
+          if (it.k === 'surgery' && it.dp === 'surgery') {
+            if (surgFound) return false;
+            surgFound = true;
+          }
+          return true;
+        });
+        for (const it of hp.items) {
+          if (it.k === 'reception') { it.x = -3; it.y = 1; }
+        }
         delete hp.kitDone;
         delete hp.partsDone;
         relocateAll(s, hp);
