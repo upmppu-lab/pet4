@@ -1218,6 +1218,7 @@ if (s.book) {
     { const vr = VILLAGE.apply(s, a, by); if (vr !== undefined) return vr; }
     { const sr = SALON.apply(s, a, by); if (sr !== undefined) return sr; } // v9.99: grooming salon
     { const tr = TOWN.apply(s, a, by); if (tr !== undefined) return tr; } // v9.99: follower pet, fishing // v9.97: avenue, lake, monument, notice board
+    { if (typeof BATTLE !== 'undefined' && BATTLE.apply) { const brr = BATTLE.apply(s, a, by); if (brr !== undefined) return brr; } } // v2026-10-15: pet battle actions
     { const xr = EXTRA.apply(s, a, by); if (xr !== undefined) return xr; }
     if (by !== 'staff' && ['feed', 'clean', 'play', 'pat', 'care', 'checkout', 'sell', 'groom', 'cleanmess', 'trick', 'restock'].includes(a.t)) EXTRA.onCoopAction(s, by);
     switch (a.t) {

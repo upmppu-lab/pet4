@@ -1493,3 +1493,104 @@ Object.assign(I18N.ru, {
   salesSayAdopt: '🐶 Новый друг {n} теперь у нас!',
   salesSayRestock: '📦 Пополнил полку {n}!'
 });
+
+// ================= Pet Battle UI (random wild encounters while out walking with a followed pet) =================
+let _bPlay = { step: 0, timer: null };
+function battleMyPet() { const b = S.battle; return b && S.home && (S.home.pets || []).find(q => q.id === b.pid); }
+function bHpBar(val, max) {
+  const pct = Math.max(0, Math.min(100, max ? val / max * 100 : 0));
+  const col = pct > 50 ? '#5fbf5f' : pct > 20 ? '#e8b23a' : '#e05a4a';
+  return `<div class="bhp"><i style="width:${pct}%;background:${col}"></i></div>`;
+}
+PANELS.battle = () => {
+  const b = S.battle; if (!b) return '';
+  const p = battleMyPet(); if (!p) { actR({ t: 'battleClose' }); return ''; }
+  const foeSpName = spName(b.foe.sp);
+  if (!b.started) {
+    return frameHTML(t('battleTitle'), `
+      <div class="m center" style="font-size:16px">${t('battleAppear', { o: esc(b.foe.ownerName), p: esc(foeSpName) })}</div>
+      <div class="row" style="justify-content:center;gap:18px;margin:10px 0">
+        <div style="text-align:center"><img src="${PIC.my(p)}" style="width:92px;border-radius:14px"><div class="m"><b>${esc(p.name)}</b> Lv.${p.blv || 1}</div></div>
+        <div style="font-size:28px;align-self:center">⚔️</div>
+        <div style="text-align:center"><img src="${PIC.my({ sp: b.foe.sp, coat: b.foe.coat })}" style="width:92px;border-radius:14px"><div class="m"><b>${esc(b.foe.name)}</b></div></div>
+      </div>
+      <div class="m" style="color:#a0602a">${t('battleRiskNote')}</div>
+      <div class="row" style="gap:8px;margin-top:10px">
+        <button class="btn g block" data-a="battlestart">${t('battleStartBtn')}</button>
+        <button class="btn o block" data-a="battleignore">${t('battleIgnoreBtn')}</button>
+      </div>`, true);
+  }
+  const step = Math.max(0, Math.min(_bPlay.step, (b.log || []).length - 1));
+  const cur = b.log[step] || { hpA: b.maxA, hpB: b.maxB };
+  const acted = cur.t !== 'start';
+  const actedMe = cur.side === 0;
+  let meAnim = '', foeAnim = '';
+  if (acted) {
+    if (cur.t === 'heal') { if (actedMe) meAnim = 'healfx'; else foeAnim = 'healfx'; }
+    else { if (actedMe) { meAnim = 'atkme'; foeAnim = 'hit'; } else { foeAnim = 'atkfoe'; meAnim = 'hit'; } }
+  }
+  const floatSide = !acted ? null : (cur.t === 'heal' ? cur.side : 1 - cur.side);
+  const floatHtml = floatSide == null ? '' : `<div class="bfloat ${cur.t === 'heal' ? 'heal' : 'dmg'}">${cur.t === 'heal' ? '+' : '-'}${cur.amt}</div>`;
+  const line = (() => {
+    if (!acted) return t('battleStepStart');
+    const nm = cur.side === 0 ? p.name : b.foe.name;
+    const key = cur.t === 'heal' ? (cur.side === 0 ? 'battleStepHealMe' : 'battleStepHealFoe') : (cur.side === 0 ? 'battleStepAtkMe' : 'battleStepAtkFoe');
+    const skillIcon = cur.skill ? `<span class="bicon">${cur.skill.icon}</span>` : '';
+    return skillIcon + t(key, { n: esc(nm), s: esc(cur.skill ? cur.skill.name : ''), d: cur.amt }) + (cur.crit ? t('battleStepCrit') : '');
+  })();
+  let h = `<div class="bwrap"><div class="bstage">
+    <div class="bside foe">
+      <div class="bcard"><div class="bname"><span>${esc(b.foe.name)}</span><span>Lv.${b.foeBlv || 1}</span></div>${bHpBar(Math.max(0, cur.hpB), b.maxB)}</div>
+      <img class="bimg ${foeAnim}" src="${PIC.my({ sp: b.foe.sp, coat: b.foe.coat })}">
+      ${floatSide === 1 ? floatHtml : ''}
+    </div>
+    <div class="bside me">
+      <img class="bimg ${meAnim}" src="${PIC.my(p)}">
+      ${floatSide === 0 ? floatHtml : ''}
+      <div class="bcard"><div class="bname"><span>${esc(p.name)}</span><span>Lv.${p.blv || 1}</span></div>${bHpBar(Math.max(0, cur.hpA), b.maxA)}</div>
+    </div>
+  </div></div>
+  <div class="bskillbox">${line}</div>`;
+  if (!b.resolved) {
+    h += `<button class="btn o block" data-a="battleskip">${t('battleSkipBtn')}</button>`;
+  } else {
+    h += `<div class="card" style="text-align:center">
+      <div class="t" style="font-size:18px">${t(b.win ? 'battleWinTitle' : 'battleLoseTitle')}</div>
+      ${b.win ? `<div class="m">${t('battleXpGain', { n: 6 + (b.foeBlv || 1) * 3 })}</div>${b.lvup ? `<div class="m"><b>${t('battleLvUp', { n: b.blvAfter })}</b></div>` : ''}${b.stolen ? `<div class="m">${t('battleStolenMsg', { o: esc(b.foe.ownerName), n: esc(b.stolen) })}</div>` : ''}`
+        : `<div class="m">${t('battleTiredMsg')}</div>${b.lost ? `<div class="m">${t('battleLostMsg', { n: esc(b.lost), o: esc(b.foe.ownerName) })}</div>` : ''}`}
+      <button class="btn block" data-a="battleclose" style="margin-top:8px">${t('battleCloseBtn')}</button>
+    </div>`;
+  }
+  return frameHTML(t('battleTitle'), h, true);
+};
+function battleScheduleStep() {
+  const b = S.battle; if (!b || !b.log) return;
+  clearTimeout(_bPlay.timer);
+  _bPlay.timer = setTimeout(() => {
+    if (!panel || panel.type !== 'battle') return;
+    const bb = S.battle; if (!bb || !bb.log) return;
+    _bPlay.step++;
+    if (typeof SND !== 'undefined' && SND.pop) SND.pop();
+    if (_bPlay.step >= bb.log.length - 1) { actR({ t: 'battleFinish' }); renderPanel(true); }
+    else { renderPanel(true); battleScheduleStep(); }
+  }, 650);
+}
+Object.assign(XACT, {
+  battlestart: () => {
+    const r = actR({ t: 'battleStart' }); if (!r || !r.ok) return;
+    clearTimeout(_bPlay.timer); _bPlay = { step: 0, timer: null };
+    renderPanel(true);
+    battleScheduleStep();
+  },
+  battleskip: () => {
+    clearTimeout(_bPlay.timer);
+    const b = S.battle; if (!b || !b.log) return;
+    _bPlay.step = b.log.length - 1;
+    if (!b.resolved) actR({ t: 'battleFinish' });
+    renderPanel(true);
+  },
+  battleignore: () => { clearTimeout(_bPlay.timer); actR({ t: 'battleClose' }); closePanel(); },
+  battleclose: () => { clearTimeout(_bPlay.timer); actR({ t: 'battleClose' }); closePanel(); },
+});
+Object.assign(I18N.ko, { battleFoeTag: '⚔️ 야생 대결' });
+Object.assign(I18N.ru, { battleFoeTag: '⚔️ Дикая битва' });

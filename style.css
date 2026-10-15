@@ -474,3 +474,31 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
   }
 }
 
+/* ================= pet battle UI (2026-10-15) ================= */
+.bwrap{position:relative;border-radius:16px;overflow:hidden;background:linear-gradient(#bfe6a0,#8fc26a);padding:8px;margin:4px 0}
+.bwrap::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 85%,rgba(255,255,255,.35),transparent 60%);pointer-events:none}
+.bstage{position:relative;height:190px}
+.bside{position:absolute;display:flex;flex-direction:column;z-index:2}
+.bside.foe{top:2px;right:4px;align-items:flex-end}
+.bside.me{bottom:2px;left:4px;align-items:flex-start}
+.bcard{background:rgba(255,255,255,.96);border:2px solid #fff;border-radius:12px;padding:5px 10px;box-shadow:0 3px 8px rgba(0,0,0,.18);min-width:112px}
+.bcard .bname{font-size:12px;font-weight:900;color:#3a2418;display:flex;justify-content:space-between;gap:8px;white-space:nowrap}
+.bcard .bhp{height:7px;border-radius:5px;background:#e3d8c0;margin-top:3px;overflow:hidden}
+.bcard .bhp i{display:block;height:100%;border-radius:5px;transition:width .4s ease}
+.bimg{width:80px;height:80px;object-fit:contain;filter:drop-shadow(0 6px 4px rgba(0,0,0,.25));transition:filter .2s ease}
+.bside.foe .bimg{margin-top:4px}
+.bside.me .bimg{margin-bottom:4px;transform:scaleX(-1)}
+.bimg.atkme{animation:batkMe .4s ease-in-out}
+.bimg.atkfoe{animation:batkFoe .4s ease-in-out}
+.bimg.hit{animation:bhit .35s ease-in-out}
+.bimg.healfx{animation:bheal .5s ease-in-out}
+@keyframes batkMe{0%{transform:scaleX(-1) translate(0,0)}40%{transform:scaleX(-1) translate(-18px,-10px) scale(1.08)}100%{transform:scaleX(-1) translate(0,0)}}
+@keyframes batkFoe{0%{transform:translate(0,0)}40%{transform:translate(-18px,10px) scale(1.08)}100%{transform:translate(0,0)}}
+@keyframes bhit{0%{transform:translateX(0);filter:brightness(1)}25%{transform:translateX(-6px);filter:brightness(2) saturate(0)}50%{transform:translateX(6px)}75%{transform:translateX(-4px)}100%{transform:translateX(0);filter:brightness(1)}}
+@keyframes bheal{0%{filter:brightness(1)}50%{filter:brightness(1.6) drop-shadow(0 0 10px #8ee6a0)}100%{filter:brightness(1)}}
+.bskillbox{background:#fff;border:2px solid #e2c596;border-radius:12px;padding:9px 12px;margin-top:8px;font-size:13.5px;font-weight:700;color:#3a2418;min-height:20px}
+.bskillbox .bicon{font-size:15px;margin-right:5px}
+.bfloat{position:absolute;top:-6px;left:50%;transform:translateX(-50%);font-weight:900;font-size:16px;pointer-events:none;animation:bfloatup .9s ease-out forwards;z-index:5;white-space:nowrap}
+.bfloat.dmg{color:#d6352f;text-shadow:0 1px 0 #fff,0 1px 3px #fff}
+.bfloat.heal{color:#2a9a4a;text-shadow:0 1px 0 #fff,0 1px 3px #fff}
+@keyframes bfloatup{0%{opacity:1;transform:translateX(-50%) translateY(0)}100%{opacity:0;transform:translateX(-50%) translateY(-34px)}}

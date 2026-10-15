@@ -801,8 +801,15 @@ PANELS.villager = m => {
   const body = pets.length
     ? `<div class="t" style="margin-top:8px">🐾 ${t('villagerPets')}</div>${pets.map(p => `<div class="li"><div class="ic"><img src="${PIC.pet(p.sp)}"></div><div class="grow"><div class="t">${esc(p.name)}</div><div class="m">${esc(spName(p.sp))}</div></div></div>`).join('')}`
     : `<div class="card center" style="margin-top:8px"><div class="m">${t('villagerNoPet')}</div></div>`;
-  return frameHTML('🏠 ' + t('villagerTitle'), head + why + body + `<button class="btn g block" data-a="close">${t('close')}</button>`);
+  const battleBtn = (pets.length && typeof BATTLE !== 'undefined') ? `<button class="btn r block" style="margin-top:8px" data-a="villagerbattle" data-v="${res.id}" data-w="${esc(m.spHint || '')}">${t('battleChallengeBtn')}</button>` : '';
+  return frameHTML('🏠 ' + t('villagerTitle'), head + why + body + battleBtn + `<button class="btn g block" data-a="close">${t('close')}</button>`);
 };
+Object.assign(XACT, {
+  villagerbattle: (v, w) => {
+    const br = actR({ t: 'battleChallenge', rid: v, spHint: w || undefined });
+    if (br && br.ok) { closePanel(); openPanel({ type: 'battle' }); }
+  },
+});
 // v2026-10-08: tap someone walking the street who ISN'T one of our fixed residents -- an out-of-town
 // customer heading for the shop (no house here, so no villager record). Used to silently do nothing.
 PANELS.visitor = m => {
@@ -1831,19 +1838,19 @@ function onWorldTap(h) {
     World.walkNear(Math.floor(a.x), Math.floor(a.y));
     openPanel({ type: 'cust', cid: a.cust.id }); return;
   }
-  if (h.kind === 'vil') { // v2026-10-08: tap a villager walking the town to see who they are, how happy they are, and any pets they own
+  if (h.kind === 'vil') { // tap a villager walking the town to see who they are, how happy they are, and any pets they own
     const a = h.actor; if (!a || !a.residentId) return;
     if (a.dstK === 'lake') {
-      const r = typeof TOWN !== 'undefined' && TOWN.residentById ? TOWN.residentById(S, a.residentId) : null;
-      const rName = r ? r.name : '주민';
-      const rHap = r ? (r.happy || 75) : 75;
+      const r0 = typeof TOWN !== 'undefined' && TOWN.residentById ? TOWN.residentById(S, a.residentId) : null;
+      const rName = r0 ? r0.name : '주민';
+      const rHap = r0 ? (r0.happy || 75) : 75;
       if (a.lakeAct === 'fish') {
         toast(`🎣 ${rName} 주민이 호수에서 여유롭게 낚시를 즐기고 있어요! (행복도 ${rHap})`);
       } else {
         toast(`☕ ${rName} 주민이 호숫가에서 평화롭게 휴식을 취하고 있어요! (행복도 ${rHap})`);
       }
     }
-    openPanel({ type: 'villager', rid: a.residentId }); return;
+    openPanel({ type: 'villager', rid: a.residentId, spHint: a.pet }); return;
   }
   if (h.kind === 'partner') { act({ t: 'heart' }); fxAt(innerWidth / 2, innerHeight / 2, '💕'); return; }
   if (App.carry && (h.kind === 'pet' || h.kind === 'crate')) { toast(t('carryBusy')); return; }
