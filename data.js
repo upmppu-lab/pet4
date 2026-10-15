@@ -583,6 +583,10 @@ const ROLE_STAFF_ART = {
   hairstylist: { man: { head: [416, 418], outfit: [416, 418, 420] }, women: { head: [417, 419], outfit: [] } },
   waiter: { man: { head: [525], outfit: [525] }, women: { head: [], outfit: [] } },
 };
+// v1.121: 손으로 그린 특수 직업 "전신 한 장" 그림(의사/간호사/미용사, 역할별 5종) - 위 ROLE_STAFF_ART(머리/옷
+// 분리 그림)와는 전혀 다른 새 그림 세트라 별도 표로 관리. spr/special/<front|back|side>/<role>_<1~5>.png.
+// 성별 구분 없이 역할+시드로 1~5번 중 하나를 결정적으로 고름 (human.js의 drawRoleChar가 실제로 그림).
+const ROLE_ART2_COUNT = { doctor: 5, nurse: 5, hairstylist: 5, chef: 5 };
 function applyStaffArt(lk, seed, isManager, role) {
   const s2 = Math.floor((Math.abs(seed || 1) * 48271) % 2147483647); // randomHuman과는 다른 값이 나오게 한번 더 섞은 결정적 난수
   const gender = lk.lash ? 'women' : 'man';
@@ -594,6 +598,14 @@ function applyStaffArt(lk, seed, isManager, role) {
   const roleArt = ROLE_ART_ENABLED && role && ROLE_STAFF_ART[role] && ROLE_STAFF_ART[role][gender];
   const headSrc = (roleArt && roleArt.head.length) ? roleArt.head : headPool;
   const outfitSrc = (roleArt && roleArt.outfit.length) ? roleArt.outfit : outfitPool;
+  // v1.121: 새 전신 그림이 있는 역할(의사/간호사/미용사)이면 그 그림을 최우선으로 사용 (human.js의
+  // draw()에서 lk.roleArt가 있으면 아래 staffHead/staffOutfit보다 먼저 체크함)
+  if (!isManager && role && ROLE_ART2_COUNT[role]) {
+    lk.roleArt = role;
+    lk.roleArtIdx = 1 + (s2 % ROLE_ART2_COUNT[role]);
+  } else {
+    delete lk.roleArt; delete lk.roleArtIdx;
+  }
   if (isManager) {
     lk.staffHead = STAFF_MANAGER_HEAD;
     lk.staffOutfit = STAFF_MANAGER_OUTFIT;

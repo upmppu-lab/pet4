@@ -1816,6 +1816,135 @@ const P2 = {
     return true;
   }
 
+  // v1.121: 손으로 그린 특수 직업(의사/간호사/미용사) 전신 PNG 1장짜리 캐릭터 - 역할별 5종, 정면/뒷면/
+  // 옆면(대각선은 전용 그림이 없어 옆면을 재사용). drawStaffChar(머리+옷 분리)와 달리 머리/몸이 이미
+  // 한 장에 합쳐진 그림이라 townChar(아래)처럼 이미지 1장을 비율에 맞게 그리면 됨. 파일은
+  // spr/special/<front|back|side>/<role>_<1~5>.png. 그림마다 여백(캔버스 안 차지하는 영역)이 달라
+  // PNG를 분석해 미리 재둔 표(ROLE_ART_CAL: 방향+번호별 위/아래 여백과 발 중심 x좌표)를 그대로 사용.
+  const ROLE_IMG = {};
+  // 파일명이 role_idx.png 규칙을 안 따르는 예외(요리사 옷면 5번은 chef_6.png로 들어옴) 보정용
+  const ROLE_ART_FNAME_FIX = { 'chef:side:5': 'chef_6.png' };
+  function getRoleImg(role, dirKey, idx) {
+    const key = role + '_' + dirKey + '_' + idx;
+    let im = ROLE_IMG[key];
+    if (!im) {
+      im = new Image();
+      im.crossOrigin = 'anonymous';
+      ROLE_IMG[key] = im;
+      const fname = ROLE_ART_FNAME_FIX[role + ':' + dirKey + ':' + idx] || (role + '_' + idx + '.png');
+      const url = assetUrl('spr/special/' + dirKey + '/' + fname);
+      const toDataUrlViaXHR = () => new Promise((resolve, reject) => {
+        try {
+          const xhr = new XMLHttpRequest();
+          xhr.open('GET', url, true);
+          xhr.responseType = 'blob';
+          xhr.onload = () => {
+            if (xhr.status !== 0 && xhr.status !== 200) { reject(new Error('xhr ' + xhr.status)); return; }
+            const fr = new FileReader();
+            fr.onload = () => resolve(fr.result);
+            fr.onerror = reject;
+            fr.readAsDataURL(xhr.response);
+          };
+          xhr.onerror = reject;
+          xhr.send();
+        } catch (e) { reject(e); }
+      });
+      const toDataUrlViaFetch = () => fetch(url).then(r => r.blob()).then(blob => new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(fr.result);
+        fr.onerror = reject;
+        fr.readAsDataURL(blob);
+      }));
+      toDataUrlViaXHR().catch(toDataUrlViaFetch)
+        .then(dataUrl => { im.onload = part2Ready; im.src = dataUrl; })
+        .catch(() => { im.onload = part2Ready; im.src = url; });
+    }
+    return im;
+  }
+  // 그림마다(역할+방향+번호) 실제로 차지하는 영역(top~bottom, 512 캔버스 기준)과 발 중심이 캔버스
+  // 정중앙에서 얼마나 벗어나 있는지(footOff, 오른쪽이 +) 미리 측정해 둔 표.
+  const ROLE_ART_CAL = {
+    doctor: {
+      front: { 1: { top: 104, bottom: 496, footOff: -1.61 }, 2: { top: 103, bottom: 496, footOff: 0.74 }, 3: { top: 105, bottom: 496, footOff: -1.87 }, 4: { top: 105, bottom: 495, footOff: -2.29 }, 5: { top: 106, bottom: 496, footOff: -0.17 } },
+      back: { 1: { top: 103, bottom: 497, footOff: -2.61 }, 2: { top: 103, bottom: 497, footOff: -1.45 }, 3: { top: 104, bottom: 497, footOff: -2.61 }, 4: { top: 98, bottom: 497, footOff: -0.65 }, 5: { top: 103, bottom: 497, footOff: -3.16 } },
+      side: { 1: { top: 82, bottom: 505, footOff: -10.05 }, 2: { top: 82, bottom: 505, footOff: -1.2 }, 3: { top: 81, bottom: 505, footOff: -3.93 }, 4: { top: 79, bottom: 501, footOff: 4.17 }, 5: { top: 82, bottom: 505, footOff: 7.92 } },
+    },
+    nurse: {
+      front: { 1: { top: 111, bottom: 499, footOff: -3.73 }, 2: { top: 106, bottom: 499, footOff: -1.26 }, 3: { top: 106, bottom: 500, footOff: 8.18 }, 4: { top: 107, bottom: 500, footOff: -3.79 }, 5: { top: 107, bottom: 499, footOff: -4.74 } },
+      back: { 1: { top: 79, bottom: 504, footOff: -9.45 }, 2: { top: 111, bottom: 500, footOff: -4.72 }, 3: { top: 111, bottom: 500, footOff: 6.26 }, 4: { top: 111, bottom: 500, footOff: 0.72 }, 5: { top: 108, bottom: 500, footOff: 0.03 } },
+      side: { 1: { top: 72, bottom: 499, footOff: -2.09 }, 2: { top: 77, bottom: 505, footOff: 11.56 }, 3: { top: 79, bottom: 505, footOff: 16.05 }, 4: { top: 76, bottom: 504, footOff: 11.04 }, 5: { top: 78, bottom: 506, footOff: 18.81 } },
+    },
+    hairstylist: {
+      front: { 1: { top: 121, bottom: 499, footOff: 3.1 }, 2: { top: 122, bottom: 499, footOff: 1.35 }, 3: { top: 120, bottom: 499, footOff: -2.81 }, 4: { top: 120, bottom: 499, footOff: -3.13 }, 5: { top: 120, bottom: 499, footOff: -16.99 } },
+      back: { 1: { top: 90, bottom: 499, footOff: -4.18 }, 2: { top: 125, bottom: 500, footOff: 0.21 }, 3: { top: 124, bottom: 499, footOff: -5.18 }, 4: { top: 125, bottom: 500, footOff: -3.79 }, 5: { top: 122, bottom: 498, footOff: -8.73 } },
+      side: { 1: { top: 92, bottom: 487, footOff: -7.05 }, 2: { top: 95, bottom: 492, footOff: 15.73 }, 3: { top: 94, bottom: 492, footOff: 13.63 }, 4: { top: 97, bottom: 491, footOff: -0.3 }, 5: { top: 93, bottom: 491, footOff: -6.19 } },
+    },
+    chef: {
+      front: { 1: { top: 46, bottom: 496, footOff: -1.29 }, 2: { top: 47, bottom: 496, footOff: 1.46 }, 3: { top: 42, bottom: 497, footOff: -0.82 }, 4: { top: 46, bottom: 497, footOff: 2.2 }, 5: { top: 45, bottom: 497, footOff: 0.5 } },
+      back: { 1: { top: 46, bottom: 493, footOff: -6.04 }, 2: { top: 47, bottom: 493, footOff: -2.59 }, 3: { top: 46, bottom: 493, footOff: -1.35 }, 4: { top: 46, bottom: 493, footOff: -1.0 }, 5: { top: 46, bottom: 493, footOff: 1.47 } },
+      side: { 1: { top: 46, bottom: 499, footOff: -12.25 }, 2: { top: 45, bottom: 499, footOff: -3.12 }, 3: { top: 47, bottom: 499, footOff: -7.4 }, 4: { top: 46, bottom: 499, footOff: -10.55 }, 5: { top: 46, bottom: 499, footOff: -2.43 } },
+    },
+  };
+  const ROLE_ART_CANVAS = 512;
+  const ROLE_ART_CONTENT_H = 82; // townChar(아래)와 같은 기준 키 - 다른 마을사람/직원과 비슷한 크기로 보이도록
+  const ROLE_ART_FOOT_Y = 8; // 다른 캐릭터들과 같은 발 접지선 기준점
+  function drawRoleChar(c, o, realDir, faceBack, moving, t, isSit) {
+    const effDir = (realDir === 3 && faceBack) ? 1 : realDir;
+    const suffix = DIR_SUFFIX[effDir]; // undefined(정면) / 'back' / 'side' / 'diag'
+    const dirKey = suffix === 'back' ? 'back' : (suffix ? 'side' : 'front'); // 대각선은 옆면 그림 재사용
+    const role = o.roleArt, idx = o.roleArtIdx || 1;
+    const img = getRoleImg(role, dirKey, idx);
+    if (!(img.complete && img.naturalWidth)) return false;
+    const cal = (ROLE_ART_CAL[role] && ROLE_ART_CAL[role][dirKey] && ROLE_ART_CAL[role][dirKey][idx]) || { top: 100, bottom: 500, footOff: 0 };
+    const mirror = !(effDir === 2 || effDir === 3); // townChar와 동일 규칙(옆면/대각선은 바깥(world.js)쪽 좌우반전에 맡기고 그림 자체는 반전 안 함)
+
+    const contentPx = cal.bottom - cal.top;
+    const neckSrcY = Math.round(cal.top + contentPx * 0.5); // 목선 = bbox 중간 지점(townChar와 동일 가정)
+    const baseSize = ROLE_ART_CANVAS * (ROLE_ART_CONTENT_H / contentPx);
+    const footXOff = (cal.footOff / ROLE_ART_CANVAS) * baseSize;
+
+    const bodySrcH = ROLE_ART_CANVAS - neckSrcY;
+    const bodyDestH = (bodySrcH / ROLE_ART_CANVAS) * baseSize;
+    const bodyDestW = baseSize;
+    const bodyDestX = -bodyDestW / 2 - footXOff;
+    const footOffsetInBody = ((cal.bottom - neckSrcY) / bodySrcH) * bodyDestH;
+    const bodyDestY = ROLE_ART_FOOT_Y - footOffsetInBody;
+
+    const headSrcH = neckSrcY + 8; // 목 겹침(8px)으로 틈새 방지
+    const headDestW = baseSize;
+    const headDestH = (headSrcH / ROLE_ART_CANVAS) * baseSize;
+    const headDestX = -headDestW / 2 - footXOff;
+    const headDestY = bodyDestY - headDestH + (8 / ROLE_ART_CANVAS) * baseSize;
+
+    const canWalk = !isSit;
+    const walkT = moving && canWalk ? t * 9 : 0;
+    const bob = moving && canWalk ? Math.abs(Math.sin(walkT)) * (bodyDestH * 0.035) : Math.sin(t * 2) * .5;
+    const stepAmp = moving && canWalk ? bodyDestH * 0.02 : 0;
+    const legStepL = stepAmp ? Math.sin(walkT) * stepAmp : 0;
+    const legStepR = -legStepL;
+
+    c.save();
+    c.translate(0, -bob);
+    c.save();
+    if (mirror) c.scale(-1, 1);
+
+    const bdx = mirror ? -(bodyDestX + bodyDestW) : bodyDestX;
+    const halfSrcW = ROLE_ART_CANVAS / 2, halfDestW = bodyDestW / 2;
+    c.save(); c.translate(0, legStepL);
+    c.drawImage(img, 0, neckSrcY, halfSrcW, bodySrcH, bdx, bodyDestY, halfDestW, bodyDestH);
+    c.restore();
+    c.save(); c.translate(0, legStepR);
+    c.drawImage(img, halfSrcW, neckSrcY, halfSrcW, bodySrcH, bdx + halfDestW, bodyDestY, halfDestW, bodyDestH);
+    c.restore();
+
+    const hdx = mirror ? -(headDestX + headDestW) : headDestX;
+    c.drawImage(img, 0, 0, ROLE_ART_CANVAS, headSrcH, hdx, headDestY, headDestW, headDestH);
+
+    c.restore();
+    c.restore();
+    return true;
+  }
+
   // v1.100.53: 마을 사람(town.js의 'vil' 타입) + 손님/카페손님/병원환자 등 ART.randomHuman() NPC 전용 -
   // 머리/몸을 나누지 않은 전신 PNG 1장. 직원(drawStaffChar)과 달리 머리+몸이 이미 한 장에 합쳐진
   // 그림이라 이미지 1장만 비율에 맞게 그리면 됨.
@@ -1965,6 +2094,11 @@ const P2 = {
 
     c.save();
     c.scale(k, k);
+
+    // 0. 손그림 특수 직업(의사/간호사/미용사) 전신 그림 - 역할별 5종 중 하나, 전신 PNG 1장
+    if (!HUM.forceVector && o.roleArt) {
+      drawRoleChar(c, o, realDir, faceBack, moving, t, isSit); c.restore(); return;
+    }
 
     // 1. 직원 전용 머리+옷 2단 이미지
     if (!HUM.forceVector && o.staffHead && o.staffOutfit) {
