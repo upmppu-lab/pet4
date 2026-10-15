@@ -5182,11 +5182,10 @@ function getFlowerSprite(kind) {
   const depthOf = o => {
     const f = fpOf(o.k, o.r), d = D[o.k];
     const base = o.x + o.y + f.w + f.d - 1.02;
-    // 사용자 요구사항: 건물이 겹쳤을 때는 벽이 있는 건물이 위로 올라가게 해서 벽이 보이게 함
-    if (d && (d.cat === 'house' || (d.cat === 'civic' && !d.open))) {
-      return base + 0.6; // 벽이 있는 건물은 벽의 높이가 있으므로 바닥/평면 오브젝트보다 위에 올라와 벽이 보이도록 우선순위 부여
-    }
-    return base;
+    // 사용자 요구사항: 건물끼리 겹칠 때는 나중에 지은 건물/확장된 건물의 서쪽, 북쪽 벽이 기존 건물보다 무조건 위에 오도록 정렬
+    let bonus = (d && (d.cat === 'house' || (d.cat === 'civic' && !d.open))) ? 0.6 : 0;
+    bonus += (o.id || 0) * 1e-5 + (o.lv || 1) * 0.01;
+    return base + bonus;
   };
   function drawGhost(c, g, T) {
     if (!g) return false;

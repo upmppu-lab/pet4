@@ -13,9 +13,9 @@ const HOSP_UNLOCK_TIER = 2; // Silver
 const HOSP_BUILD_COST = 30000 * BAL.BUILD_K;
 const HOSP_LV = [null,
   { cost: 0, ulv: 2, rooms: ['clinic'], cap: { bench: 2, tbed: 1, exam: 0 }, skin: 1 },
-  { cost: 40000, ulv: 10, rooms: ['clinic', 'treat', 'radio'], cap: { bench: 4, tbed: 3, exam: 1, xray: 1 }, skin: 2 },
-  { cost: 120000, ulv: 18, rooms: ['clinic', 'treat', 'radio', 'surgery'], cap: { bench: 8, tbed: 6, exam: 2, xray: 1, ct: 1, surgery: 1 }, skin: 3 },
-  { cost: 300000, ulv: 26, rooms: ['clinic', 'treat', 'radio', 'surgery', 'ward'], cap: { bench: 12, tbed: 8, exam: 3, xray: 2, ct: 1, surgery: 2, bed: 4, incubator: 2, medbath: 1 }, skin: 4 },
+  { cost: 40000, ulv: 10, rooms: ['clinic', 'treat', 'radio'], cap: { bench: 4, tbed: 1, exam: 1, xray: 1 }, skin: 2 },
+  { cost: 120000, ulv: 18, rooms: ['clinic', 'treat', 'radio', 'surgery'], cap: { bench: 8, tbed: 1, exam: 2, xray: 1, ct: 1, surgery: 1 }, skin: 3 },
+  { cost: 300000, ulv: 26, rooms: ['clinic', 'treat', 'radio', 'surgery', 'ward'], cap: { bench: 8, tbed: 1, exam: 3, xray: 2, ct: 1, surgery: 2, bed: 3, incubator: 1, medbath: 1 }, skin: 4 },
 ];
 HOSP_LV.forEach(l => { if (l) l.cost = balCost(l.cost); });
 const HOSP_MAX = HOSP_LV.length - 1;
@@ -136,11 +136,11 @@ const hospFurn = k => HOSP_FURN.find(f => f.k === k);
 // the fixed equipment of each room (north wall row); the lobby's sits at the east end by the door
 const HOSP_KIT = {
   lobby: ['cabinet', 'sink', 'reception'],
-  clinic: ['exam', 'desk', 'cabinet'],
+  clinic: ['exam', 'desk', 'cabinet', 'tbed'],
   treat: ['tbed', 'cabinet', 'sink'],
   radio: ['ct', 'xray', 'monitor'],
   surgery: ['surgery', 'cabinet', 'sink'],
-  ward: ['bed', 'incubator', 'medbath']
+  ward: ['incubator', 'medbath', 'bed', 'bed', 'bed']
 };
 const HOSP_SELL_BACK = .5;
 
@@ -173,13 +173,7 @@ function hospBuildLayout(hp, Rm, lv) {
     }
     cx = x0;
   });
-  if (rs.length) {
-    const lastR = rooms[rs[rs.length - 1]];
-    if (lastR) {
-      for (let y = ny; y < lastR.y1; y++) addPart(lastR.x0, y, true);
-      addPart(lastR.x0, lastR.y1, true);
-    }
-  }
+  // Note: Redundant west outer wall partition loop removed per user request (the outer wall is already drawn by drawHospWalls)
   for (const q of parts) {
     q.k = 'part'; q.w = 1; q.d = 1;
     if (!q.doorway) mark(q.x, q.y, 1, 1);
@@ -190,8 +184,73 @@ function hospBuildLayout(hp, Rm, lv) {
   const inRegion = (dp, x, y) => inRect(x, y) && (dp === 'lobby' ? !anyRoom(x, y) : inRoom(dp, x, y));
   const kit = []; let ki = 0;
   const kitDone = (hp && hp.kitDone) || [];
-  if (!kitDone.includes('lobby')) { let kx = R.x1; for (const k of HOSP_KIT.lobby) { const F = hospFurn(k); kx -= F.w; if (kx <= R.x1 - HOSP_LOBBY_W) break; const it = { k, id: 'k' + ki++, x: kx, y: ny, w: F.w, d: F.d, solid: true, fixed: true, dp: 'lobby' }; kit.push(it); mark(it.x, it.y, it.w, it.d); } }
-  for (const id of rs) { if (kitDone.includes(id)) continue; const r = rooms[id]; let kx = r.x0; for (const k of HOSP_KIT[id] || []) { const F = hospFurn(k); if (kx + F.w > r.x1) break; const it = { k, id: 'k' + ki++, x: kx, y: ny, w: F.w, d: F.d, solid: true, fixed: true, dp: id }; kit.push(it); mark(it.x, it.y, it.w, it.d); kx += F.w; } }
+  if (!kitDone.includes('lobby')) {
+    let kx = R.x1;
+    for (const k of HOSP_KIT.lobby) {
+      const F = hospFurn(k);
+      kx -= F.w;
+      if (kx <= R.x1 - HOSP_LOBBY_W) break;
+      // Reception desk moved south by 1 tile (y: ny + 1) so clerk can enter and stand behind it
+      const ky = k === 'reception' ? ny + 1 : ny;
+      const it = { k, id: 'k' + ki++, x: kx, y: ky, w: F.w, d: F.d, solid: true, fixed: true, dp: 'lobby' };
+      kit.push(it);
+      mark(it.x, it.y, it.w, it.d);
+    }
+  }
+  for (const id of rs) {
+    if (kitDone.includes(id)) continue;
+    const r = rooms[id];
+    if (id === 'ward') {
+      // User specification: 침대 3개 (서쪽벽 1개, 동쪽벽 2개 간격 배치), 인큐베이터 & 약욕조는 북쪽벽
+      const wardItems = [
+        { k: 'incubator', x: r.x0 + 1, y: ny, w: 1, d: 1 },
+        { k: 'medbath', x: r.x0 + 2, y: ny, w: 2, d: 1 },
+        { k: 'bed', x: r.x0, y: ny + 2, w: 2, d: 1 }, // 서쪽벽 1개
+        { k: 'bed', x: r.x1 - 2, y: ny + 1, w: 2, d: 1 }, // 동쪽벽 1개 (북)
+        { k: 'bed', x: r.x1 - 2, y: ny + 3, w: 2, d: 1 }, // 동쪽벽 1개 (남, 1칸 간격)
+      ];
+      for (const wIt of wardItems) {
+        const it = { k: wIt.k, id: 'k' + ki++, x: wIt.x, y: wIt.y, w: wIt.w, d: wIt.d, solid: true, fixed: true, dp: 'ward' };
+        kit.push(it);
+        mark(it.x, it.y, it.w, it.d);
+      }
+    } else if (id === 'clinic') {
+      // Clinic: exam, desk, cabinet on north wall, 1 treatment bed (tbed)
+      const clinicItems = [
+        { k: 'exam', x: r.x0, y: ny, w: 1, d: 1 },
+        { k: 'desk', x: r.x0 + 1, y: ny, w: 1, d: 1 },
+        { k: 'cabinet', x: r.x0 + 3, y: ny, w: 1, d: 1 },
+        { k: 'tbed', x: r.x0, y: ny + 2, w: 2, d: 1 },
+      ];
+      for (const cIt of clinicItems) {
+        const it = { k: cIt.k, id: 'k' + ki++, x: cIt.x, y: cIt.y, w: cIt.w, d: cIt.d, solid: true, fixed: true, dp: 'clinic' };
+        kit.push(it);
+        mark(it.x, it.y, it.w, it.d);
+      }
+    } else if (id === 'treat') {
+      // Treatment room: exactly 1 tbed, 1 cabinet, 1 sink
+      const treatItems = [
+        { k: 'tbed', x: r.x0, y: ny + 1, w: 2, d: 1 },
+        { k: 'cabinet', x: r.x0 + 2, y: ny, w: 1, d: 1 },
+        { k: 'sink', x: r.x0 + 3, y: ny, w: 1, d: 1 },
+      ];
+      for (const tIt of treatItems) {
+        const it = { k: tIt.k, id: 'k' + ki++, x: tIt.x, y: tIt.y, w: tIt.w, d: tIt.d, solid: true, fixed: true, dp: 'treat' };
+        kit.push(it);
+        mark(it.x, it.y, it.w, it.d);
+      }
+    } else {
+      let kx = r.x0;
+      for (const k of HOSP_KIT[id] || []) {
+        const F = hospFurn(k);
+        if (kx + F.w > r.x1) break;
+        const it = { k, id: 'k' + ki++, x: kx, y: ny, w: F.w, d: F.d, solid: true, fixed: true, dp: id };
+        kit.push(it);
+        mark(it.x, it.y, it.w, it.d);
+        kx += F.w;
+      }
+    }
+  }
   const items = [];
   for (const it of (hp && hp.items) || []) {
     if (it.k === 'part') continue; // Clean design: walls are never loose movable items
@@ -222,15 +281,16 @@ function hospBuildLayout(hp, Rm, lv) {
     const p2 = opts.find(o => good(o) && !usedSeat.has(o.join(','))) || s;
     if (p2) { b.px = p2[0] + .5; b.py = p2[1] + .5; usedSeat.add(p2.join(',')); }
   }
-  // reception: the queue in front of the desk (lobby side), and the clerk's spot beside it
+  // reception: clerk stands inside behind the desk, queue waits in front of the desk (lobby side)
   const recv = all.find(i => i.k === 'reception');
   let wait = [];
   if (recv) {
-    const cxq = recv.x + .5, cyq = recv.y + 1.5;
-    wait = [...reach].map(k => k.split(',').map(Number)).filter(([x, y]) => inRect(x, y) && y > recv.y && y <= recv.y + 6 && inRegion('lobby', x, y) && !noPlace.has(x + ',' + y)).sort((a, b) => Math.hypot(a[0] + .5 - cxq, a[1] + .5 - cyq) - Math.hypot(b[0] + .5 - cxq, b[1] + .5 - cyq)).slice(0, 14).map(([x, y]) => ({ x: x + .5, y: y + .5 }));
-    recv.px = recv.x - .5; recv.py = recv.y + .5; if (!reach.has(Math.floor(recv.px) + ',' + Math.floor(recv.py))) { recv.px = recv.x + 1.5; recv.py = recv.y + .5; }
-    if (wait.length > 1 && Math.floor(wait[0].x) === Math.floor(recv.px) && Math.floor(wait[0].y) === Math.floor(recv.py)) wait.shift();
-    recv.sx = wait.length ? wait[0].x : recv.x + .5; recv.sy = wait.length ? wait[0].y : recv.y + 1.5;
+    const cxq = recv.x + recv.w / 2, cyq = recv.y + recv.d + 0.5;
+    wait = [...reach].map(k => k.split(',').map(Number)).filter(([x, y]) => inRect(x, y) && y >= recv.y + recv.d && y <= recv.y + recv.d + 6 && inRegion('lobby', x, y) && !noPlace.has(x + ',' + y)).sort((a, b) => Math.hypot(a[0] + .5 - cxq, a[1] + .5 - cyq) - Math.hypot(b[0] + .5 - cxq, b[1] + .5 - cyq)).slice(0, 14).map(([x, y]) => ({ x: x + .5, y: y + .5 }));
+    recv.px = recv.x + 1.0;
+    recv.py = recv.y - 0.5;
+    recv.sx = wait.length ? wait[0].x : recv.x + 1.0;
+    recv.sy = wait.length ? wait[0].y : recv.y + recv.d + 0.5;
   }
   // bench seats: facing north (반대방향/북쪽) into the hospital rooms so patients face north
   const seats = [];
@@ -297,20 +357,31 @@ function hospCenterSpot(hp, Rm, lv, k, dp) {
   const F = hospFurn(k), R = hospRect(Rm.w, Rm.h, lv);
   const L0 = hospBuildLayout(hp, Rm, lv);
 
-  // 로비 대기실: 중앙(Center) 정렬
-  // 진료실 남쪽 출입구 통로와 남쪽 외벽 사이의 정중앙에 위치하도록 배치
-  // Lv4 (깊이 19): R.y + 10, R.y + 13 (위 5칸, 중간 2칸, 아래 5칸 대칭)
-  // Lv3 (깊이 16): R.y + 9, R.y + 12 (위 4칸, 중간 2칸, 아래 3칸 대칭)
-  // Lv2 (깊이 13): R.y + 8 (위 3칸, 아래 4칸 대칭)
-  // Lv1 (깊이 10): R.y + 7 (위 2칸, 아래 2칸 대칭)
-  const startY = (lv >= 4) ? (R.y + 10) : (lv === 3) ? (R.y + 9) : (lv === 2) ? (R.y + 8) : (R.y + 7);
   const plannedSlots = [];
-
-  // 가로 너비에 맞춰 4칸 간격(3칸 의자 + 1칸 통로)으로 균등하게 열(Column) 배치
-  // 1열과 2열 사이는 통로 2칸 확보(y += 3)
-  for (let y = startY; y <= R.y1 - F.d - 1; y += 3) {
-    for (let x = R.x + 1; x + F.w <= R.x1 - 2; x += 4) {
-      plannedSlots.push({ x, y });
+  if (lv === 1) {
+    // 레벨 1: 로비 중간에 2개 (w=3 의자 2개, 중간 통로 1칸)
+    // 로비 너비는 x: R.x + 4 ~ R.x1 (총 6칸). 정중앙 R.x + 5.0
+    // R.y + 6 (윗줄 1개), R.y + 8 (아랫줄 1개)
+    plannedSlots.push({ x: R.x + 5, y: R.y + 6 });
+    plannedSlots.push({ x: R.x + 5, y: R.y + 8 });
+  } else if (lv === 2) {
+    // 레벨 2: 4개 (윗줄 2개, 아랫줄 2개)
+    const yTop = R.y + 7, yBot = R.y + 10;
+    plannedSlots.push({ x: R.x + 3, y: yTop });
+    plannedSlots.push({ x: R.x + 8, y: yTop });
+    plannedSlots.push({ x: R.x + 3, y: yBot });
+    plannedSlots.push({ x: R.x + 8, y: yBot });
+  } else {
+    // 레벨 3, 4, 5: 윗줄 4개, 아랫줄 4개 (총 8개 완벽 대칭 정렬)
+    const yTop = (lv >= 4) ? (R.y + 10) : (R.y + 9);
+    const yBot = (lv >= 4) ? (R.y + 13) : (R.y + 12);
+    // 윗줄 4개
+    for (const x of [R.x + 2, R.x + 7, R.x + 12, R.x + 17]) {
+      plannedSlots.push({ x, y: yTop });
+    }
+    // 아랫줄 4개
+    for (const x of [R.x + 2, R.x + 7, R.x + 12, R.x + 17]) {
+      plannedSlots.push({ x, y: yBot });
     }
   }
 
@@ -321,7 +392,8 @@ function hospCenterSpot(hp, Rm, lv, k, dp) {
     }
   }
 
-  // 2순위: 1칸씩 남쪽으로 탐색하되 지정된 열(x)에 정렬
+  // 2순위: 비상 대체 슬롯 탐색
+  const startY = (lv >= 4) ? (R.y + 10) : (lv === 3) ? (R.y + 9) : (lv === 2) ? (R.y + 7) : (R.y + 6);
   for (let y = startY; y <= R.y1 - F.d; y++) {
     for (let x = R.x + 1; x + F.w <= R.x1 - 2; x += 4) {
       if (L0.inRegion(dp, x, y) && !hospCheckPlace(hp, Rm, lv, { id: -1, k, dp, x, y })) {
@@ -358,9 +430,17 @@ const HOSP = (() => {
     for (const it of old) {
       const F = hospFurn(it.k); if (!F) continue;
       let dp = F.dps.includes(it.dp) ? it.dp : F.dps[0];
-      // Lv2 이상에서 치료실(treat)이 있으면 치료 침대(tbed)는 진료실이 아닌 치료실로 배치
-      if (it.k === 'tbed' && lv >= 2 && hospRoomsAt(lv).includes('treat')) {
-        dp = 'treat';
+      // Lv2 이상에서 치료실(treat)이 있으면 치료 침대(tbed)는 치료실로 배치하되 치료실 침대는 1개로 엄격 제한
+      if (it.k === 'tbed') {
+        if (lv >= 2 && hospRoomsAt(lv).includes('treat')) {
+          const treatTbeds = hp.items.filter(x => x.k === 'tbed' && x.dp === 'treat');
+          if (treatTbeds.length >= 1) {
+            continue; // 치료실 침대는 1개만 있어도 됨 (초과분 자동 정리)
+          }
+          dp = 'treat';
+        } else {
+          dp = 'clinic';
+        }
       }
       // 수술실(surgery)에는 일반 침대가 절대 들어가지 않도록 치료실/입원실로 강제 보정
       if (dp === 'surgery' && (it.k === 'tbed' || it.k === 'bed')) {
@@ -455,6 +535,30 @@ const HOSP = (() => {
         for (const it of hp.items) {
           if (it.k === 'bench') it.dp = 'lobby';
         }
+        relocateAll(s, hp);
+      }
+      // v1.123: 사용자 세부 요구사항 전면 반영
+      // 1. 접수대 남쪽 1칸 이동(y=1) -> 접수직원이 안으로 들어가서 서있게
+      // 2. 치료실 침대는 무조건 1개만 유지 (중복 tbed 제거)
+      // 3. 진료실 침대 1개(tbed) 확보
+      // 4. 입원실 침대 3개(서쪽벽 1개, 동쪽벽 2개 간격 배치)
+      // 5. 로비 긴의자 윗줄 4개 / 아랫줄 4개 (레벨3), 레벨1 중앙 2개 정렬
+      if (!hp.v13) {
+        hp.v13 = 1;
+        hp.items = (hp.items || []).filter(it => it && it.k !== 'part');
+        for (const it of hp.items) {
+          if (it.k === 'reception') it.y = 1;
+        }
+        let treatTbedFound = false;
+        hp.items = hp.items.filter(it => {
+          if (it.k === 'tbed' && it.dp === 'treat') {
+            if (treatTbedFound) return false;
+            treatTbedFound = true;
+          }
+          return true;
+        });
+        delete hp.kitDone;
+        delete hp.partsDone;
         relocateAll(s, hp);
       }
       grantBase(s, hp);

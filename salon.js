@@ -12,7 +12,7 @@ const SALON_STAGES = [{ k: 'bath', icon: '🛁', t: 4 }, { k: 'dry', icon: '💨
 const SALON_SPECIES = ['pomeranian', 'maltese', 'maltese_cream', 'maltese_brown', 'poodle', 'bichon', 'shiba', 'shiba_black', 'shiba_red', 'corgi', 'persian', 'ragdoll', 'samoyed', 'yorkie', 'shihtzu', 'hollandlop', 'kitten', 'golden', 'husky', 'munchkin'];
 const SALON = (() => {
   // lot-local layout: two grooming tables along the back wall, a waiting bench on the west wall, the counter by the east entrance
-  const TABLES = [{ u: 2, v: 1 }, { u: 5.5, v: 1 }], SEATS = [{ u: 1.3, v: 3.8 }, { u: 1.3, v: 4.9 }, { u: 1.3, v: 6 }, { u: 2.6, v: 6.6 }], COUNTER = { u: 7.4, v: 4.6 };
+  const TABLES = [{ u: 2, v: 1 }, { u: 5.5, v: 1 }], SEATS = [{ u: .65, v: 3.85 }, { u: .65, v: 4.95 }, { u: .65, v: 6.05 }, { u: 1.8, v: 6.6 }], COUNTER = { u: 7.4, v: 4.6 };
   const ensure = s => { const sl = s.salon = s.salon || {}; if (!sl.q) sl.q = []; if (!sl.staff) sl.staff = []; if (!sl.seq) sl.seq = 1; if (sl.spawnT == null) sl.spawnT = 8; return sl; };
   const built = () => !!(typeof S !== 'undefined' && S && S.salon && S.salon.built);
   const payOf = sp => 200 + Math.round(((SPECIES[sp] && SPECIES[sp].sell) || 600) * .3);
@@ -118,7 +118,27 @@ const SALON = (() => {
     c.restore();
   }
   function counter(c) { const box = FURN.box, P = FURN.P; box(c, 0, .1, 2, .8, 30, '#f7b9cc', 0, { top: '#fff5f8' }); box(c, .7, .3, .5, .4, 8, '#4b5563', 30, { top: '#6b7684' }); const [x, y] = P(1.6, .5, 32); c.font = '12px sans-serif'; c.textAlign = 'center'; c.fillText('🧴', x, y); c.textAlign = 'start'; }
-  function bench(c) { const box = FURN.box; box(c, .1, 0, .6, 3.4, 12, '#ff9ec0', 0, { top: '#ffc2d4' }); box(c, .05, 0, .15, 3.4, 26, '#e07a9a', 0); }
+  function bench(c) {
+    const box = FURN.box, P = FURN.P;
+    // 1. 등받이: 서쪽 벽면(x=0)에 완벽하게 밀착되어 북/서 벽에 등을 기댈 수 있도록 배치 (h=28, w=0.18, d=3.4)
+    box(c, 0, 0, .18, 3.4, 28, '#d9506f', 0, { top: '#ff8fb1' });
+    // 2. 방석: 등받이 앞쪽(x=0.18)에서 시작하여 동쪽으로 뻗는 푹신한 핑크 가죽 쿠션 (h=12, w=0.64, d=3.4)
+    box(c, .18, 0, .64, 3.4, 12, '#ff9ec0', 0, { top: '#ffc2d4' });
+    // 3. 북쪽/남쪽 끝 팔걸이 (h=16)
+    box(c, 0, 0, .80, .16, 16, '#e0607e', 0, { top: '#ff8fb1' });
+    box(c, 0, 3.24, .80, .16, 16, '#e0607e', 0, { top: '#ff8fb1' });
+    // 4. 방석 3인석 퀼팅 봉제선 및 앤틱 버튼
+    for (const sv of [1.1, 2.2]) {
+      const pA = P(.20, sv, 12), pB = P(.80, sv, 12);
+      c.beginPath(); c.moveTo(pA[0], pA[1]); c.lineTo(pB[0], pB[1]); c.strokeStyle = '#e07a9a'; c.lineWidth = 1.4; c.stroke();
+    }
+    for (let i = 0; i < 3; i++) {
+      const bp = P(.50, .55 + i * 1.1, 12);
+      ART.ell(c, bp[0], bp[1], 2.2, 2.2, '#d9506f', '#ffffff', .6);
+      const bpb = P(.09, .55 + i * 1.1, 20);
+      ART.ell(c, bpb[0], bpb[1], 2, 2, '#b83b58', '#ffffff', .5);
+    }
+  }
   function sign(c, T) {
     c.fillStyle = '#8a5a33'; c.fillRect(-3, -50, 6, 50); c.fillRect(-26, -50, 5, 50);
     ART.rrect(c, -52, -104, 104, 58, 8); c.fillStyle = '#9a6a3f'; c.fill(); c.lineWidth = 1.8; c.strokeStyle = ART.OUT; c.stroke();
@@ -130,9 +150,10 @@ const SALON = (() => {
     const out = [];
     if (!built()) { const s = SALON_SIGN(); out.push({ depth: s.x + s.y + 1, fn: () => { at(c, s.x + .5, s.y + .5, () => sign(c, T)); const sx = ISO.wx(s.x + .5, s.y + .5), sy = ISO.wy(s.x + .5, s.y + .5); addHit({ kind: 'salonsign', x0: sx - 56, x1: sx + 56, y0: sy - 110, y1: sy + 6 }); } }); return out; }
     const p = SALON_POS(), sl = S.salon;
+    out.push({ depth: p.x + p.y + 0.05, fn: () => walls(c, T) });
     TABLES.forEach((tb, i) => { const cu = sl.q.find(q => q.ph === 'groom' && q.st === i); out.push({ depth: p.x + tb.u + 2 + p.y + tb.v + 1 - 1.02, fn: () => at(c, p.x + tb.u, p.y + tb.v, () => table(c, T, i, cu)) }); });
     out.push({ depth: p.x + COUNTER.u + 2 + p.y + COUNTER.v + 1 - 1.02, fn: () => at(c, p.x + COUNTER.u, p.y + COUNTER.v, () => counter(c)) });
-    out.push({ depth: p.x + .7 + p.y + 6.4, fn: () => at(c, p.x + .3, p.y + 3.3, () => bench(c)) });
+    out.push({ depth: p.x + 1.0 + p.y + 6.7, fn: () => at(c, p.x + .15, p.y + 3.3, () => bench(c)) });
     out.push({ depth: p.x + 4.5 + p.y + 1.5, fn: () => at(c, p.x + 4, p.y + 1, () => { const box = FURN.box, P = FURN.P; box(c, .35, .35, .3, .3, 50, '#c0c8d0'); const [x, y] = P(.5, .5, 56); ART.ell(c, x, y, 10, 6, '#ff9ec0', ART.OUT, 1); }) }); // dryer stand
     out.push({ depth: p.x + 9 + p.y + 1, fn: () => at(c, p.x + 8.5, p.y + .5, () => { const box = FURN.box; box(c, .1, .1, .8, .8, 16, '#f3e3c7'); const P = FURN.P, [x, y] = P(.5, .5, 16); for (let i = 0; i < 6; i++) ART.ell(c, x - 8 + i * 3 + Math.sin(i) * 2, y - 12 - (i % 3) * 5, 7, 8, i % 2 ? '#5ab86a' : '#3f9a5a'); }) });
     out.push({ depth: p.x + 1 + p.y + 1, fn: () => at(c, p.x + .5, p.y + .5, () => { const box = FURN.box, P = FURN.P; box(c, .05, .05, .9, .9, 44, '#f3e3c7'); for (let r = 0; r < 3; r++) for (let i = 0; i < 3; i++) { const [x, y] = P(.9, .2 + i * .28, 10 + r * 13); c.font = '9px sans-serif'; c.textAlign = 'center'; c.fillText(['🧴', '🧼', '🪮'][(r + i) % 3], x, y); } c.textAlign = 'start'; }) });

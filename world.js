@@ -2632,8 +2632,14 @@ return true;
     const path = pts => { c.beginPath(); pts.forEach((q, i) => i ? c.lineTo(q[0], q[1]) : c.moveTo(q[0], q[1])); c.closePath(); };
     const fillP = (pts, col, stroke, lw) => { path(pts); c.fillStyle = col; c.fill(); if (stroke) { c.strokeStyle = stroke; c.lineWidth = lw || 1; c.stroke(); } };
     c.save();
-    // paving from the road side into the entrance
-    fillP([pt(R.x1, R.y + .2), pt(R.x1 + 1.1, R.y + .2), pt(R.x1 + 1.1, R.y + 3.2), pt(R.x1, R.y + 3.2)], '#f0ede6', 'rgba(150,140,120,.4)', 1);
+    // paving from the road side into the entrance (aligned with 2-tile door at ys: [R.y + 2, R.y + 3])
+    fillP([pt(R.x1, R.y + 1.8), pt(R.x1 + 2.3, R.y + 1.8), pt(R.x1 + 2.3, R.y + 4.2), pt(R.x1, R.y + 4.2)], '#f0ede6', 'rgba(150,140,120,.4)', 1.2);
+    // Flagstone paving walkway leading seamlessly to town road
+    for (let py = R.y + 1.85; py < R.y + 4.15; py += 0.5) {
+      for (let px = R.x1 + 0.05; px < R.x1 + 2.25; px += 0.5) {
+        fillP([pt(px, py), pt(px + 0.45, py), pt(px + 0.45, py + 0.45), pt(px, py + 0.45)], '#faf8f2', 'rgba(140,130,110,.25)', 0.8);
+      }
+    }
     // clean porcelain/marble lobby tiles with subtle gloss sheen
     for (let j = 0; j < R.d; j++) for (let i = 0; i < R.w; i++) fillP([pt(R.x + i, R.y + j), pt(R.x + i + 1, R.y + j), pt(R.x + i + 1, R.y + j + 1), pt(R.x + i, R.y + j + 1)], (i + j) % 2 ? '#fbfdfd' : '#f0f8f6', 'rgba(140,195,185,.2)');
     // each room's hygienic medical floor coating
@@ -2641,8 +2647,8 @@ return true;
       for (let j = 0; j < r.d; j++) for (let i = 0; i < r.w; i++) if ((i + j) % 2) fillP([pt(r.x0 + i, r.y0 + j), pt(r.x0 + i + 1, r.y0 + j), pt(r.x0 + i + 1, r.y0 + j + 1), pt(r.x0 + i, r.y0 + j + 1)], 'rgba(255,255,255,.5)', null);
     }
     // entrance welcome clinic runner mat
-    fillP([pt(R.x1 - 1.8, R.y + 2), pt(R.x1, R.y + 2), pt(R.x1, R.y + 3.8), pt(R.x1 - 1.8, R.y + 3.8)], '#10b981', 'rgba(6,95,70,.4)', 1.2);
-    fillP([pt(R.x1 - 1.6, R.y + 2.2), pt(R.x1 - .2, R.y + 2.2), pt(R.x1 - .2, R.y + 3.6), pt(R.x1 - 1.6, R.y + 3.6)], '#34d399');
+    fillP([pt(R.x1 - 1.8, R.y + 2), pt(R.x1, R.y + 2), pt(R.x1, R.y + 4), pt(R.x1 - 1.8, R.y + 4)], '#10b981', 'rgba(6,95,70,.4)', 1.2);
+    fillP([pt(R.x1 - 1.6, R.y + 2.2), pt(R.x1 - .2, R.y + 2.2), pt(R.x1 - .2, R.y + 3.8), pt(R.x1 - 1.6, R.y + 3.8)], '#34d399');
 
     // Central hallway guide strip: elegant medical wayfinding line connecting lobby to clinic doors
     const minRx = L.roomIds.length ? Math.min(...L.roomIds.map(id => (L.rooms[id] && L.rooms[id].x0) || R.x)) : R.x + 1;
@@ -2665,7 +2671,45 @@ return true;
       fillP(wallFace(wa, wb, 42, WALL_H), up, '#72bcb1', 1.2); fillP(wallFace(wa, wb, 0, 42), '#64b5a9', '#389a8e', 1.2);
       fillP(wallFace(wa, wb, 39, 44), '#eaf6f3', '#72bcb1', 1); fillP(wallFace(wa, wb, 0, 4), '#389a8e'); fillP(wallFace(wa, wb, WALL_H - 6, WALL_H), '#cbe6e0', '#72bcb1', 1);
     }
-    const win = (a, b, z0, z1) => { fillP(wallFace(a, b, z0, z1), '#e8f6fc', '#4ea89d', 2.2); const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], p0 = ptz(m[0], m[1], z0), p1 = ptz(m[0], m[1], z1); c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]); const l0 = ptz(a[0], a[1], (z0 + z1) / 2), l1 = ptz(b[0], b[1], (z0 + z1) / 2); c.moveTo(l0[0], l0[1]); c.lineTo(l1[0], l1[1]); c.strokeStyle = '#4ea89d'; c.lineWidth = 1.5; c.stroke(); };
+    // 투명하게 밖의 풍경(하늘, 구름, 언덕, 나무)이 보이는 펫샵 스타일의 맑은 창문
+    const win = (a, b, z0, z1) => {
+      const q = wallFace(a, b, z0, z1);
+      fillP(q, '#f4efe6', '#389a8e', 2.2);
+      const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      const g0 = ptz(a[0], a[1], z1 - 2), g1 = ptz(b[0], b[1], z1 - 2), g2 = ptz(b[0], b[1], z0 + 2), g3 = ptz(a[0], a[1], z0 + 2);
+      const g = [g0, g1, g2, g3];
+      // 1. 야외 푸른 하늘 뷰 그라데이션
+      const lg = c.createLinearGradient(g0[0], g0[1], g2[0], g2[1]);
+      lg.addColorStop(0, '#5ea8e2'); lg.addColorStop(0.55, '#a4daf4'); lg.addColorStop(0.78, '#e6f5fb'); lg.addColorStop(1, '#c2e6ba');
+      fillP(g, lg, 'rgba(30,100,90,.4)', 1);
+
+      // 2. 창문 너머 보이는 야외 구름 & 잔디 언덕 & 나무 수관
+      c.save();
+      c.beginPath(); g.forEach((p, idx) => idx ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.clip();
+      const gcx = (g0[0] + g1[0]) / 2, gyb = g2[1], gy0 = g0[1];
+      // 뭉게구름
+      c.fillStyle = 'rgba(255,255,255,.88)';
+      c.beginPath(); c.ellipse(gcx - 8, gy0 + 10, 10, 5, 0, 0, Math.PI * 2); c.fill();
+      c.beginPath(); c.ellipse(gcx + 6, gy0 + 12, 9, 4.5, 0, 0, Math.PI * 2); c.fill();
+      // 푸른 언덕
+      c.beginPath(); c.ellipse(gcx, gyb + 2, 24, 14, 0, 0, Math.PI * 2); c.fillStyle = '#68b472'; c.fill();
+      // 나무 수관
+      c.beginPath(); c.ellipse(gcx - 8, gyb - 4, 8, 10, 0, 0, Math.PI * 2); c.fillStyle = '#3c8846'; c.fill();
+      c.beginPath(); c.ellipse(gcx + 8, gyb - 3, 9, 11, 0, 0, Math.PI * 2); c.fillStyle = '#2f7a38'; c.fill();
+      c.beginPath(); c.ellipse(gcx, gyb - 2, 7, 9, 0, 0, Math.PI * 2); c.fillStyle = '#56a858'; c.fill();
+      // 햇살 줄기 & 대각선 유리 반사광
+      const gSun = c.createLinearGradient(g0[0], g0[1], g0[0] + 30, gyb);
+      gSun.addColorStop(0, 'rgba(255,250,210,.35)'); gSun.addColorStop(0.5, 'rgba(255,245,180,.15)'); gSun.addColorStop(1, 'rgba(255,245,180,0)');
+      c.fillStyle = gSun; c.fillRect(g0[0] - 20, gy0 - 10, 70, 70);
+      c.restore();
+
+      // 창살 프레임
+      const p0 = ptz(m[0], m[1], z0), p1 = ptz(m[0], m[1], z1);
+      c.beginPath(); c.moveTo(p0[0], p0[1]); c.lineTo(p1[0], p1[1]);
+      const l0 = ptz(a[0], a[1], (z0 + z1) / 2), l1 = ptz(b[0], b[1], (z0 + z1) / 2);
+      c.moveTo(l0[0], l0[1]); c.lineTo(l1[0], l1[1]);
+      c.strokeStyle = '#389a8e'; c.lineWidth = 1.6; c.stroke();
+    };
     for (let j = 1; j + 1 < R.d; j += 3) win([R.x, R.y + j + .15], [R.x, R.y + j + 1.85], 56, 96);
     for (let i = 1; i + 1 < R.w; i += 3) win([R.x + i + .15, R.y], [R.x + i + 1.85, R.y], 56, 96);
     const cross = (x, y, s) => { const p = ptz(x, y, 84); c.fillStyle = '#e0505a'; c.fillRect(p[0] - s, p[1] - s / 3, 2 * s, 2 * s / 3); c.fillRect(p[0] - s / 3, p[1] - s, 2 * s / 3, 2 * s); };
@@ -2706,10 +2750,13 @@ return true;
   function collectHospItems() {
     if (!(S.hosp && S.hosp.built)) return [];
     const L = HOSP_LAYOUT(), out = [], sel = App.hospEdit ? hospSel : null;
+    const R = HOSP_POS();
+    // 건물 확장 및 신축 시 서쪽, 북쪽 벽이 기존 건물보다 위에 확실히 오도록 depth 정렬 레이어 추가
+    out.push({ depth: R.x + R.y + 0.05, fn: drawHospWalls });
     for (const it of L.all) out.push({ depth: it.x + it.w + it.y + it.d - 1.02, fn: () => { if (sel != null && sel === it.id) { c.globalAlpha = .6; drawHospItem(it); c.globalAlpha = 1; } else drawHospItem(it); } });
     for (const q of L.parts) { const pq = { k: 'part', x: q.x, y: q.y, w: 1, d: 1, vert: !!q.vert, doorway: q.doorway, room: q.room }; out.push({ depth: q.x + q.y + 1 - 1.02 + .2, fn: () => drawHospItem(pq) }); }
     // low walls along the south and east sides (the back walls are the tall ones): the door in the east wall is the only way in
-    const R = HOSP_POS(), dyy = [R.y + 2, R.y + 3];
+    const dyy = [R.y + 2, R.y + 3];
     // (drawn just OUTSIDE the floor so nothing inside ever pokes through them)
     for (let i = 0; i < R.w; i++) { const wq = { k: 'wallS', x: R.x + i, y: R.y1, w: i === R.w - 1 ? 1.17 : 1.001, d: 1 }; out.push({ depth: wq.x + wq.y + .02, fn: () => drawHospItem(wq) }); }
     for (let j = 0; j < R.d; j++) { if (dyy.includes(R.y + j)) continue; const wq = { k: 'wallE', x: R.x1, y: R.y + j, w: 1, d: 1.001 }; out.push({ depth: wq.x + wq.y + .02, fn: () => drawHospItem(wq) }); }
