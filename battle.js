@@ -32,7 +32,7 @@ const BATTLE_REGEN_MS = 10 * 60 * 1000; // 10 real-world minutes to fully regene
 // but the stronger lv4/lv6 skills are expensive enough that you can't just repeat them every turn -- you
 // have to let stamina build back up (BATTLE_STA_REGEN per round) in between, same idea the player suggested.
 const BATTLE_MAX_STA = 6;
-const BATTLE_STA_REGEN = 2; // per round, both sides
+const BATTLE_STA_REGEN = 1; // per round, both sides (1 so skills actually consume stamina)
 
 // each species category has its own skill "tree": a basic skill from battle level 1, and a stronger
 // version that unlocks at a higher battle level (lv). Every category's skills are distinct -- no two
@@ -133,12 +133,15 @@ const BATTLE = (() => {
     const set = BATTLE_SKILLS[cat] || BATTLE_SKILLS_DEF;
     const n = Math.max(1, blv || 1);
     const mark = (arr, kind) => arr.map(s => Object.assign({ kind, unlocked: n >= s.lv }, s));
-    return { cat, atk: mark(set.atk, 'atk'), heal: mark(set.heal, 'heal') };
+    const atk = mark(set.atk, 'atk');
+    atk.push({ id: 'rest', lv: 1, name: '숨고르기', icon: '😮‍💨', mult: 0.6, sta: 0, kind: 'atk', unlocked: true });
+    return { cat, atk, heal: mark(set.heal, 'heal') };
   }
 
   // look up one specific skill by id among a pet's (possibly locked) skills -- used when the player
   // taps a skill to use it themselves, so we can tell "no such skill" apart from "not unlocked yet"
   function findSkill(sp, blv, id) {
+    if (id === 'rest') return { id: 'rest', lv: 1, name: '숨고르기', icon: '😮‍💨', mult: 0.6, sta: 0, kind: 'atk', unlocked: true };
     const tree = skillTreeOf(sp, blv);
     for (const kind of ['atk', 'heal']) { const s = tree[kind].find(x => x.id === id); if (s) return s; }
     return null;
@@ -163,8 +166,9 @@ const BATTLE = (() => {
     if (hp / maxHp < .4 && sk.heal && cd <= 0 && have >= (sk.heal.sta || 0)) return sk.heal;
     if (sk.atk && have >= (sk.atk.sta || 0)) return sk.atk;
     const tree = skillTreeOf(sp, blv);
-    const cheapest = tree.atk.filter(x => x.unlocked).sort((x, y) => (x.sta || 0) - (y.sta || 0))[0];
-    return cheapest || sk.atk;
+    const affordable = tree.atk.filter(x => x.unlocked && (x.sta || 0) <= have);
+    if (affordable.length) return affordable.sort((x, y) => (y.sta || 0) - (x.sta || 0))[0];
+    return { id: 'rest', lv: 1, name: '숨고르기', icon: '😮‍💨', mult: 0.6, sta: 0, kind: 'atk', unlocked: true };
   }
 
   // applies my pet's chosen skill, then (if the fight isn't over) the foe's auto-picked reply --
@@ -175,7 +179,7 @@ const BATTLE = (() => {
     if (chosenSkill.kind === 'heal') { b.hpA = Math.min(b.maxA, b.hpA + act.amt); b.cdA = 3; }
     else { b.hpB = Math.max(0, b.hpB - act.amt); }
     b.staA = Math.max(0, (b.staA == null ? BATTLE_MAX_STA : b.staA) - (chosenSkill.sta || 0));
-    b.log.push(Object.assign({ side: 0, hpA: b.hpA, hpB: b.hpB }, act));
+    b.log.push(Object.assign({ side: 0, hpA: b.hpA, hpB: b.hpB, staA: b.staA, staB: b.staB }, act));
     b.cdA = Math.max(0, b.cdA - 1); b.cdB = Math.max(0, b.cdB - 1); b.turn = (b.turn || 0) + 1;
     if (b.hpB <= 0 || b.hpA <= 0 || b.turn >= 24) { b.side = -1; b.win = b.hpA > b.hpB; return; }
     const foeSkill = aiChoice(b.foe.sp, b.foeBlv, b.hpB, b.maxB, b.cdB, b.staB);
@@ -183,11 +187,11 @@ const BATTLE = (() => {
     if (foeSkill.kind === 'heal') { b.hpB = Math.min(b.maxB, b.hpB + fact.amt); b.cdB = 3; }
     else { b.hpA = Math.max(0, b.hpA - fact.amt); }
     b.staB = Math.max(0, (b.staB == null ? BATTLE_MAX_STA : b.staB) - (foeSkill.sta || 0));
-    b.log.push(Object.assign({ side: 1, hpA: b.hpA, hpB: b.hpB }, fact));
-    b.cdA = Math.max(0, b.cdA - 1); b.cdB = Math.max(0, b.cdB - 1); b.turn = (b.turn || 0) + 1;
-    // both sides regenerate a bit of stamina every round, whether they spent any or not
+    // both sides regenerate 1 stamina at round end
     b.staA = Math.min(BATTLE_MAX_STA, (b.staA == null ? BATTLE_MAX_STA : b.staA) + BATTLE_STA_REGEN);
     b.staB = Math.min(BATTLE_MAX_STA, (b.staB == null ? BATTLE_MAX_STA : b.staB) + BATTLE_STA_REGEN);
+    b.log.push(Object.assign({ side: 1, hpA: b.hpA, hpB: b.hpB, staA: b.staA, staB: b.staB }, fact));
+    b.cdA = Math.max(0, b.cdA - 1); b.cdB = Math.max(0, b.cdB - 1); b.turn = (b.turn || 0) + 1;
     if (b.hpB <= 0 || b.hpA <= 0 || b.turn >= 24) { b.side = -1; b.win = b.hpA > b.hpB; return; }
     b.side = 0; // back to the player's turn
   }
@@ -224,7 +228,7 @@ const BATTLE = (() => {
       const startHp = Math.max(1, Math.round(A.hp * hpFracOf(p)));
       b.foeBlv = foeBlv; b.maxA = A.hp; b.maxB = B.hp; b.hpA = startHp; b.hpB = B.hp; b.cdA = 0; b.cdB = 0; b.turn = 0;
       b.staA = BATTLE_MAX_STA; b.staB = BATTLE_MAX_STA; // v4: both pets start every fight with full stamina
-      b.log = [{ t: 'start', hpA: b.hpA, hpB: b.hpB }];
+      b.log = [{ t: 'start', hpA: b.hpA, hpB: b.hpB, staA: b.staA, staB: b.staB }];
       b.side = 0; // the player's pet always acts first
       b.started = true;
       return { ok: 1 };
@@ -251,7 +255,7 @@ const BATTLE = (() => {
       const hit = Math.max(1, Math.round(B.atk * (.5 + Math.random() * .3)));
       b.hpA = Math.max(0, b.hpA - hit);
       const ok = Math.random() < chance;
-      b.log.push({ t: 'flee', side: 1, hpA: b.hpA, hpB: b.hpB, amt: hit, ok });
+      b.log.push({ t: 'flee', side: 1, hpA: b.hpA, hpB: b.hpB, staA: b.staA, staB: b.staB, amt: hit, ok });
       b.turn = (b.turn || 0) + 1;
       if (b.hpA <= 0) { b.side = -1; b.win = false; return { ok: 1, fled: false }; } // the parting hit itself finished the pet off -- a normal loss
       if (ok) {

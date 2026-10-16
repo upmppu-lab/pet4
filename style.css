@@ -476,55 +476,68 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
 }
 
 /* ================= pet battle UI (2026-10-15) ================= */
-.bwrap{position:relative;border-radius:16px;overflow:hidden;padding:8px;margin:4px 0;
-  background:linear-gradient(180deg,#7fc9ef 0%,#bfe6f5 42%,#9fcf6a 42%,#6fae52 100%)}
-.bwrap::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 28% 92%,rgba(255,255,255,.4),transparent 55%);pointer-events:none}
-.bwrap::after{content:'';position:absolute;left:0;right:0;top:42%;height:4px;background:rgba(255,255,255,.3);box-shadow:0 1px 2px rgba(0,0,0,.08);pointer-events:none}
-.bwrap.flash{animation:bscreenflash .3s ease-out}
-@keyframes bscreenflash{0%{background-color:transparent}15%{background-color:#fff}100%{background-color:transparent}}
-.bwrap.flash::before{animation:bscreenflash .3s ease-out}
-.bstage{position:relative;height:200px}
-.bside{position:absolute;display:flex;flex-direction:column;z-index:2}
-/* diagonal Pokémon layout: foe small & far, upper-right; my pet big & close, lower-left */
-.bside.foe{top:6px;right:18px;align-items:flex-end}
-.bside.me{bottom:8px;left:10px;align-items:flex-start}
-.bcard{background:rgba(255,255,255,.96);border:2px solid #fff;border-radius:12px;padding:5px 10px;box-shadow:0 3px 8px rgba(0,0,0,.18);min-width:112px}
-.bcard .bname{font-size:12px;font-weight:900;color:#3a2418;display:flex;justify-content:space-between;gap:8px;white-space:nowrap}
-.bcard .bhp{position:relative;height:11px;border-radius:6px;background:#e3d8c0;margin-top:3px;overflow:hidden}
+.bwrap{position:relative;border-radius:18px;overflow:hidden;padding:8px;margin:4px 0;
+  background:linear-gradient(180deg,#60b6e8 0%,#a2def2 38%,#86c45c 38%,#579e39 100%);
+  box-shadow:0 4px 14px rgba(0,0,0,.16);box-sizing:border-box}
+.bwrap::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 90%,rgba(255,255,255,.45),transparent 55%);pointer-events:none}
+.bwrap::after{content:'';position:absolute;left:0;right:0;top:38%;height:4px;background:rgba(255,255,255,.35);box-shadow:0 1px 2px rgba(0,0,0,.08);pointer-events:none}
+.bwrap.flash{animation:bscreenflash .35s ease-out, bscreenshake .3s ease-out}
+@keyframes bscreenflash{0%{background-color:transparent}20%{background-color:rgba(255,255,255,.88)}100%{background-color:transparent}}
+@keyframes bscreenshake{0%,100%{transform:translate(0,0)}20%{transform:translate(-4px,3px)}40%{transform:translate(4px,-3px)}60%{transform:translate(-3px,-2px)}80%{transform:translate(2px,2px)}}
+.bstage{position:relative;height:210px;width:100%}
+
+/* 4-quadrant layout: cards top-left & bottom-right, pet units top-right & bottom-left */
+.bunit{position:absolute;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:2}
+.bunit.foe{top:12px;right:22px}
+.bunit.me{bottom:8px;left:18px}
+.bunit .bplat{position:absolute;left:50%;bottom:2px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(30,80,16,.65) 0%,rgba(30,80,16,0) 72%);z-index:1}
+.bunit.foe .bplat{width:74px;height:18px;transform:translateX(-50%)}
+.bunit.me .bplat{width:104px;height:24px;transform:translateX(-50%)}
+.bunit .bimg{object-fit:contain;transition:filter .2s ease;position:relative;z-index:2}
+.bunit.foe .bimg{width:72px;height:72px;margin-bottom:4px;filter:drop-shadow(0 6px 4px rgba(0,0,0,.28))}
+.bunit.me .bimg{width:100px;height:100px;margin-bottom:4px;transform:scaleX(-1);filter:drop-shadow(0 7px 5px rgba(0,0,0,.3))}
+.bunit.me .bimg.tappable{cursor:pointer;animation:bTapHint 1.1s ease-in-out infinite;filter:drop-shadow(0 6px 4px rgba(0,0,0,.28)) drop-shadow(0 0 9px rgba(255,214,110,.95))}
+@keyframes bTapHint{0%,100%{transform:scaleX(-1) translateY(0)}50%{transform:scaleX(-1) translateY(-4px)}}
+
+.bcard{position:absolute;z-index:3;background:rgba(255,255,255,.94);border:2px solid #fff;border-radius:12px;padding:6px 10px;box-shadow:0 3px 8px rgba(0,0,0,.18);min-width:124px;box-sizing:border-box}
+.bcard.foe{top:10px;left:10px}
+.bcard.me{bottom:8px;right:10px;min-width:136px}
+.bcard .bname{font-size:12.5px;font-weight:900;color:#3a2418;display:flex;justify-content:space-between;align-items:center;gap:6px;white-space:nowrap}
+.bcard .bname .blv{font-size:10.5px;font-weight:800;color:#e66a20;background:#fff3e6;padding:1px 5px;border-radius:5px;border:1px solid #ffd4b2}
+
+.bcard .bhp{position:relative;height:12px;border-radius:6px;background:#ded2b8;margin-top:3px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.15)}
 .bcard .bhp i{display:block;height:100%;border-radius:6px;transition:width .4s ease}
-.bcard .bhp .bhpnum{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:900;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.65);letter-spacing:.2px;pointer-events:none}
-.bplat{position:absolute;left:50%;bottom:4px;border-radius:50%;background:radial-gradient(ellipse at center,rgba(0,0,0,.32),rgba(0,0,0,0) 70%);z-index:1}
-.bside.foe .bplat{width:54px;height:14px;transform:translateX(-50%)}
-.bside.me .bplat{width:88px;height:20px;transform:translateX(-50%)}
-.bimg{width:66px;height:66px;object-fit:contain;filter:drop-shadow(0 6px 4px rgba(0,0,0,.25));transition:filter .2s ease;position:relative;z-index:2}
-.bside.foe .bimg{margin-top:4px}
-.bside.me .bimg{width:102px;height:102px;margin-bottom:4px;transform:scaleX(-1)}
+.bcard .bhp .bhpnum{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:900;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.75);letter-spacing:.2px;pointer-events:none}
+
+.bcard .bsta{position:relative;height:11px;border-radius:6px;background:#ded2b8;margin-top:3px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,.15)}
+.bcard .bsta i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#ffb300,#ff8f00);transition:width .4s ease}
+.bcard .bsta .bstanum{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.75);letter-spacing:.2px;pointer-events:none}
+
 .bimg.atkme{animation:batkMe .4s ease-in-out}
 .bimg.atkfoe{animation:batkFoe .4s ease-in-out}
 .bimg.hit{animation:bhit .35s ease-in-out}
 .bimg.healfx{animation:bheal .5s ease-in-out}
-@keyframes batkMe{0%{transform:scaleX(-1) translate(0,0)}40%{transform:scaleX(-1) translate(-18px,-10px) scale(1.08)}100%{transform:scaleX(-1) translate(0,0)}}
-@keyframes batkFoe{0%{transform:translate(0,0)}40%{transform:translate(-18px,10px) scale(1.08)}100%{transform:translate(0,0)}}
-@keyframes bhit{0%{transform:translateX(0);filter:brightness(1)}25%{transform:translateX(-6px);filter:brightness(2) saturate(0)}50%{transform:translateX(6px)}75%{transform:translateX(-4px)}100%{transform:translateX(0);filter:brightness(1)}}
-@keyframes bheal{0%{filter:brightness(1)}50%{filter:brightness(1.6) drop-shadow(0 0 10px #8ee6a0)}100%{filter:brightness(1)}}
-.bskillbox{background:#fff;border:2px solid #e2c596;border-radius:12px;padding:9px 12px;margin-top:8px;font-size:13.5px;font-weight:700;color:#3a2418;min-height:20px}
-.bskillbox .bicon{font-size:15px;margin-right:5px}
-.bfloat{position:absolute;top:-6px;left:50%;transform:translateX(-50%);font-weight:900;font-size:16px;pointer-events:none;animation:bfloatup .9s ease-out forwards;z-index:5;white-space:nowrap}
-.bfloat.dmg{color:#d6352f;text-shadow:0 1px 0 #fff,0 1px 3px #fff}
-.bfloat.heal{color:#2a9a4a;text-shadow:0 1px 0 #fff,0 1px 3px #fff}
+@keyframes batkMe{0%{transform:scaleX(-1) translate(0,0)}40%{transform:scaleX(-1) translate(-22px,-14px) scale(1.12)}100%{transform:scaleX(-1) translate(0,0)}}
+@keyframes batkFoe{0%{transform:translate(0,0)}40%{transform:translate(-22px,14px) scale(1.12)}100%{transform:translate(0,0)}}
+@keyframes bhit{0%{transform:translateX(0);filter:brightness(1)}20%{transform:translateX(-8px) rotate(-3deg);filter:brightness(2.2) saturate(0.2)}40%{transform:translateX(8px) rotate(3deg);filter:brightness(1.5)}60%{transform:translateX(-5px)}80%{transform:translateX(3px)}100%{transform:translateX(0);filter:brightness(1)}}
+@keyframes bheal{0%{filter:brightness(1)}50%{filter:brightness(1.8) drop-shadow(0 0 12px #5cdb7a)}100%{filter:brightness(1)}}
+
+.bskillbox{background:#fff;border:2px solid #e2c596;border-radius:12px;padding:9px 12px;margin-top:8px;font-size:13.5px;font-weight:700;color:#3a2418;min-height:20px;box-shadow:0 2px 4px rgba(0,0,0,.06)}
+.bskillbox .bicon{font-size:16px;margin-right:6px}
+.bfloat{position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-weight:900;font-size:18px;pointer-events:none;animation:bfloatup .9s ease-out forwards;z-index:6;white-space:nowrap}
+.bfloat.dmg{color:#d6352f;text-shadow:0 1px 0 #fff,0 2px 4px rgba(255,255,255,.9)}
+.bfloat.heal{color:#2a9a4a;text-shadow:0 1px 0 #fff,0 2px 4px rgba(255,255,255,.9)}
 @keyframes bfloatup{0%{opacity:1;transform:translateX(-50%) translateY(0)}100%{opacity:0;transform:translateX(-50%) translateY(-34px)}}
-/* v2026-10-15 (v3): lightning-bolt zap on hits, layered over whoever got hit */
-.bzap{position:absolute;top:-4px;left:50%;transform:translateX(-50%);font-size:34px;z-index:6;pointer-events:none;
-  animation:bzap .4s ease-out forwards;filter:drop-shadow(0 0 6px #fff9c4) drop-shadow(0 0 3px #ffe066)}
+
+.bzap{position:absolute;top:-6px;left:50%;transform:translateX(-50%);font-size:36px;z-index:7;pointer-events:none;
+  animation:bzap .45s ease-out forwards;filter:drop-shadow(0 0 8px #fff9c4) drop-shadow(0 0 4px #ffe066)}
 @keyframes bzap{0%{opacity:0;transform:translateX(-50%) scale(.4) rotate(-8deg)}30%{opacity:1;transform:translateX(-50%) scale(1.25) rotate(4deg)}60%{opacity:1;transform:translateX(-50%) scale(1) rotate(-3deg)}100%{opacity:0;transform:translateX(-50%) scale(1.1) rotate(0)}}
-/* v2026-10-15 (v2): tap-your-own-pet-to-use-a-skill battle UI */
-.bimg.tappable{cursor:pointer;animation:bTapHint 1.1s ease-in-out infinite}
-.bside.me .bimg.tappable{filter:drop-shadow(0 6px 4px rgba(0,0,0,.25)) drop-shadow(0 0 7px rgba(255,214,110,.9))}
-@keyframes bTapHint{0%,100%{transform:scaleX(-1) translateY(0)}50%{transform:scaleX(-1) translateY(-4px)}}
+
 .bskillmenu{display:flex;flex-direction:column;gap:6px;margin-top:6px}
-.bskillbtn{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:#fff8ea;border:2px solid #e2c596;border-radius:10px;padding:7px 10px;font-weight:700;color:#3a2418;font-size:13px}
-.bskillbtn:not(.dis):active{background:#ffe9b8}
-.bskillbtn.dis{opacity:.5;filter:grayscale(.4)}
-.bskillbtn .bsicon{font-size:18px}
-.bskillbtn .bsname{flex:1}
-.bskillbtn .bstag{font-size:11px;font-weight:600;color:#a0602a;white-space:nowrap}
+.bskillbtn{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:#fff8ea;border:2px solid #e2c596;border-radius:10px;padding:7px 10px;font-weight:700;color:#3a2418;font-size:13px;transition:background .15s,transform .1s}
+.bskillbtn:not(.dis):active{background:#ffe3a3;transform:scale(.98)}
+.bskillbtn.dis{opacity:.45;filter:grayscale(.45);cursor:not-allowed}
+.bskillbtn .bsicon{font-size:18px;line-height:1}
+.bskillbtn .bsname{flex:1;font-weight:800}
+.bskillbtn .bsmeta{font-size:11px;font-weight:700;color:#8a5e30;margin-top:1px}
+.bskillbtn .bstag{font-size:11px;font-weight:700;color:#a0602a;white-space:nowrap}

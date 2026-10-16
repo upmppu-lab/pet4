@@ -1506,6 +1506,12 @@ function bHpBar(val, max) {
   const v = Math.max(0, Math.round(val));
   return `<div class="bhp"><i style="width:${pct}%;background:${col}"></i><span class="bhpnum">${v}/${max}</span></div>`;
 }
+function bStaBar(val, max) {
+  const m = max || (typeof BATTLE_MAX_STA !== 'undefined' ? BATTLE_MAX_STA : 6);
+  const v = Math.max(0, Math.min(m, Math.round(val != null ? val : m)));
+  const pct = Math.max(0, Math.min(100, v / m * 100));
+  return `<div class="bsta"><i style="width:${pct}%"></i><span class="bstanum">⚡ ${t('battleStaLabel')} ${v}/${m}</span></div>`;
+}
 // the skill-choice menu shown when the player taps their pet: every skill the species category can learn,
 // locked ones greyed out with the battle level that unlocks them -- this IS the "what skills does my pet
 // have" answer, right where the player needs it.
@@ -1551,7 +1557,7 @@ PANELS.battle = () => {
   }
   const step = Math.max(0, Math.min(_bPlay.step, (b.log || []).length - 1));
   const caughtUp = step >= (b.log || []).length - 1;
-  const cur = b.log[step] || { hpA: b.maxA, hpB: b.maxB };
+  const cur = b.log[step] || { hpA: b.maxA, hpB: b.maxB, staA: b.staA, staB: b.staB };
   const acted = cur.t !== 'start';
   const actedMe = cur.side === 0;
   let meAnim = '', foeAnim = '';
@@ -1561,13 +1567,7 @@ PANELS.battle = () => {
   }
   const floatSide = !acted ? null : (cur.t === 'heal' ? cur.side : 1 - cur.side);
   const floatHtml = floatSide == null ? '' : `<div class="bfloat ${cur.t === 'heal' ? 'heal' : 'dmg'}">${cur.t === 'heal' ? '+' : '-'}${cur.amt}</div>`;
-  // v2026-10-15 (v3): a flash pops over whoever got hit, and a quick white screen-flash on crits, so the
-  // fight reads as more dramatic instead of just a color-tint wobble.
-  // v2026-10-15 (v4): the flash now shows the SKILL'S OWN icon (each skill already has a distinct one --
-  // 🦷/💥/🌙/🌪️/etc, see BATTLE_SKILLS) instead of a generic ⚡ for every single hit, so different skills
-  // visually read as different attacks. Falls back to 💨 for a failed-flee hit (no skill involved) or ⚡
-  // for anything else unexpected.
-  const zapSide = acted && cur.t !== 'heal' ? floatSide : null; // floatSide is already "who got hit" for non-heal actions
+  const zapSide = acted && cur.t !== 'heal' ? floatSide : null;
   const zapIcon = cur.t === 'flee' ? '💨' : (cur.skill && cur.skill.icon) || '⚡';
   const zapHtml = zapSide == null ? '' : `<div class="bzap">${zapIcon}</div>`;
   const screenFlash = acted && cur.t !== 'heal' && cur.crit;
@@ -1579,23 +1579,34 @@ PANELS.battle = () => {
     const skillIcon = cur.skill ? `<span class="bicon">${cur.skill.icon}</span>` : '';
     return skillIcon + t(key, { n: esc(nm), s: esc(cur.skill ? cur.skill.name : ''), d: cur.amt }) + (cur.crit ? t('battleStepCrit') : '');
   })();
-  const myTurn = !b.resolved && caughtUp && b.side === 0; // caught up to the latest action AND the fight is still going AND it's my pet's turn
-  // v2026-10-15 (v3): diagonal Pokémon-style stage -- foe small & distant top-right on its own platform,
-  // my pet big & close bottom-left on a bigger platform, plus a sky/ground background instead of flat green.
+  const myTurn = !b.resolved && caughtUp && b.side === 0;
+  const mySta = cur.staA != null ? cur.staA : (b.staA == null ? BATTLE_MAX_STA : b.staA);
+  const foeSta = cur.staB != null ? cur.staB : (b.staB == null ? BATTLE_MAX_STA : b.staB);
+  // Pokemon-style 4-quadrant layout:
+  // Top-Left: Opponent HUD card | Top-Right: Opponent pet on pedestal
+  // Bottom-Left: Player pet on pedestal | Bottom-Right: Player HUD card + Stamina bar
   let h = `<div class="bwrap${screenFlash ? ' flash' : ''}"><div class="bstage">
-    <div class="bside foe">
-      <div class="bcard"><div class="bname"><span>${esc(b.foe.name)}</span><span>Lv.${b.foeBlv || 1}</span></div>${bHpBar(Math.max(0, cur.hpB), b.maxB)}</div>
+    <div class="bcard foe">
+      <div class="bname"><span>${esc(b.foe.name)}</span><span class="blv">Lv.${b.foeBlv || 1}</span></div>
+      ${bHpBar(Math.max(0, cur.hpB), b.maxB)}
+      ${bStaBar(foeSta, BATTLE_MAX_STA)}
+    </div>
+    <div class="bunit foe">
       <div class="bplat foe"></div>
       <img class="bimg ${foeAnim}" src="${PIC.my({ sp: b.foe.sp, coat: b.foe.coat })}">
       ${floatSide === 1 ? floatHtml : ''}
       ${zapSide === 1 ? zapHtml : ''}
     </div>
-    <div class="bside me">
+    <div class="bunit me">
       <div class="bplat me"></div>
       <img class="bimg ${meAnim} ${myTurn ? 'tappable' : ''}" ${myTurn ? 'data-a="battletogglemenu"' : ''} src="${PIC.my(p)}">
       ${floatSide === 0 ? floatHtml : ''}
       ${zapSide === 0 ? zapHtml : ''}
-      <div class="bcard"><div class="bname"><span>${esc(p.name)}</span><span>Lv.${p.blv || 1}</span></div>${bHpBar(Math.max(0, cur.hpA), b.maxA)}<div class="m" style="font-size:11px;margin-top:2px">${t('battleStaLabel')} ${b.staA == null ? BATTLE_MAX_STA : b.staA}/${BATTLE_MAX_STA}</div></div>
+    </div>
+    <div class="bcard me">
+      <div class="bname"><span>${esc(p.name)}</span><span class="blv">Lv.${p.blv || 1}</span></div>
+      ${bHpBar(Math.max(0, cur.hpA), b.maxA)}
+      ${bStaBar(mySta, BATTLE_MAX_STA)}
     </div>
   </div></div>
   <div class="bskillbox">${line}</div>`;
@@ -1606,7 +1617,7 @@ PANELS.battle = () => {
   if (!b.resolved) {
     if (myTurn) {
       h += `<div class="m center" style="margin:5px 0 2px">${t('battleYourTurnHint')}</div>`;
-      if (App.battleSkillOpen) h += battleSkillMenuHtml(p, b);
+      if (App.battleSkillOpen !== false) h += battleSkillMenuHtml(p, b);
       h += autoBtn + fleeBtn;
     } else {
       h += autoBtn + fleeBtn;
@@ -1738,11 +1749,10 @@ Object.assign(XACT, {
       beginFight(); // walkNear isn't available for some reason -- just start as before
     }
   },
-  battletogglemenu: () => { App.battleSkillOpen = !App.battleSkillOpen; renderPanel(true); },
+  battletogglemenu: () => { App.battleSkillOpen = App.battleSkillOpen === false; renderPanel(true); },
   battleskill: v => {
     const b = S.battle; if (!b || b.side !== 0) return;
     const r = actR({ t: 'battleSkill', skillId: v }); if (!r || !r.ok) return;
-    App.battleSkillOpen = false;
     battleScheduleStep();
     renderPanel(true);
   },
