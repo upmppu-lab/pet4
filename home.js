@@ -447,7 +447,25 @@ PANELS.home = m => {
     const capN = HOME.cap(hh), sub = m.petsub === 'shop' ? 'shop' : 'mine';
     b += `<div class="tabs"><button class="tab ${sub === 'mine' ? 'on' : ''}" data-a="hpetsub" data-v="mine">🐾 ${t('myPetsTab')} (${hh.pets.length}/${capN})</button><button class="tab ${sub === 'shop' ? 'on' : ''}" data-a="hpetsub" data-v="shop">🏪 ${t('shopPetsTab')} (${S.pets.filter(Boolean).length})</button></div>`;
     if (sub === 'mine') {
-      b += hh.pets.length ? hh.pets.map(p => `<div class="li"><button class="ic" style="border:0;background:none;padding:0;position:relative;overflow:visible" data-a="homepet" data-v="${p.id}">${lvBadge(p.blv || 1, true)}<img src="${PIC.my(p)}"></button><div class="grow"><button style="border:0;background:none;padding:0;text-align:left;display:block;width:100%" data-a="homepet" data-v="${p.id}"><div class="t">${esc(p.name)} <span class="sex ${p.sex}">${p.sex === 'm' ? '♂' : '♀'}</span></div><div class="m">${esc(spName(p.sp))} · 🏠 ${t('atHome')}${(typeof BATTLE !== 'undefined' && BATTLE.hpFracOf(p) < 1) ? ' · ' + t('battleHpBadge', { n: Math.round(BATTLE.hpFracOf(p) * 100) }) : ''}</div></button></div><button class="btn o sm" data-a="wearpick" data-v="${p.id}">👕${p.wear && (p.wear.collar || p.wear.hat || p.wear.cloth) ? ' ' + [p.wear.cloth, p.wear.collar, p.wear.hat].filter(Boolean).map(w => w.icon).join('') : ''}</button>${['fish', 'axolotl'].includes(ART.look(p.sp).t) ? '' : `<button class="btn ${(S.follow || {})[CFG.id] === p.id ? 'r' : ''} sm" data-a="hfollow" data-v="${p.id}">${(S.follow || {})[CFG.id] === p.id ? t('followStop') : t('followBtn')}</button>`}<button class="btn g sm" data-a="hback" data-v="${p.id}">🏪 ${t('sendBack')}</button></div>`).join('') : `<div class="m">${t('noHomePets')}</div>`;
+      b += hh.pets.length ? hh.pets.map(p => `
+        <div class="card" style="padding:10px 12px;margin-bottom:8px">
+          <div class="row" style="align-items:center;gap:10px">
+            <button class="ic" style="border:0;background:none;padding:0;position:relative;overflow:visible;flex-shrink:0" data-a="homepet" data-v="${p.id}">
+              ${lvBadge(p.blv || 1, true)}<img src="${PIC.my(p)}">
+            </button>
+            <div class="grow" style="min-width:0">
+              <button style="border:0;background:none;padding:0;text-align:left;display:block;width:100%" data-a="homepet" data-v="${p.id}">
+                <div class="t" style="font-size:15px;font-weight:bold">${esc(p.name)} <span class="sex ${p.sex}">${p.sex === 'm' ? '♂' : '♀'}</span></div>
+                <div class="m" style="margin-top:2px;white-space:normal">${esc(spName(p.sp))} · 🏠 ${t('atHome')}${(typeof BATTLE !== 'undefined' && BATTLE.hpFracOf(p) < 1) ? ' · ' + t('battleHpBadge', { n: Math.round(BATTLE.hpFracOf(p) * 100) }) : ''}</div>
+              </button>
+            </div>
+          </div>
+          <div class="row" style="gap:6px;margin-top:8px">
+            <button class="btn o sm" data-a="wearpick" data-v="${p.id}" style="padding:6px 10px">👕${p.wear && (p.wear.collar || p.wear.hat || p.wear.cloth) ? ' ' + [p.wear.cloth, p.wear.collar, p.wear.hat].filter(Boolean).map(w => w.icon).join('') : ''}</button>
+            ${['fish', 'axolotl'].includes(ART.look(p.sp).t) ? '' : `<button class="btn ${(S.follow || {})[CFG.id] === p.id ? 'r' : 'g'} sm grow" data-a="hfollow" data-v="${p.id}" style="padding:6px 8px">${(S.follow || {})[CFG.id] === p.id ? t('followStop') : t('followBtn')}</button>`}
+            <button class="btn b sm grow" data-a="hback" data-v="${p.id}" style="padding:6px 8px">🏪 ${t('sendBack')}</button>
+          </div>
+        </div>`).join('') : `<div class="m">${t('noHomePets')}</div>`;
     } else {
       const shop = S.pets.filter(Boolean);
       b += shop.length ? shop.map(p => `<div class="li"><div class="ic" style="position:relative;overflow:visible">${lvBadge(p.blv || 1, true)}<img src="${PIC.my(p)}"></div><div class="grow"><div class="t">${esc(p.name)} <span class="sex ${p.sex}">${p.sex === 'm' ? '♂' : '♀'}</span></div><div class="m">${esc(spName(p.sp))} · ${t('petLv', { n: p.lv || 1 })}</div></div><button class="btn o sm ${hh.pets.length >= capN ? 'dis' : ''}" data-a="htake" data-v="${p.id}">🏠 ${t('takeHome')}</button></div>`).join('') : `<div class="m">${t('noShopPets')}</div>`;
