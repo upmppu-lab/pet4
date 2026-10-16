@@ -274,16 +274,75 @@ const CAFE = (() => {
     if (!s.cafe) s.cafe = { built: false, orders: [], seq: 1, served: 0, spawnT: 0, dishes: {}, lv: 1, pending: [] };
     const cf = s.cafe;
     if (!cf.orders) cf.orders = []; if (!cf.seq) cf.seq = 1; if (cf.served == null) cf.served = 0; if (cf.spawnT == null) cf.spawnT = 0; if (!cf.dishes) cf.dishes = {}; if (!cf.lv) cf.lv = 1; if (!cf.pending) cf.pending = []; if (!cf.players) cf.players = []; if (!cf.staff) cf.staff = []; if (!cf.sseq) cf.sseq = 1; if (cf.joy == null) cf.joy = 0;
-    // v1.115: 타운 배치(fitShop)가 카페 건물을 다른 자리로 밀 때 저장된 가구 좌표가 예전 기준점 기준으로
-    // 남아 어긋나는 문제 방지 (병원과 동일한 원인) - 기준점이 달라졌으면 그 차이만큼 전부 같이 옮겨줌.
+    // v1.115+: 타운 배치(fitShop)나 부지 이동 시 가구 좌표가 화면 밖(-5000 등)으로 밀려나거나
+    // 유실된 경우를 감지하여 주방 집기와 테이블을 정상 실내 위치로 자동 복원 및 정렬.
     if (cf.built) {
-      const Wv0 = cafeW(), S0 = cafeS();
-      if (cf.ax != null && (cf.ax !== Wv0 || cf.ay !== S0)) {
-        const dx = cf.ax - Wv0, dy = cf.ay - S0;
-        for (const it of cf.items || []) { it.x += dx; it.y += dy; }
-        cf.iv = (cf.iv | 0) + 1;
+      const Wv = cafeW(), S0 = cafeS(), lv = Math.min(CAFE_MAX, Math.max(1, cf.lv || 1));
+      if (Wv > -1000 && S0 > -1000) {
+        const hasCorrupted = !cf.items || cf.items.length === 0 ||
+          cf.items.filter(it => it.k === 'table').length === 0 ||
+          cf.items.filter(it => it.k === 'fridge' || it.k === 'stove').length === 0 ||
+          cf.items.some(it => {
+            const F = cafeFurn(it.k);
+            return F && F.cat !== 'pen' && (it.x < -CAFE_LV[CAFE_MAX].w - 2 || it.x > 1 || it.y < -CAFE_LV[CAFE_MAX].d - 2 || it.y > 1);
+          });
+        if (hasCorrupted) {
+          const e = CAFE_LV[lv], old = (cf.items || []).slice();
+          cf.items = []; cf.iseq = cf.iseq || 1; cf.iv = (cf.iv | 0) + 1;
+          // 1. 북쪽 벽 주방 집기 (냉장고, 가스레인지, 싱크대, 계산대)
+          const fixedKit = [
+            { k: 'fridge', w: 1, d: 1 },
+            { k: 'stove', w: 1, d: 1 },
+            { k: 'sink', w: 1, d: 1 },
+            { k: 'register', w: 1, d: 1 }
+          ];
+          let kx = e.pen[0] + 1;
+          for (const fk of fixedKit) {
+            if (kx + fk.w <= e.w) {
+              cf.items.push({ id: cf.iseq++, k: fk.k, x: kx - e.w, y: -e.d, f: 's' });
+              kx += fk.w;
+            }
+          }
+          // 2. 출입문 앞 계산대 (cashdesk)
+          const L_temp = cafeBuildLayout(cf, Wv, lv);
+          let pDesk = { x: L_temp.door.x - 2, y: L_temp.door.ys[0] - 2 };
+          if (cafeCheckPlace(cf, Wv, lv, { id: -1, k: 'cashdesk', x: pDesk.x, y: pDesk.y, f: 's' })) {
+            pDesk = cafeAutoSpot(cf, Wv, lv, 'cashdesk');
+          }
+          if (pDesk) {
+            cf.items.push({ id: cf.iseq++, k: 'cashdesk', x: pDesk.x - Wv, y: pDesk.y - S0, f: 's' });
+          }
+          // 3. 기존 펫 울타리 장비 보존
+          for (const it of old) {
+            const F = cafeFurn(it.k);
+            if (F && F.cat === 'pen') cf.items.push(it);
+          }
+          // 4. 기존 구매 가구 (테이블, 장식, 슬롯머신 등) 정상 위치 복원
+          for (const it of old) {
+            const F = cafeFurn(it.k);
+            if (!F || F.fixed || F.cat === 'pen') continue;
+            const curW = { id: it.id, k: it.k, x: it.x + Wv, y: it.y + S0, f: it.f, r: it.r };
+            if (it.x >= -e.w && it.x < 0 && it.y >= -e.d && it.y < 0 && !cafeCheckPlace(cf, Wv, lv, curW)) {
+              cf.items.push(it);
+              continue;
+            }
+            const p = cafeAutoSpot(cf, Wv, lv, it.k);
+            if (p) cf.items.push({ id: it.id, k: it.k, x: p.x - Wv, y: p.y - S0, f: it.f || 's', r: it.r });
+          }
+          // 5. 기본 식사 테이블 2개 보장
+          let tableCount = cf.items.filter(x => x.k === 'table').length;
+          while (tableCount < 2) {
+            const p = cafeAutoSpot(cf, Wv, lv, 'table');
+            if (p) {
+              cf.items.push({ id: cf.iseq++, k: 'table', x: p.x - Wv, y: p.y - S0, f: 's' });
+              tableCount++;
+            } else break;
+          }
+          cf.kitDone = 1; cf.deskDone = 1; cf.v7 = 1;
+          _cafeLayoutCache.key = null;
+        }
+        cf.ax = Wv; cf.ay = S0;
       }
-      cf.ax = Wv0; cf.ay = S0;
     }
     if (cf.built && !cf.items) initItems(s, cf);
     if (cf.built && cf.items && !cf.kitDone) { // the kitchen row becomes ordinary stored pieces (movable)
