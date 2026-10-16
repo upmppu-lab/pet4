@@ -1623,8 +1623,13 @@ PANELS.battle = () => {
         </div>
       </div>
 
-      <!-- Player pet (Bottom-Left) with its status card directly beneath -->
+      <!-- Player pet (Bottom-Left) with its status card directly ABOVE -->
       <div class="bunit me">
+        <div class="bcard me">
+          <div class="bname"><span class="bnametext">${esc(p.name)}</span><span class="blv">Lv.${p.blv || 1}</span></div>
+          ${bHpBar(curHpMe, b.maxA || 1)}
+          ${bStaBar(mySta, BATTLE_MAX_STA)}
+        </div>
         <div class="bpet-area">
           <div class="bplat me"></div>
           ${myTurn ? '<div class="bturn-ring"></div>' : ''}
@@ -1632,19 +1637,14 @@ PANELS.battle = () => {
           ${targetSide === 0 ? floatHtml : ''}
           ${targetSide === 0 ? fxHtml : ''}
         </div>
-        <div class="bcard me">
-          <div class="bname"><span class="bnametext">${esc(p.name)}</span><span class="blv">Lv.${p.blv || 1}</span></div>
-          ${bHpBar(curHpMe, b.maxA || 1)}
-          ${bStaBar(mySta, BATTLE_MAX_STA)}
-        </div>
       </div>
     </div>
   </div>
   <div class="bskillbox">${line}</div>`;
-  const autoBtn = `<button class="btn o block" style="margin-top:6px" data-a="battleautoplay">${App.battleAutoPlay ? t('battleAutoPlayOffBtn') : t('battleAutoPlayOnBtn')}</button>`;
+  const autoBtn = `<button class="btn bbattle-btn block" style="margin-top:6px" data-a="battleautoplay">${App.battleAutoPlay ? t('battleAutoPlayOffBtn') : t('battleAutoPlayOnBtn')}</button>`;
   // v2026-10-15: "도망가기" -- give up on the fight. Odds of getting away depend on how my pet's battle
   // level compares to the foe's (see battle.js's 'battleFlee' action); costs some HP either way.
-  const fleeBtn = `<button class="btn o block" style="margin-top:6px" data-a="battleflee">${t('battleFleeBtn')}</button>`;
+  const fleeBtn = `<button class="btn bbattle-btn block" style="margin-top:6px" data-a="battleflee">${t('battleFleeBtn')}</button>`;
   if (!b.resolved) {
     if (myTurn) {
       h += `<div class="m center" style="margin:5px 0 2px">${t('battleYourTurnHint')}</div>`;

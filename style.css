@@ -559,29 +559,48 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
   filter:drop-shadow(0 6px 4px rgba(0,0,0,.3)) drop-shadow(0 0 10px rgba(255,224,130,.95))}
 @keyframes bTapBounce{0%,100%{transform:scaleX(-1) translateY(0)}50%{transform:scaleX(-1) translateY(-5px)}}
 
-/* Status Cards directly below pets */
-.bcard{width:100%;margin-top:4px;z-index:6;background:rgba(255,255,255,.94);border-radius:12px;
+/* Status Cards: Foe directly below foe pet; Me directly above my pet */
+.bcard{width:100% !important;z-index:6;background:rgba(255,255,255,.95);border-radius:12px;
   padding:5px 8px;box-shadow:0 4px 10px rgba(0,0,0,.22);box-sizing:border-box;backdrop-filter:blur(5px);
-  border:2px solid #fff}
-.bcard.foe{border-color:#ffd7ce;box-shadow:0 4px 10px rgba(180,40,20,.18)}
-.bcard.me{border-color:#ffe39f;box-shadow:0 4px 10px rgba(180,120,20,.2)}
-.bcard .bname{font-size:12.5px;font-weight:900;color:#332014;display:flex;justify-content:space-between;align-items:center;gap:4px;white-space:nowrap}
+  border:2px solid #fff;display:flex !important;flex-direction:column !important;align-items:stretch !important}
+.bcard.foe{border-color:#ffd7ce;box-shadow:0 4px 10px rgba(180,40,20,.18);margin-top:4px}
+.bcard.me{border-color:#ffe39f;box-shadow:0 4px 10px rgba(180,120,20,.2);margin-bottom:4px;margin-top:0}
+.bcard .bname{width:100%;font-size:12.5px;font-weight:900;color:#332014;display:flex !important;flex-direction:row !important;justify-content:space-between;align-items:center;gap:4px;white-space:nowrap}
 .bcard .bnametext{overflow:hidden;text-overflow:ellipsis}
 .bcard .bname .blv{font-size:10.5px;font-weight:900;color:#e66a20;background:#fff3e6;padding:1px 5px;border-radius:5px;border:1px solid #ffd4b2;flex-shrink:0}
 
-/* HP & Stamina Bars */
-.bcard .bhp{position:relative;height:13px;border-radius:7px;background:#ded2b8;margin-top:3px;overflow:hidden;
-  box-shadow:inset 0 1px 3px rgba(0,0,0,.25);border:1px solid rgba(0,0,0,.08)}
+/* HP & Stamina Bars - explicitly block & 100% width */
+.bcard .bhp{position:relative;height:13px;width:100% !important;border-radius:7px;background:#ded2b8;margin-top:3px;overflow:hidden;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.25);border:1px solid rgba(0,0,0,.08);box-sizing:border-box !important;display:block !important}
 .bcard .bhp i{display:block;height:100%;border-radius:7px;transition:width .4s cubic-bezier(.34,1.56,.64,1)}
 .bcard .bhp .bhpnum{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-size:8.5px;font-weight:900;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:.2px;pointer-events:none}
 
-.bcard .bsta{position:relative;height:11px;border-radius:6px;background:#ded2b8;margin-top:3px;overflow:hidden;
-  box-shadow:inset 0 1px 2px rgba(0,0,0,.2);border:1px solid rgba(0,0,0,.06)}
+.bcard .bsta{position:relative;height:11px;width:100% !important;border-radius:6px;background:#ded2b8;margin-top:3px;overflow:hidden;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.2);border:1px solid rgba(0,0,0,.06);box-sizing:border-box !important;display:block !important}
 .bcard .bsta i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#ffb300,#ff8f00);
   transition:width .4s cubic-bezier(.34,1.56,.64,1)}
 .bcard .bsta .bstanum{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   font-size:8px;font-weight:900;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:.2px;pointer-events:none}
+
+/* Battle action buttons (자동 전투, 도망가기): 90% opacity black background */
+.bbattle-btn{
+  background:rgba(0,0,0,0.90) !important;
+  color:#ffffff !important;
+  border:1.5px solid rgba(255,255,255,0.3) !important;
+  box-shadow:0 4px 12px rgba(0,0,0,0.35) !important;
+  font-weight:900 !important;
+  border-radius:12px !important;
+  padding:10px 14px !important;
+  font-size:14px !important;
+  letter-spacing:0.3px !important;
+  text-shadow:0 1px 2px rgba(0,0,0,0.8) !important;
+  transition:transform 0.1s, background 0.15s !important;
+}
+.bbattle-btn:active{
+  background:rgba(30,30,30,0.95) !important;
+  transform:scale(0.98) !important;
+}
 
 /* Dynamic Battle Animations */
 .bimg.atkme{animation:batkMe .42s ease-in-out}
