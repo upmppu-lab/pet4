@@ -1501,15 +1501,16 @@ Object.assign(I18N.ru, {
 let _bPlay = { step: 0, timer: null };
 function battleMyPet() { const b = S.battle; return b && S.home && (S.home.pets || []).find(q => q.id === b.pid); }
 function bHpBar(val, max) {
-  const pct = Math.max(0, Math.min(100, max ? val / max * 100 : 0));
-  const col = pct > 50 ? '#5fbf5f' : pct > 20 ? '#e8b23a' : '#e05a4a';
+  const m = max || 1;
+  const pct = Math.max(0, Math.min(100, (val / m) * 100));
+  const col = pct > 50 ? 'linear-gradient(90deg, #4ade80, #16a34a)' : pct > 20 ? 'linear-gradient(90deg, #facc15, #eab308)' : 'linear-gradient(90deg, #f87171, #dc2626)';
   const v = Math.max(0, Math.round(val));
-  return `<div class="bhp"><i style="width:${pct}%;background:${col}"></i><span class="bhpnum">${v}/${max}</span></div>`;
+  return `<div class="bhp"><i style="width:${pct}%;background:${col}"></i><span class="bhpnum">HP ${v}/${m}</span></div>`;
 }
 function bStaBar(val, max) {
   const m = max || (typeof BATTLE_MAX_STA !== 'undefined' ? BATTLE_MAX_STA : 6);
   const v = Math.max(0, Math.min(m, Math.round(val != null ? val : m)));
-  const pct = Math.max(0, Math.min(100, v / m * 100));
+  const pct = Math.max(0, Math.min(100, (v / m) * 100));
   return `<div class="bsta"><i style="width:${pct}%"></i><span class="bstanum">⚡ ${t('battleStaLabel')} ${v}/${m}</span></div>`;
 }
 // the skill-choice menu shown when the player taps their pet: every skill the species category can learn,
@@ -1561,15 +1562,28 @@ PANELS.battle = () => {
   const acted = cur.t !== 'start';
   const actedMe = cur.side === 0;
   let meAnim = '', foeAnim = '';
+  let fxType = 'impact';
   if (acted) {
-    if (cur.t === 'heal') { if (actedMe) meAnim = 'healfx'; else foeAnim = 'healfx'; }
-    else { if (actedMe) { meAnim = 'atkme'; foeAnim = 'hit'; } else { foeAnim = 'atkfoe'; meAnim = 'hit'; } }
+    if (cur.t === 'heal') {
+      if (actedMe) meAnim = 'healfx'; else foeAnim = 'healfx';
+      fxType = 'heal';
+    } else {
+      if (actedMe) { meAnim = 'atkme'; foeAnim = 'hit'; } else { foeAnim = 'atkfoe'; meAnim = 'hit'; }
+      fxType = (cur.skill && cur.skill.fx) || 'slash';
+    }
   }
-  const floatSide = !acted ? null : (cur.t === 'heal' ? cur.side : 1 - cur.side);
-  const floatHtml = floatSide == null ? '' : `<div class="bfloat ${cur.t === 'heal' ? 'heal' : 'dmg'}">${cur.t === 'heal' ? '+' : '-'}${cur.amt}</div>`;
-  const zapSide = acted && cur.t !== 'heal' ? floatSide : null;
+  const targetSide = !acted ? null : (cur.t === 'heal' ? cur.side : 1 - cur.side);
+  const isCrit = !!cur.crit;
+  const floatHtml = targetSide == null ? '' : `<div class="bfloat ${cur.t === 'heal' ? 'heal' : 'dmg'} ${isCrit ? 'crit' : ''}">${isCrit ? '<span class="crit-badge">💥CRIT!</span>' : ''}${cur.t === 'heal' ? '+' : '-'}${cur.amt}</div>`;
+  const zapSide = acted && cur.t !== 'heal' ? targetSide : null;
   const zapIcon = cur.t === 'flee' ? '💨' : (cur.skill && cur.skill.icon) || '⚡';
-  const zapHtml = zapSide == null ? '' : `<div class="bzap">${zapIcon}</div>`;
+  const fxHtml = targetSide == null ? '' : `
+    <div class="bfx-box fx-${fxType} ${isCrit ? 'crit' : ''}">
+      <div class="bfx-slash"></div>
+      <div class="bfx-burst"></div>
+      <div class="bfx-sparks"><i></i><i></i><i></i><i></i></div>
+      <div class="bzap">${zapIcon}</div>
+    </div>`;
   const screenFlash = acted && cur.t !== 'heal' && cur.crit;
   const line = (() => {
     if (!acted) return t('battleStepStart');
@@ -1582,33 +1596,49 @@ PANELS.battle = () => {
   const myTurn = !b.resolved && caughtUp && b.side === 0;
   const mySta = cur.staA != null ? cur.staA : (b.staA == null ? BATTLE_MAX_STA : b.staA);
   const foeSta = cur.staB != null ? cur.staB : (b.staB == null ? BATTLE_MAX_STA : b.staB);
-  // Pokemon-style 4-quadrant layout:
-  // Top-Left: Opponent HUD card | Top-Right: Opponent pet on pedestal
-  // Bottom-Left: Player pet on pedestal | Bottom-Right: Player HUD card + Stamina bar
-  let h = `<div class="bwrap${screenFlash ? ' flash' : ''}"><div class="bstage">
-    <div class="bcard foe">
-      <div class="bname"><span>${esc(b.foe.name)}</span><span class="blv">Lv.${b.foeBlv || 1}</span></div>
-      ${bHpBar(Math.max(0, cur.hpB), b.maxB)}
-      ${bStaBar(foeSta, BATTLE_MAX_STA)}
+  const curHpFoe = Math.max(0, cur.hpB != null ? cur.hpB : b.maxB);
+  const curHpMe = Math.max(0, cur.hpA != null ? cur.hpA : b.maxA);
+
+  let h = `<div class="bwrap${screenFlash ? ' flash' : ''}${isCrit ? ' crit-shake' : ''}">
+    <div class="bbg-sky"></div>
+    <div class="bbg-sun"></div>
+    <div class="bbg-clouds"><i class="c1"></i><i class="c2"></i></div>
+    <div class="bbg-hills"></div>
+    <div class="bbg-ground"></div>
+    <div class="bbg-sparks"><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="bstage">
+      <!-- Opponent pet (Top-Right) with its status card directly beneath -->
+      <div class="bunit foe">
+        <div class="bpet-area">
+          <div class="bplat foe"></div>
+          <img class="bimg ${foeAnim}" src="${PIC.my({ sp: b.foe.sp, coat: b.foe.coat })}">
+          ${targetSide === 1 ? floatHtml : ''}
+          ${targetSide === 1 ? fxHtml : ''}
+        </div>
+        <div class="bcard foe">
+          <div class="bname"><span class="bnametext">${esc(b.foe.name)}</span><span class="blv">Lv.${b.foeBlv || 1}</span></div>
+          ${bHpBar(curHpFoe, b.maxB || 1)}
+          ${bStaBar(foeSta, BATTLE_MAX_STA)}
+        </div>
+      </div>
+
+      <!-- Player pet (Bottom-Left) with its status card directly beneath -->
+      <div class="bunit me">
+        <div class="bpet-area">
+          <div class="bplat me"></div>
+          ${myTurn ? '<div class="bturn-ring"></div>' : ''}
+          <img class="bimg ${meAnim} ${myTurn ? 'tappable' : ''}" ${myTurn ? 'data-a="battletogglemenu"' : ''} src="${PIC.my(p)}">
+          ${targetSide === 0 ? floatHtml : ''}
+          ${targetSide === 0 ? fxHtml : ''}
+        </div>
+        <div class="bcard me">
+          <div class="bname"><span class="bnametext">${esc(p.name)}</span><span class="blv">Lv.${p.blv || 1}</span></div>
+          ${bHpBar(curHpMe, b.maxA || 1)}
+          ${bStaBar(mySta, BATTLE_MAX_STA)}
+        </div>
+      </div>
     </div>
-    <div class="bunit foe">
-      <div class="bplat foe"></div>
-      <img class="bimg ${foeAnim}" src="${PIC.my({ sp: b.foe.sp, coat: b.foe.coat })}">
-      ${floatSide === 1 ? floatHtml : ''}
-      ${zapSide === 1 ? zapHtml : ''}
-    </div>
-    <div class="bunit me">
-      <div class="bplat me"></div>
-      <img class="bimg ${meAnim} ${myTurn ? 'tappable' : ''}" ${myTurn ? 'data-a="battletogglemenu"' : ''} src="${PIC.my(p)}">
-      ${floatSide === 0 ? floatHtml : ''}
-      ${zapSide === 0 ? zapHtml : ''}
-    </div>
-    <div class="bcard me">
-      <div class="bname"><span>${esc(p.name)}</span><span class="blv">Lv.${p.blv || 1}</span></div>
-      ${bHpBar(Math.max(0, cur.hpA), b.maxA)}
-      ${bStaBar(mySta, BATTLE_MAX_STA)}
-    </div>
-  </div></div>
+  </div>
   <div class="bskillbox">${line}</div>`;
   const autoBtn = `<button class="btn o block" style="margin-top:6px" data-a="battleautoplay">${App.battleAutoPlay ? t('battleAutoPlayOffBtn') : t('battleAutoPlayOnBtn')}</button>`;
   // v2026-10-15: "도망가기" -- give up on the fight. Odds of getting away depend on how my pet's battle
