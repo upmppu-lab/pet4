@@ -1684,34 +1684,56 @@ Object.assign(XACT, {
       actR({ t: 'battleClose' });
       if (typeof toast === 'function') toast(t('battleCancelMove'));
     };
+    // v2026-10-16: "전투시작을 누르면 주민이 원래 있던(이미 떠난) 자리에 가서 아무도 없는데 전투가 시작된다"
+    // 버그 수정 -- walkNear는 호출 시점의 좌표로 딱 한 번만 길을 잡기 때문에, 걸어가는 동안 주민이 다른
+    // 곳으로 이동해버리면 빈 자리에 도착해도 그냥 전투가 열렸었음. 이제는 (1) 도착 콜백에서 실제로 주민과
+    // 접촉할 만큼 가까운지 다시 확인하고, 아니라면 포기하는 대신 주민의 새 위치로 계속 쫓아가며,
+    // (2) 걷는 동안에도 주기적으로 거리를 재서 먼저 접촉이 되면 그 자리에서 바로 전투를 열고, 주민이
+    // 멀리 벗어나면 목적지를 다시 잡는다.
+    const CONTACT_DIST = 1.6; // 이 정도 거리면 "접촉"으로 침
+    const RETARGET_DIST = 1.05; // 마지막으로 길을 잡아준 위치에서 주민이 이만큼 벗어나면 다시 길을 잡음
+    let lastTx = null, lastTy = null, expectedCb = null;
+    const chaseTo = cur => {
+      App.battleWalking = true;
+      lastTx = Math.floor(cur.x); lastTy = Math.floor(cur.y);
+      World.walkNear(lastTx, lastTy, beginFight);
+      expectedCb = World.me && World.me.cb; // walkNear(goTo)가 방금 설정한 우리 쪽 이동 콜백
+    };
     const beginFight = () => {
       stopTimer();
       if (S.battle !== b) return; // a new challenge to someone else replaced this one while we were walking
-      if ((typeof residentActor === 'function') && !residentActor(b.foe.rid)) { cancelFled(); return; } // vanished right as we arrived
+      const cur = (typeof residentActor === 'function') ? residentActor(b.foe.rid) : null;
+      if (!cur) { cancelFled(); return; } // vanished right as we arrived
+      if (!World.me || Math.hypot(World.me.x - cur.x, World.me.y - cur.y) > CONTACT_DIST) {
+        // 도착은 했지만 그 사이 주민이 다른 곳으로 옮겨가서 아직 접촉 전 -- 새 위치로 계속 쫓아감
+        chaseTo(cur);
+        if (App.battleWalking) App.battleWalkTimer = setInterval(watchTick, 400); // stopTimer()가 지운 감시 타이머를 다시 켬
+        return;
+      }
       const r = actR({ t: 'battleStart' });
       if (r && r.ok) { clearTimeout(_bPlay.timer); _bPlay = { step: 0, timer: null }; App.battleSkillOpen = false; App.battleAutoPlay = false; }
       openPanel({ type: 'battle' });
     };
+    const watchTick = () => {
+      if (!App.battleWalking) { clearInterval(App.battleWalkTimer); App.battleWalkTimer = null; return; }
+      if (S.battle !== b) { stopTimer(); return; } // a new challenge to someone else replaced this one -- stop chasing quietly
+      const cur = (typeof residentActor === 'function') ? residentActor(b.foe.rid) : null;
+      // v2026-10-15: only cancel when the villager is genuinely gone (indoors / left the world) --
+      // simply wandering around outside while we approach is fine, we don't need to be glued to them.
+      if (!cur) { cancelFled(); return; }
+      if (World.me && World.me.cb !== expectedCb) { cancelDiverted(); return; } // something else took over movement
+      if (World.me && Math.hypot(World.me.x - cur.x, World.me.y - cur.y) <= CONTACT_DIST) { beginFight(); return; } // 걷는 도중 접촉됨
+      if (Math.hypot(cur.x - lastTx, cur.y - lastTy) > RETARGET_DIST) chaseTo(cur); // 주민이 목적지에서 벗어남 -- 다시 길을 잡음
+    };
     const a = (typeof residentActor === 'function') ? residentActor(b.foe.rid) : null;
     if (!a) { cancelFled(); return; } // not currently out in the world (e.g. already indoors) -- nothing to walk to
     if (typeof World !== 'undefined' && World.walkNear) {
-      App.battleWalking = true;
       closePanel(); // hide the panel so the player can watch their character walk over
       if (typeof toast === 'function') toast(t('battleApproach'));
-      World.walkNear(Math.floor(a.x), Math.floor(a.y), beginFight);
+      chaseTo(a);
       // walkNear may resolve synchronously (already adjacent, or no path at all) -- only keep watching if
       // the walk is genuinely still in progress after that call.
-      if (App.battleWalking) {
-        const expectedCb = World.me && World.me.cb; // whatever goTo() just set for our own walk order
-        App.battleWalkTimer = setInterval(() => {
-          if (!App.battleWalking) { clearInterval(App.battleWalkTimer); App.battleWalkTimer = null; return; }
-          if (S.battle !== b) { stopTimer(); return; } // a new challenge to someone else replaced this one -- stop chasing quietly
-          if (World.me && World.me.cb !== expectedCb) { cancelDiverted(); return; } // something else took over movement
-          // v2026-10-15: only cancel when the villager is genuinely gone (indoors / left the world) --
-          // simply wandering around outside while we approach is fine, we don't need to be glued to them.
-          if (!residentActor(b.foe.rid)) { cancelFled(); return; }
-        }, 400);
-      }
+      if (App.battleWalking) App.battleWalkTimer = setInterval(watchTick, 400);
     } else {
       beginFight(); // walkNear isn't available for some reason -- just start as before
     }
