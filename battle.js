@@ -198,10 +198,12 @@ const BATTLE = (() => {
 
   function apply(s, a, by) {
     if (a.t === 'battleChallenge') { // tapped a villager on the street -- challenge their pet to a fight
-      // v2026-10-15: only block a NEW challenge while an actual fight is already under way (b.started).
-      // A pending challenge/approach to a different villager (not yet started) gets silently replaced --
-      // the player tapping someone else clearly means "forget that one, fight THIS one instead".
-      if (s.battle && s.battle.active && s.battle.started) return { err: 'battleBusy' };
+      // v2026-10-16: used to only replace a PENDING challenge/approach (not yet started) and block with
+      // 'battleBusy' once a fight was actually under way (b.started). Player feedback: tapping "전투 신청"
+      // on someone else should always cancel whatever's going on -- pending, approaching, or a fight
+      // already in progress -- and start fresh against the newly tapped villager, no exceptions.
+      // No penalty/reward is lost by doing this: those are only applied in 'battleFinish', which never
+      // ran for the abandoned fight, same as using the existing "무시"/닫기 button mid-fight already did.
       const who = (typeof CFG !== 'undefined' && CFG && CFG.id) || (s.follow && Object.keys(s.follow)[0]);
       const pid = who && s.follow && s.follow[who];
       const p = pid && s.home && (s.home.pets || []).find(q => q.id === pid);
