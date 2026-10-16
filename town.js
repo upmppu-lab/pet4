@@ -3886,7 +3886,7 @@ function getFlowerSprite(kind) {
     ], 'rgba(125,190,75,.42)');
 
     // 1-1. 집 입구 방향에 맞춰 마당 진입로 흙길 타일 렌더링 (플레이어가 그 위에 도로를 깔지 않은 경우에만 기본 흙길 표시)
-    const curDoor = ((h.o && h.o.doorDir != null ? h.o.doorDir : h.r) % 4 + 4) % 4;
+    const curDoor = (((h.doorDir != null ? h.doorDir : ((h.o && h.o.doorDir != null) ? h.o.doorDir : h.r)) || 0) % 4 + 4) % 4;
     const R_house = roadSet(T && T.s ? T.s : (typeof S !== 'undefined' ? S : null));
     const drawHouseEnt = (tx, ty) => {
       if (!R_house.has(tx + ',' + ty)) drawRoadTile(tx, ty, 'dirt', c);
@@ -3904,7 +3904,7 @@ function getFlowerSprite(kind) {
       [ISO.wx(cx - 1.5, cy + 1.5), ISO.wy(cx - 1.5, cy + 1.5)]
     ], 'rgba(105,160,60,.30)');
 
-    const tier = Math.min(HOUSE_TIER_MAX, (h.o && h.o.tier) || 1);
+    const tier = Math.min(HOUSE_TIER_MAX, Math.max(1, (h.tier != null ? h.tier : ((h.o && h.o.tier != null) ? h.o.tier : (tierOf(h) || 1)))));
     const img = getTownHouseImg(tier);
 
     // 3. 집 본체: 5x5 땅 정중앙(cx, cy)의 3x3 칸(너비 약 192px)을 정확히 차지하도록 배치

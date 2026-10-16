@@ -589,7 +589,8 @@ function clearThumbCache() {
     `;
 
     const canDemo = typeof o.id === 'number';
-    return frameHTML((d.ic || '') + ' ' + nm(o.k), `${previewCard}${info}
+    const titleName = d.cat === 'house' ? ((typeof TOWN !== 'undefined' && TOWN.houseTierName) ? TOWN.houseTierName(L) : nm(o.k)) : nm(o.k);
+    return frameHTML((d.ic || '') + ' ' + titleName, `${previewCard}${info}
       <div class="row" style="gap:8px;margin-top:10px">${(TOWN.maxR(o.k) > 1 && o.k !== 'zoo' && o.k !== 'park' && o.k !== 'lake') ? `<button class="btn b block" data-a="trotnow" data-v="${o.id}">🔄 ${t('tRotateDir')}</button>` : ''}<button class="btn g block" data-a="tmovego" data-v="${o.id}">🔁 ${t('tMove')}</button>${canDemo ? `<button class="btn r block" data-a="tdemo" data-v="${o.id}">🗑️ ${t('tDemo')}${back ? ' +🪙' + fmt(back) : ''}</button>` : ''}</div>`);
   };
 
