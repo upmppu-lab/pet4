@@ -97,25 +97,65 @@ const SALON = (() => {
     poly(c, [Q(x0 + 7.6, y0 + 6.2), Q(x0 + 9.6, y0 + 6.2), Q(x0 + 9.6, y0 + 7.6), Q(x0 + 7.6, y0 + 7.6)], '#ffd6e2', 'rgba(200,120,150,.5)');
     c.restore();
   }
-  function walls(c, T) {
+  function wallNorth(c, T) {
     if (!built()) return;
-    const p = SALON_POS(), x0 = p.x, y0 = p.y, x1 = x0 + p.w, y1 = y0 + p.d;
+    const p = SALON_POS(), x0 = p.x, y0 = p.y, x1 = x0 + p.w;
     c.save();
-    // back walls (north + west) with windows, a big sign and a shelf of shampoos
     const WH = 70;
-    poly(c, [Q(x0, y0, WH), Q(x1, y0, WH), Q(x1, y0), Q(x0, y0)], '#fff5f8', ART.OUT, 1.2); poly(c, [Q(x0, y0, 22), Q(x1, y0, 22), Q(x1, y0), Q(x0, y0)], '#f7b9cc');
-    poly(c, [Q(x0, y0, WH), Q(x0, y1, WH), Q(x0, y1), Q(x0, y0)], '#fbeef3', ART.OUT, 1.2); poly(c, [Q(x0, y0, 22), Q(x0, y1, 22), Q(x0, y1), Q(x0, y0)], '#f2a9bf');
+    // North wall face & baseboard
+    poly(c, [Q(x0, y0, WH), Q(x1, y0, WH), Q(x1, y0), Q(x0, y0)], '#fff5f8', ART.OUT, 1.2);
+    poly(c, [Q(x0, y0, 22), Q(x1, y0, 22), Q(x1, y0), Q(x0, y0)], '#f7b9cc');
+    // North wall windows
     for (const u of [1, 7.6]) poly(c, [Q(x0 + u, y0, 58), Q(x0 + u + 1.2, y0, 58), Q(x0 + u + 1.2, y0, 32), Q(x0 + u, y0, 32)], '#cfe9f8', '#b98552', 2);
-    for (const v of [2.5, 5.5]) poly(c, [Q(x0, y0 + v, 58), Q(x0, y0 + v + 1.2, 58), Q(x0, y0 + v + 1.2, 32), Q(x0, y0 + v, 32)], '#cfe9f8', '#b98552', 2);
+    // North wall signboard
     { const a = Q(x0 + 3.2, y0, 66), b = Q(x0 + 7.2, y0, 66); poly(c, [a, b, Q(x0 + 7.2, y0, 48), Q(x0 + 3.2, y0, 48)], '#ff8fb1', ART.OUT, 1.2); const m = Q(x0 + 5.2, y0, 57); c.save(); c.translate(m[0], m[1]); c.transform(1, .5, 0, 1, 0, 0); c.font = 'bold 11px sans-serif'; c.textAlign = 'center'; c.fillStyle = '#fff'; c.fillText('✂️ ' + t('salonName'), 0, 4); c.restore(); }
-    // roof edge
-    poly(c, [Q(x0 - .2, y0 - .2, WH), Q(x1 + .2, y0 - .2, WH), Q(x1 + .2, y0 + .3, WH + 6), Q(x0 - .2, y0 + .3, WH + 6)], '#e0607e', ART.OUT, 1);
-    poly(c, [Q(x0 - .2, y0 - .2, WH), Q(x0 - .2, y1 + .2, WH), Q(x0 + .3, y1 + .2, WH + 6), Q(x0 + .3, y0 - .2, WH + 6)], '#d9506f', ART.OUT, 1);
+    // North roof edge (clamped to lot boundary so it never penetrates adjacent lots)
+    poly(c, [Q(x0, y0, WH), Q(x1, y0, WH), Q(x1, y0 + .2, WH + 6), Q(x0, y0 + .2, WH + 6)], '#e0607e', ART.OUT, 1);
     c.restore();
+  }
+  function wallWest(c, T) {
+    if (!built()) return;
+    const p = SALON_POS(), x0 = p.x, y0 = p.y, y1 = y0 + p.d;
+    c.save();
+    const WH = 70;
+    // West wall face & baseboard
+    poly(c, [Q(x0, y0, WH), Q(x0, y1, WH), Q(x0, y1), Q(x0, y0)], '#fbeef3', ART.OUT, 1.2);
+    poly(c, [Q(x0, y0, 22), Q(x0, y1, 22), Q(x0, y1), Q(x0, y0)], '#f2a9bf');
+    // West wall windows
+    for (const v of [2.5, 5.5]) poly(c, [Q(x0, y0 + v, 58), Q(x0, y0 + v + 1.2, 58), Q(x0, y0 + v + 1.2, 32), Q(x0, y0 + v, 32)], '#cfe9f8', '#b98552', 2);
+    // West roof edge (clamped to lot boundary)
+    poly(c, [Q(x0, y0, WH), Q(x0, y1, WH), Q(x0 + .2, y1, WH + 6), Q(x0 + .2, y0, WH + 6)], '#d9506f', ART.OUT, 1);
+    c.restore();
+  }
+  function walls(c, T) {
+    wallNorth(c, T);
+    wallWest(c, T);
   }
   function ground(c, T) {
     floor(c, T);
     walls(c, T);
+  }
+  function frontWallTile(c, x1, y1, x2, y2) {
+    c.save();
+    const fh = 24;
+    const p1 = Q(x1, y1, fh), p2 = Q(x2, y2, fh), p3 = Q(x2, y2, 0), p4 = Q(x1, y1, 0);
+    // 1. Semi-transparent pink glass wall panel
+    poly(c, [p1, p2, p3, p4], 'rgba(255, 225, 235, .55)', 'rgba(210, 110, 150, .45)', 1.1);
+    // 2. Crisp white top rail & highlight
+    c.beginPath(); c.moveTo(p1[0], p1[1]); c.lineTo(p2[0], p2[1]);
+    c.strokeStyle = '#ffffff'; c.lineWidth = 1.8; c.stroke();
+    const l1 = Q(x1, y1, fh - 1.2), l2 = Q(x2, y2, fh - 1.2);
+    c.beginPath(); c.moveTo(l1[0], l1[1]); c.lineTo(l2[0], l2[1]);
+    c.strokeStyle = 'rgba(240, 150, 185, .45)'; c.lineWidth = 0.9; c.stroke();
+    // 3. Pink baseboard
+    const b1 = Q(x1, y1, 3), b2 = Q(x2, y2, 3);
+    poly(c, [b1, b2, p3, p4], '#f7b9cc', 'rgba(200, 100, 140, .4)', 1);
+    // 4. Diagonal glass sheen reflection
+    const s1 = Q(x1 + (x2 - x1) * .2, y1 + (y2 - y1) * .2, 4);
+    const s2 = Q(x1 + (x2 - x1) * .8, y1 + (y2 - y1) * .8, 20);
+    c.beginPath(); c.moveTo(s1[0], s1[1]); c.lineTo(s2[0], s2[1]);
+    c.strokeStyle = 'rgba(255, 255, 255, .4)'; c.lineWidth = 1.3; c.stroke();
+    c.restore();
   }
   function table(c, T, i, cust) { // grooming table with a bathtub corner; the guest's pet on top while being groomed
     const box = FURN.box, P = FURN.P;
@@ -165,15 +205,28 @@ const SALON = (() => {
   function collect(c, T, addHit) {
     const out = [];
     if (!built()) { const s = SALON_SIGN(); out.push({ depth: s.x + s.y + 1, fn: () => { at(c, s.x + .5, s.y + .5, () => sign(c, T)); const sx = ISO.wx(s.x + .5, s.y + .5), sy = ISO.wy(s.x + .5, s.y + .5); addHit({ kind: 'salonsign', x0: sx - 56, x1: sx + 56, y0: sy - 110, y1: sy + 6 }); } }); return out; }
-    const p = SALON_POS(), sl = S.salon;
-    out.push({ depth: p.x + p.y + 0.05 + ((sl.bldSeq || 1) * 0.0001), fn: () => walls(c, T) });
-    TABLES.forEach((tb, i) => { const cu = sl.q.find(q => q.ph === 'groom' && q.st === i); out.push({ depth: p.x + tb.u + 2 + p.y + tb.v + 1 - 1.02, fn: () => at(c, p.x + tb.u, p.y + tb.v, () => table(c, T, i, cu)) }); });
-    out.push({ depth: p.x + COUNTER.u + 2 + p.y + COUNTER.v + 1 - 1.02, fn: () => at(c, p.x + COUNTER.u, p.y + COUNTER.v, () => counter(c)) });
-    out.push({ depth: p.x + 1.0 + p.y + 6.7, fn: () => at(c, p.x + .15, p.y + 3.3, () => bench(c)) });
-    out.push({ depth: p.x + 4.5 + p.y + 1.5, fn: () => at(c, p.x + 4, p.y + 1, () => { const box = FURN.box, P = FURN.P; box(c, .35, .35, .3, .3, 50, '#c0c8d0'); const [x, y] = P(.5, .5, 56); ART.ell(c, x, y, 10, 6, '#ff9ec0', ART.OUT, 1); }) }); // dryer stand
-    out.push({ depth: p.x + 9 + p.y + 1, fn: () => at(c, p.x + 8.5, p.y + .5, () => { const box = FURN.box; box(c, .1, .1, .8, .8, 16, '#f3e3c7'); const P = FURN.P, [x, y] = P(.5, .5, 16); for (let i = 0; i < 6; i++) ART.ell(c, x - 8 + i * 3 + Math.sin(i) * 2, y - 12 - (i % 3) * 5, 7, 8, i % 2 ? '#5ab86a' : '#3f9a5a'); }) });
-    out.push({ depth: p.x + 1 + p.y + 1, fn: () => at(c, p.x + .5, p.y + .5, () => { const box = FURN.box, P = FURN.P; box(c, .05, .05, .9, .9, 44, '#f3e3c7'); for (let r = 0; r < 3; r++) for (let i = 0; i < 3; i++) { const [x, y] = P(.9, .2 + i * .28, 10 + r * 13); c.font = '9px sans-serif'; c.textAlign = 'center'; c.fillText(['🧴', '🧼', '🪮'][(r + i) % 3], x, y); } c.textAlign = 'start'; }) });
-    out.push({ depth: p.x + p.w + p.y + p.d + .5, fn: () => FURN.frontWallLot(c, p.x, p.y, p.w, p.d, 24, null, [p.y + p.d - 2, p.y + p.d - 1], '#f7b9cc', true) });
+    // 전면 유리벽 (남쪽 & 동쪽): 타일 단위로 분할 렌더링 + 나중에 지어진 인접 건물(병원 등)의 벽/부지를 침범하지 않도록 안전 검사
+    const x0 = p.x, y0 = p.y, w = p.w, d = p.d;
+    const hospBuilt = typeof S !== 'undefined' && S && S.hosp && S.hosp.built;
+    const hospSeq = (hospBuilt && (S.hosp.bldSeq || S.hosp.lv || 1)) || 1;
+    const salonSeq = (sl.bldSeq || 1);
+    const hp = hospBuilt && typeof HOSP_POS === 'function' ? HOSP_POS() : null;
+    const overlapsHosp = (x, y) => {
+      if (!hp || hospSeq <= salonSeq) return false;
+      return x >= hp.x - 0.05 && x <= hp.x + hp.w + 0.05 && y >= hp.y - 0.05 && y <= hp.y + hp.d + 0.05;
+    };
+    for (let u = 0; u < w; u++) {
+      const xA = x0 + u, xB = x0 + u + 1, yWall = y0 + d;
+      if (overlapsHosp(xA + 0.5, yWall)) continue;
+      out.push({ depth: (xA + 1) + yWall + 0.02, fn: () => frontWallTile(c, xA, yWall, xB, yWall) });
+    }
+    const doorV = d - 2; // 입구 출입문 (문틀 위치는 개방)
+    for (let v = 0; v < d; v++) {
+      if (v === doorV) continue;
+      const yA = y0 + v, yB = y0 + v + 1, xWall = x0 + w;
+      if (overlapsHosp(xWall, yA + 0.5)) continue;
+      out.push({ depth: xWall + (yA + 1) + 0.02, fn: () => frontWallTile(c, xWall, yA, xWall, yB) });
+    }
     out.push({ depth: 1e9, fn: () => { const sx = ISO.wx(p.x + p.w / 2, p.y + p.d / 2), sy = ISO.wy(p.x + p.w / 2, p.y + p.d / 2); addHit({ kind: 'salon', x0: sx - 120, x1: sx + 120, y0: sy - 110, y1: sy + 60 }); } });
     return out;
   }

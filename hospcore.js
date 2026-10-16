@@ -825,7 +825,7 @@ const HOSP = (() => {
       if (!hp.built) return { err: 'gone' };
       let refund = HOSP_BUILD_COST; for (let i = 2; i <= hp.lv; i++) refund += (HOSP_LV[i] && HOSP_LV[i].cost) || 0;
       s.coins += Math.round(refund * .5);
-      s.hosp = { built: false, lv: 1, patients: [], seq: 1, spawnT: 0, treated: 0 };
+      s.hosp = { built: false, lv: 1, bldSeq: 0, patients: [], seq: 1, spawnT: 0, treated: 0 };
       return { ok: 1, fx: 'coin', msg: 'hospDemolished' };
     }
     if (a.t === 'hospup') {

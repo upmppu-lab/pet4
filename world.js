@@ -2823,9 +2823,6 @@ return true;
     if (!(S.hosp && S.hosp.built)) return [];
     const L = HOSP_LAYOUT(), out = [], sel = App.hospEdit ? hospSel : null;
     const R = HOSP_POS();
-    const hospSeq = (S.hosp && (S.hosp.bldSeq || S.hosp.lv || 1)) || 1;
-    // 건물 확장 및 신축 시 서쪽, 북쪽 벽이 기존 건물보다 위에 확실히 오도록 depth 정렬 레이어 추가
-    out.push({ depth: R.x + R.y + 0.05 + hospSeq * 0.0001, fn: drawHospWalls });
     for (const it of L.all) out.push({ depth: it.x + it.w + it.y + it.d - 1.02, fn: () => { if (sel != null && sel === it.id) { c.globalAlpha = .6; drawHospItem(it); c.globalAlpha = 1; } else drawHospItem(it); } });
     for (const q of L.parts) { const pq = { k: 'part', x: q.x, y: q.y, w: 1, d: 1, vert: !!q.vert, doorway: q.doorway, room: q.room }; out.push({ depth: q.x + q.y + 1 - 1.02 + .2, fn: () => drawHospItem(pq) }); }
     // low walls along the south and east sides (the back walls are the tall ones): the door in the east wall is the only way in
