@@ -28,7 +28,7 @@ const RANCH_GROW = 3, RANCH_BREED = .5; // days until adult, chance per day that
 const RANCH_GOODS = { milk: { icon: '🥛', sell: 30 }, meat: { icon: '🥩', sell: 55 } };
 const RANCH_HAND = { hire: 2500, wage: 150 };
 Object.assign(TOWN_DEF, { ranch: { cat: 'big', w: RANCH_LOT.w, d: RANCH_LOT.d, cost: RANCH_COST, act: 'buildranch', ic: '🐄' } });
-TOWN_BIG.push('ranch');
+if (!TOWN_BIG.includes('ranch')) TOWN_BIG.push('ranch');
 FARM_GOODS.push({ id: 'hay', cost: 14, sellPrice: 0, icon: '🌿', ulv: 1, feed: 1 });
 
 const RANCH = (() => {

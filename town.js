@@ -203,7 +203,7 @@ Object.assign(TOWN_DEF, {
 // PET TOWN v1.4: residential zones (주택가). Houses can only be built inside one; each zone is a 20x14 block with a 2-row lane across the middle
 // (5 house lots above it, 5 below). The first zone is free and starts away from the shop; more zones cost more each time.
 TOWN_DEF.zone = { cat: 'zone', w: 20, d: 14, cost: 8000, ic: '🏘️', lane: 6 };
-const TOWN_BIG = ['farm', 'home', 'cafe', 'hosp', 'salon', 'park', 'lake', 'monu', 'avenue'];
+const TOWN_BIG = ['farm', 'home', 'cafe', 'hosp', 'salon', 'park', 'lake', 'monu', 'avenue', 'ranch'];
 // v2026-10-09: "건설 메뉴 트리를 1.집 2.운영 3.상점·공공 4.장식물 5.나무,꽃 이렇게 5개로" --
 // v2026-10-11: "동물원과 공원 호수는 '환경,행복' 탭을 새로 만들어서 '운영' 탭 옆에 따로 빼줘"
 const TOWN_TABS = [['house', '🏠'], ['ops', '⚙️'], ['env', '🍀'], ['civic', '🏪'], ['deco', '🎨'], ['tree', '🌳']];
@@ -1326,6 +1326,7 @@ const roadTileOk = (s, x, y) => {
       }
     }
     syncFacilityGateRoads(s);
+    fitShop(s);
     return s.town;
   }
   // building levels (v1.3): shops/public buildings go Lv1 -> Lv3. 집(house)은 더 이상 이 lv를 안 쓰고
@@ -1493,15 +1494,42 @@ const roadTileOk = (s, x, y) => {
     return null;
   }
   function hasAnyBuildingOverlap(s) {
-    if (!s || !s.lay) return false;
+    if (!s) return false;
+    const W = Wd(s), H = Hd(s);
+    const shopBox = { x: -1, y: -1, w: W + 2, d: H + 2 };
     const bigs = TOWN_BIG.filter(k => LAY(k, s) && D[k] && !D[k].noPlace && LAY(k, s).x > -1000);
     for (let i = 0; i < bigs.length; i++) {
       const k1 = bigs[i], L1 = LAY(k1, s), d1 = D[k1];
       const box1 = { x: L1.x, y: L1.y, w: d1.w, d: d1.d };
+      if (overlap(box1, shopBox) || overlapsTrain(box1, s)) return true;
       for (let j = i + 1; j < bigs.length; j++) {
         const k2 = bigs[j], L2 = LAY(k2, s), d2 = D[k2];
         const box2 = { x: L2.x, y: L2.y, w: d2.w, d: d2.d };
         if (overlap(box1, box2)) return true;
+      }
+    }
+    const T = s.town;
+    if (T && T.objs) {
+      for (let i = 0; i < T.objs.length; i++) {
+        const o1 = T.objs[i];
+        const od1 = D[o1.k];
+        if (!od1 || od1.noPlace || od1.cat === 'tree' || o1.x <= -1000) continue;
+        const og1 = fpOf(o1.k, o1.r);
+        const obox1 = { x: o1.x, y: o1.y, w: og1.w, d: og1.d };
+        if (overlap(obox1, shopBox) || overlapsTrain(obox1, s)) return true;
+        for (const bk of bigs) {
+          const bL = LAY(bk, s), bd = D[bk];
+          const bbox = { x: bL.x, y: bL.y, w: bd.w, d: bd.d };
+          if (overlap(obox1, bbox)) return true;
+        }
+        for (let j = i + 1; j < T.objs.length; j++) {
+          const o2 = T.objs[j];
+          const od2 = D[o2.k];
+          if (!od2 || od2.noPlace || od2.cat === 'tree' || o2.x <= -1000) continue;
+          const og2 = fpOf(o2.k, o2.r);
+          const obox2 = { x: o2.x, y: o2.y, w: og2.w, d: og2.d };
+          if (overlap(obox1, obox2)) return true;
+        }
       }
     }
     return false;
@@ -1509,51 +1537,84 @@ const roadTileOk = (s, x, y) => {
   function resolveBuildingOverlaps(s) {
     const T = s && s.town; if (!T || !s.lay) return false;
     let anyMoved = false;
-    const bigs = TOWN_BIG.filter(k => LAY(k, s) && D[k] && !D[k].noPlace && LAY(k, s).x > -1000);
-    // 면적이 큰 주요 건물(병원, 카페, 집, 농장)을 먼저 고정하고 작은 건물(미용실 등)을 빈터로 이동
-    bigs.sort((a, b) => (D[b].w * D[b].d) - (D[a].w * D[a].d));
-    for (let i = 0; i < bigs.length; i++) {
-      const k1 = bigs[i], L1 = LAY(k1, s), d1 = D[k1];
-      const box1 = { x: L1.x, y: L1.y, w: d1.w, d: d1.d };
-      for (let j = i + 1; j < bigs.length; j++) {
-        const k2 = bigs[j], L2 = LAY(k2, s), d2 = D[k2];
-        const box2 = { x: L2.x, y: L2.y, w: d2.w, d: d2.d };
-        if (overlap(box1, box2)) {
-          const p = nearFreeUp(s, k2, L2.x, L2.y, 0, k2, 80) || nearFree(s, k2, L2.x, L2.y, 0, k2, 95);
+    const W = Wd(s), H = Hd(s);
+    const shopBox = { x: -1, y: -1, w: W + 2, d: H + 2 };
+
+    for (let iter = 0; iter < 6; iter++) {
+      let iterMoved = false;
+      const bigs = TOWN_BIG.filter(k => LAY(k, s) && D[k] && !D[k].noPlace && LAY(k, s).x > -1000);
+      // 면적이 큰 주요 건물(병원, 카페, 집, 농장, 목장)을 먼저 고정하고 작은 건물(미용실 등)을 빈터로 이동
+      bigs.sort((a, b) => (D[b].w * D[b].d) - (D[a].w * D[a].d));
+      for (let i = 0; i < bigs.length; i++) {
+        const k1 = bigs[i], L1 = LAY(k1, s), d1 = D[k1];
+        const box1 = { x: L1.x, y: L1.y, w: d1.w, d: d1.d };
+        if (overlap(box1, shopBox) || overlapsTrain(box1, s)) {
+          const p = nearFreeUp(s, k1, L1.x, L1.y, 0, k1, 80) || nearFree(s, k1, L1.x, L1.y, 0, k1, 95);
           if (p) {
-            L2.x = p.x;
-            L2.y = p.y;
+            L1.x = p.x;
+            L1.y = p.y;
+            iterMoved = true;
             anyMoved = true;
             _resKey = '';
           }
         }
+        for (let j = i + 1; j < bigs.length; j++) {
+          const k2 = bigs[j], L2 = LAY(k2, s), d2 = D[k2];
+          const box2 = { x: L2.x, y: L2.y, w: d2.w, d: d2.d };
+          if (overlap(box1, box2)) {
+            const p = nearFreeUp(s, k2, L2.x, L2.y, 0, k2, 80) || nearFree(s, k2, L2.x, L2.y, 0, k2, 95);
+            if (p) {
+              L2.x = p.x;
+              L2.y = p.y;
+              iterMoved = true;
+              anyMoved = true;
+              _resKey = '';
+            }
+          }
+        }
       }
-    }
-    if (T.objs) {
-      for (const o of T.objs) {
-        const od = D[o.k]; if (!od || od.noPlace || od.cat === 'tree') continue;
-        const og = fpOf(o.k, o.r);
-        const obox = { x: o.x, y: o.y, w: og.w, d: og.d };
-        for (const bk of bigs) {
-          const bL = LAY(bk, s), bd = D[bk];
-          const bbox = { x: bL.x, y: bL.y, w: bd.w, d: bd.d };
-          if (overlap(obox, bbox)) {
-            const p = nearFreeUp(s, o.k, o.x, o.y, o.r || 0, o.id, 70) || nearFree(s, o.k, o.x, o.y, o.r || 0, o.id, 90);
+      if (T.objs) {
+        for (let i = 0; i < T.objs.length; i++) {
+          const o = T.objs[i];
+          const od = D[o.k]; if (!od || od.noPlace || od.cat === 'tree' || o.x <= -1000) continue;
+          const og = fpOf(o.k, o.r);
+          const obox = { x: o.x, y: o.y, w: og.w, d: og.d };
+
+          let needsMove = overlap(obox, shopBox) || overlapsTrain(obox, s);
+          if (!needsMove) {
+            for (const bk of bigs) {
+              const bL = LAY(bk, s), bd = D[bk];
+              const bbox = { x: bL.x, y: bL.y, w: bd.w, d: bd.d };
+              if (overlap(obox, bbox)) { needsMove = true; break; }
+            }
+          }
+          if (!needsMove) {
+            for (let j = 0; j < i; j++) {
+              const prev = T.objs[j];
+              const prevD = D[prev.k]; if (!prevD || prevD.noPlace || prevD.cat === 'tree' || prev.x <= -1000) continue;
+              const prevG = fpOf(prev.k, prev.r);
+              if (overlap(obox, { x: prev.x, y: prev.y, w: prevG.w, d: prevG.d })) { needsMove = true; break; }
+            }
+          }
+          if (needsMove) {
+            const p = nearFreeUp(s, o.k, o.x, o.y, o.r || 0, o.id, 70) || nearFree(s, o.k, o.x, o.y, o.r || 0, o.id, 95);
             if (p) {
               o.x = p.x;
               o.y = p.y;
+              iterMoved = true;
               anyMoved = true;
             }
           }
         }
       }
+      if (!iterMoved) break;
     }
     return anyMoved;
   }
   function fitShop(s) {
     const T = s && s.town; if (!T) return;
     const trLv = ((typeof TRAIN !== 'undefined' && s.train && s.train.lv) || 1);
-    const key = Wd(s) + 'x' + Hd(s) + ':' + ((s.cafe && s.cafe.lv) || 0) + ':' + ((s.hosp && s.hosp.lv) || 0) + ':tr' + trLv + ':fv3';
+    const key = Wd(s) + 'x' + Hd(s) + ':' + ((s.cafe && s.cafe.lv) || 0) + ':' + ((s.hosp && s.hosp.lv) || 0) + ':tr' + trLv + ':fv5';
     const mustResolve = hasAnyBuildingOverlap(s);
     if (T.fitKey !== key || mustResolve) {
       T.fitKey = key;

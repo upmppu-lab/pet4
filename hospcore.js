@@ -550,7 +550,7 @@ const HOSP = (() => {
       // v1.115: 타운 배치(fitShop)가 병원 건물을 다른 자리로 밀 때 기준점 동기화
       { const R0 = hospRect(0, 0, lvNow(hp), s);
         if (hp.ax != null && (hp.ax !== R0.x1 || hp.ay !== R0.y)) {
-          const dx = hp.ax - R0.x1, dy = hp.ay - R0.y;
+          const dx = R0.x1 - hp.ax, dy = R0.y - hp.ay;
           for (const it of hp.items) { it.x += dx; it.y += dy; }
           hp.iv = (hp.iv | 0) + 1;
         }
