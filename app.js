@@ -869,7 +869,16 @@ PANELS.villagerpet = m => {
 Object.assign(XACT, {
   villagerbattle: (v, w) => {
     const br = actR({ t: 'battleChallenge', rid: v, spHint: w || undefined });
-    if (br && br.ok) { closePanel(); openPanel({ type: 'battle' }); }
+    if (br && br.ok) {
+      // v2026-10-15: this challenge may have just silently replaced a pending challenge/approach-walk
+      // to a DIFFERENT villager (see battle.js's battleChallenge) -- stop chasing the old one right away
+      // instead of waiting for its 400ms poll to notice, so "전투 시작" on this new one isn't a no-op.
+      if (App.battleWalking) {
+        clearInterval(App.battleWalkTimer); App.battleWalkTimer = null; App.battleWalking = false;
+        if (typeof World !== 'undefined' && World.me) { World.me.path = []; World.me.cb = null; }
+      }
+      closePanel(); openPanel({ type: 'battle' });
+    }
   },
 });
 // v2026-10-08: tap someone walking the street who ISN'T one of our fixed residents -- an out-of-town

@@ -1509,16 +1509,27 @@ function bHpBar(val, max) {
 // the skill-choice menu shown when the player taps their pet: every skill the species category can learn,
 // locked ones greyed out with the battle level that unlocks them -- this IS the "what skills does my pet
 // have" answer, right where the player needs it.
-function battleSkillMenuHtml(p) {
+// v2026-10-15 (v4): also shows each skill's stamina cost and a rough damage/heal preview (so the choice
+// between "weak but cheap" and "strong but costly" is visible up front), and greys a skill out -- with a
+// "스태미너 부족" tag -- when it's unlocked but the pet can't currently afford it.
+function battleSkillMenuHtml(p, b) {
   const tree = BATTLE.skillTreeOf(p.sp, p.blv || 1);
+  const stat = BATTLE.statOf(p.sp, p.blv || 1);
+  const sta = (b && b.staA != null) ? b.staA : BATTLE_MAX_STA;
   const row = s => {
-    const tag = s.unlocked ? t(s.kind === 'heal' ? 'battleSkillHealTag' : 'battleSkillAtkTag') : t('battleSkillLockedTag', { n: s.lv });
-    return `<button class="bskillbtn ${s.unlocked ? '' : 'dis'}" ${s.unlocked ? `data-a="battleskill" data-v="${s.id}"` : ''}>
-      <span class="bsicon">${s.icon}</span><span class="bsname">${esc(s.name)}</span><span class="bstag">${tag}</span>
+    const noSta = s.unlocked && (s.sta || 0) > sta;
+    const dis = !s.unlocked || noSta;
+    const tag = !s.unlocked ? t('battleSkillLockedTag', { n: s.lv })
+      : noSta ? t('battleSkillNoSta')
+      : t(s.kind === 'heal' ? 'battleSkillHealTag' : 'battleSkillAtkTag');
+    // rough preview only -- ignores the atk roll's +/-15% variance and crit chance, just gives a sense of scale
+    const preview = s.kind === 'heal' ? t('battleHealTag2', { n: Math.round(stat.heal * 2.2 * s.mult) }) : t('battleDmgTag', { n: Math.round(stat.atk * s.mult) });
+    const meta = s.unlocked ? `${preview} · ${t('battleStaTag', { n: s.sta || 0 })}` : '';
+    return `<button class="bskillbtn ${dis ? 'dis' : ''}" ${!dis ? `data-a="battleskill" data-v="${s.id}"` : ''}>
+      <span class="bsicon">${s.icon}</span><span class="col grow"><span class="bsname">${esc(s.name)}</span>${meta ? `<span class="bsmeta">${meta}</span>` : ''}</span><span class="bstag">${tag}</span>
     </button>`;
   };
-  return `<div class="bskillmenu">${tree.atk.map(row).join('')}${tree.heal.map(row).join('')}</div>
-    <button class="btn o sm block" style="margin-top:6px" data-a="battleauto">${t('battleAutoBtn')}</button>`;
+  return `<div class="bskillmenu">${tree.atk.map(row).join('')}${tree.heal.map(row).join('')}</div>`;
 }
 PANELS.battle = () => {
   const b = S.battle; if (!b) return '';
@@ -1550,13 +1561,19 @@ PANELS.battle = () => {
   }
   const floatSide = !acted ? null : (cur.t === 'heal' ? cur.side : 1 - cur.side);
   const floatHtml = floatSide == null ? '' : `<div class="bfloat ${cur.t === 'heal' ? 'heal' : 'dmg'}">${cur.t === 'heal' ? '+' : '-'}${cur.amt}</div>`;
-  // v2026-10-15 (v3): attack hits get a lightning-bolt flash over whoever got hit, and a quick white
-  // screen-flash on crits, so the fight reads as more dramatic instead of just a color-tint wobble.
+  // v2026-10-15 (v3): a flash pops over whoever got hit, and a quick white screen-flash on crits, so the
+  // fight reads as more dramatic instead of just a color-tint wobble.
+  // v2026-10-15 (v4): the flash now shows the SKILL'S OWN icon (each skill already has a distinct one --
+  // 🦷/💥/🌙/🌪️/etc, see BATTLE_SKILLS) instead of a generic ⚡ for every single hit, so different skills
+  // visually read as different attacks. Falls back to 💨 for a failed-flee hit (no skill involved) or ⚡
+  // for anything else unexpected.
   const zapSide = acted && cur.t !== 'heal' ? floatSide : null; // floatSide is already "who got hit" for non-heal actions
-  const zapHtml = zapSide == null ? '' : `<div class="bzap">⚡</div>`;
+  const zapIcon = cur.t === 'flee' ? '💨' : (cur.skill && cur.skill.icon) || '⚡';
+  const zapHtml = zapSide == null ? '' : `<div class="bzap">${zapIcon}</div>`;
   const screenFlash = acted && cur.t !== 'heal' && cur.crit;
   const line = (() => {
     if (!acted) return t('battleStepStart');
+    if (cur.t === 'flee') return t('battleStepFleeFail', { d: cur.amt });
     const nm = cur.side === 0 ? p.name : b.foe.name;
     const key = cur.t === 'heal' ? (cur.side === 0 ? 'battleStepHealMe' : 'battleStepHealFoe') : (cur.side === 0 ? 'battleStepAtkMe' : 'battleStepAtkFoe');
     const skillIcon = cur.skill ? `<span class="bicon">${cur.skill.icon}</span>` : '';
@@ -1578,22 +1595,42 @@ PANELS.battle = () => {
       <img class="bimg ${meAnim} ${myTurn ? 'tappable' : ''}" ${myTurn ? 'data-a="battletogglemenu"' : ''} src="${PIC.my(p)}">
       ${floatSide === 0 ? floatHtml : ''}
       ${zapSide === 0 ? zapHtml : ''}
-      <div class="bcard"><div class="bname"><span>${esc(p.name)}</span><span>Lv.${p.blv || 1}</span></div>${bHpBar(Math.max(0, cur.hpA), b.maxA)}</div>
+      <div class="bcard"><div class="bname"><span>${esc(p.name)}</span><span>Lv.${p.blv || 1}</span></div>${bHpBar(Math.max(0, cur.hpA), b.maxA)}<div class="m" style="font-size:11px;margin-top:2px">${t('battleStaLabel')} ${b.staA == null ? BATTLE_MAX_STA : b.staA}/${BATTLE_MAX_STA}</div></div>
     </div>
   </div></div>
   <div class="bskillbox">${line}</div>`;
+  const autoBtn = `<button class="btn o block" style="margin-top:6px" data-a="battleautoplay">${App.battleAutoPlay ? t('battleAutoPlayOffBtn') : t('battleAutoPlayOnBtn')}</button>`;
+  // v2026-10-15: "도망가기" -- give up on the fight. Odds of getting away depend on how my pet's battle
+  // level compares to the foe's (see battle.js's 'battleFlee' action); costs some HP either way.
+  const fleeBtn = `<button class="btn o block" style="margin-top:6px" data-a="battleflee">${t('battleFleeBtn')}</button>`;
   if (!b.resolved) {
     if (myTurn) {
       h += `<div class="m center" style="margin:5px 0 2px">${t('battleYourTurnHint')}</div>`;
-      if (App.battleSkillOpen) h += battleSkillMenuHtml(p);
-      h += `<button class="btn o block" style="margin-top:6px" data-a="battleskip">${t('battleSkipBtn')}</button>`;
+      if (App.battleSkillOpen) h += battleSkillMenuHtml(p, b);
+      h += autoBtn + fleeBtn;
     } else {
-      h += `<button class="btn o block" data-a="battleskip">${t('battleSkipBtn')}</button>`;
+      h += autoBtn + fleeBtn;
     }
+  } else if (b.awaitChoice) {
+    // v2026-10-15: winning no longer auto-grants a little of everything -- the player picks exactly ONE
+    // of three rewards (steal the foe's pet / bonus XP for my pet / take some of the foe's coins).
+    h += `<div class="card" style="text-align:center">
+      <div class="t" style="font-size:18px">${t('battleChoiceTitle')}</div>
+      <div class="col" style="gap:6px;margin-top:8px">
+        <button class="btn g block" data-a="battlechoice" data-v="pet">${t('battleChoicePetBtn')}</button>
+        <button class="btn g block" data-a="battlechoice" data-v="xp">${t('battleChoiceXpBtn')}</button>
+        <button class="btn g block" data-a="battlechoice" data-v="coin">${t('battleChoiceCoinBtn')}</button>
+      </div>
+    </div>`;
+  } else if (b.fled) {
+    h += `<div class="card" style="text-align:center">
+      <div class="t" style="font-size:18px">${t('battleFledTitle')}</div>
+      <button class="btn block" data-a="battleclose" style="margin-top:8px">${t('battleCloseBtn')}</button>
+    </div>`;
   } else {
     h += `<div class="card" style="text-align:center">
       <div class="t" style="font-size:18px">${t(b.win ? 'battleWinTitle' : 'battleLoseTitle')}</div>
-      ${b.win ? `<div class="m">${t('battleXpGain', { n: 6 + (b.foeBlv || 1) * 3 })}</div>${b.lvup ? `<div class="m"><b>${t('battleLvUp', { n: b.blvAfter })}</b></div>${(b.learned || []).map(sk => `<div class="m">🎓 ${t('battleSkillLearned', { p: esc(p.name), s: sk.icon + ' ' + esc(sk.name) })}</div>`).join('')}` : ''}${b.stolen ? `<div class="m">${t('battleStolenMsg', { o: esc(b.foe.ownerName), n: esc(b.stolen) })}</div>` : ''}`
+      ${b.win ? `${b.choice === 'xp' ? `<div class="m">${t('battleChoiceXpGain', { n: b.xpGain || 0 })}</div>` : ''}${b.lvup ? `<div class="m"><b>${t('battleLvUp', { n: b.blvAfter })}</b></div>${(b.learned || []).map(sk => `<div class="m">🎓 ${t('battleSkillLearned', { p: esc(p.name), s: sk.icon + ' ' + esc(sk.name) })}</div>`).join('')}` : ''}${b.stolen ? `<div class="m">${t('battleStolenMsg', { o: esc(b.foe.ownerName), n: esc(b.stolen) })}</div>` : ''}${b.choiceFail ? `<div class="m">${t('battleChoicePetFail')}</div>` : ''}${b.coinGain ? `<div class="m">${t('battleChoiceCoinGain', { o: esc(b.foe.ownerName), n: b.coinGain })}</div>` : ''}`
         : `<div class="m">${t('battleTiredMsg')}</div>${b.lost ? `<div class="m">${t('battleLostMsg', { n: esc(b.lost), o: esc(b.foe.ownerName) })}</div>` : ''}`}
       <button class="btn block" data-a="battleclose" style="margin-top:8px">${t('battleCloseBtn')}</button>
     </div>`;
@@ -1612,7 +1649,14 @@ function battleScheduleStep() {
       renderPanel(true);
       if (_bPlay.step < bb.log.length - 1) { battleScheduleStep(); return; }
     }
-    if (bb.side === -1 && !bb.resolved) { actR({ t: 'battleFinish' }); renderPanel(true); }
+    if (bb.side === -1 && !bb.resolved) { actR({ t: 'battleFinish' }); renderPanel(true); return; }
+    // v2026-10-15: "자동 전투" mode -- caught up, still my pet's turn, fight not over, and auto-play is
+    // on: keep going round after round on its own (same AI choice as the old one-off "자동으로 선택"),
+    // instead of waiting for another tap on the pet every single round.
+    if (bb.side === 0 && !bb.resolved && App.battleAutoPlay) {
+      const r = actR({ t: 'battleAuto' });
+      if (r && r.ok) { renderPanel(true); battleScheduleStep(); }
+    }
   }, 650);
 }
 Object.assign(XACT, {
@@ -1621,22 +1665,31 @@ Object.assign(XACT, {
   // v2026-10-15 (v2): and if the villager isn't out in the world at all (already indoors) -- or walks
   // indoors partway through the approach -- the fight is called off with a "상대가 도망갔어" message over
   // the player's head, instead of silently starting the battle anyway.
+  // v2026-10-15 (v3): also cancel immediately if the APPROACH itself gets interrupted: the player takes
+  // a different path / taps elsewhere / uses the joystick (detected by someone else's goTo() overwriting
+  // World.me.cb, which our own walk order set), or the villager just wanders off elsewhere on the street
+  // (not necessarily vanishing indoors -- just no longer near where we were walking to).
   battlestart: () => {
     const b = S.battle; if (!b || !b.active || b.started) return;
     if (App.battleWalking) return;
-    const cancelFled = () => {
-      clearInterval(App.battleWalkTimer); App.battleWalkTimer = null;
-      App.battleWalking = false;
+    const stopTimer = () => { clearInterval(App.battleWalkTimer); App.battleWalkTimer = null; App.battleWalking = false; };
+    const cancelFled = () => { // the villager itself is gone (indoors / off-screen) -- stop chasing
+      stopTimer();
       if (typeof World !== 'undefined' && World.me) { World.me.path = []; World.me.cb = null; if (World.floatMsg) World.floatMsg(World.me, t('battleFoeFled')); }
       actR({ t: 'battleClose' });
       closePanel();
     };
+    const cancelDiverted = () => { // the PLAYER went a different way / cancelled -- don't touch their new movement
+      stopTimer();
+      actR({ t: 'battleClose' });
+      if (typeof toast === 'function') toast(t('battleCancelMove'));
+    };
     const beginFight = () => {
-      clearInterval(App.battleWalkTimer); App.battleWalkTimer = null;
-      App.battleWalking = false;
+      stopTimer();
+      if (S.battle !== b) return; // a new challenge to someone else replaced this one while we were walking
       if ((typeof residentActor === 'function') && !residentActor(b.foe.rid)) { cancelFled(); return; } // vanished right as we arrived
       const r = actR({ t: 'battleStart' });
-      if (r && r.ok) { clearTimeout(_bPlay.timer); _bPlay = { step: 0, timer: null }; App.battleSkillOpen = false; }
+      if (r && r.ok) { clearTimeout(_bPlay.timer); _bPlay = { step: 0, timer: null }; App.battleSkillOpen = false; App.battleAutoPlay = false; }
       openPanel({ type: 'battle' });
     };
     const a = (typeof residentActor === 'function') ? residentActor(b.foe.rid) : null;
@@ -1645,13 +1698,20 @@ Object.assign(XACT, {
       App.battleWalking = true;
       closePanel(); // hide the panel so the player can watch their character walk over
       if (typeof toast === 'function') toast(t('battleApproach'));
-      // poll while walking: if the villager goes indoors mid-approach, stop and call it off rather than
-      // arriving at an empty tile and starting a fight with nobody there.
-      App.battleWalkTimer = setInterval(() => {
-        if (!App.battleWalking) { clearInterval(App.battleWalkTimer); App.battleWalkTimer = null; return; }
-        if (!residentActor(b.foe.rid)) cancelFled();
-      }, 400);
       World.walkNear(Math.floor(a.x), Math.floor(a.y), beginFight);
+      // walkNear may resolve synchronously (already adjacent, or no path at all) -- only keep watching if
+      // the walk is genuinely still in progress after that call.
+      if (App.battleWalking) {
+        const expectedCb = World.me && World.me.cb; // whatever goTo() just set for our own walk order
+        App.battleWalkTimer = setInterval(() => {
+          if (!App.battleWalking) { clearInterval(App.battleWalkTimer); App.battleWalkTimer = null; return; }
+          if (S.battle !== b) { stopTimer(); return; } // a new challenge to someone else replaced this one -- stop chasing quietly
+          if (World.me && World.me.cb !== expectedCb) { cancelDiverted(); return; } // something else took over movement
+          // v2026-10-15: only cancel when the villager is genuinely gone (indoors / left the world) --
+          // simply wandering around outside while we approach is fine, we don't need to be glued to them.
+          if (!residentActor(b.foe.rid)) { cancelFled(); return; }
+        }, 400);
+      }
     } else {
       beginFight(); // walkNear isn't available for some reason -- just start as before
     }
@@ -1664,26 +1724,41 @@ Object.assign(XACT, {
     battleScheduleStep();
     renderPanel(true);
   },
-  battleauto: () => {
-    const b = S.battle; if (!b || b.side !== 0) return;
-    const r = actR({ t: 'battleAuto' }); if (!r || !r.ok) return;
+  // v2026-10-15: replaces the old one-off "자동으로 선택" (per-turn, tucked inside the skill menu) AND
+  // the instant-skip-to-end "빠르게 보기" with a single toggle: turn it on and the fight just keeps
+  // auto-picking a skill and playing out every round on its own until it ends or the player turns it off.
+  battleautoplay: () => {
+    const b = S.battle; if (!b || !b.log) return;
+    App.battleAutoPlay = !App.battleAutoPlay;
+    if (App.battleAutoPlay) {
+      App.battleSkillOpen = false;
+      const caughtUp = _bPlay.step >= b.log.length - 1;
+      if (caughtUp && b.side === 0 && !b.resolved) {
+        const r = actR({ t: 'battleAuto' });
+        if (r && r.ok) battleScheduleStep();
+      } // otherwise mid-animation or the foe's turn is already in flight -- battleScheduleStep's own
+        // tail will pick auto-play up by itself the moment it catches up to my pet's turn again.
+    }
+    renderPanel(true);
+  },
+  // v2026-10-15: "도망가기" -- ask the server to resolve one flee attempt, then show the right toast
+  // ("도망에 성공했습니다" / "도망이 실패했습니다") and either close out (escaped) or play the failed-flee
+  // hit like any other round (still in the fight).
+  battleflee: () => {
+    const b = S.battle; if (!b || b.side !== 0 || b.resolved) return;
+    const r = actR({ t: 'battleFlee' }); if (!r || !r.ok) return;
     App.battleSkillOpen = false;
+    if (typeof toast === 'function') toast(t(r.fled ? 'battleFleeOkMsg' : 'battleFleeFailMsg'));
     battleScheduleStep();
     renderPanel(true);
   },
-  battleskip: () => { // mid-animation: jump to the latest known action. Caught up & still ongoing: auto-resolve the rest of the fight first, then jump to the end.
-    clearTimeout(_bPlay.timer);
-    const b = S.battle; if (!b || !b.log) return;
-    const caughtUp = _bPlay.step >= b.log.length - 1;
-    if (b.side === 0 && caughtUp) actR({ t: 'battleAutoAll' });
-    const bb = S.battle;
-    App.battleSkillOpen = false;
-    _bPlay.step = (bb.log || []).length - 1;
-    if (bb.side === -1 && !bb.resolved) actR({ t: 'battleFinish' });
+  battlechoice: v => {
+    const b = S.battle; if (!b || !b.resolved || !b.awaitChoice) return;
+    const r = actR({ t: 'battleChoice', choice: v }); if (!r || !r.ok) return;
     renderPanel(true);
   },
-  battleignore: () => { clearTimeout(_bPlay.timer); App.battleSkillOpen = false; actR({ t: 'battleClose' }); closePanel(); },
-  battleclose: () => { clearTimeout(_bPlay.timer); App.battleSkillOpen = false; actR({ t: 'battleClose' }); closePanel(); },
+  battleignore: () => { clearTimeout(_bPlay.timer); App.battleSkillOpen = false; App.battleAutoPlay = false; actR({ t: 'battleClose' }); closePanel(); },
+  battleclose: () => { clearTimeout(_bPlay.timer); App.battleSkillOpen = false; App.battleAutoPlay = false; actR({ t: 'battleClose' }); closePanel(); },
 });
 Object.assign(I18N.ko, { battleFoeTag: '⚔️ 야생 대결' });
 Object.assign(I18N.ru, { battleFoeTag: '⚔️ Дикая битва' });
