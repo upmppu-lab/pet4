@@ -205,6 +205,14 @@ const SALON = (() => {
   function collect(c, T, addHit) {
     const out = [];
     if (!built()) { const s = SALON_SIGN(); out.push({ depth: s.x + s.y + 1, fn: () => { at(c, s.x + .5, s.y + .5, () => sign(c, T)); const sx = ISO.wx(s.x + .5, s.y + .5), sy = ISO.wy(s.x + .5, s.y + .5); addHit({ kind: 'salonsign', x0: sx - 56, x1: sx + 56, y0: sy - 110, y1: sy + 6 }); } }); return out; }
+    const p = SALON_POS(), sl = (typeof S !== 'undefined' && S && S.salon) || {};
+    out.push({ depth: p.x + p.y + 0.05 + (((sl.bldSeq || 1)) * 0.0001), fn: () => walls(c, T) });
+    TABLES.forEach((tb, i) => { const cu = (sl.q || []).find(q => q.ph === 'groom' && q.st === i); out.push({ depth: p.x + tb.u + 2 + p.y + tb.v + 1 - 1.02, fn: () => at(c, p.x + tb.u, p.y + tb.v, () => table(c, T, i, cu)) }); });
+    out.push({ depth: p.x + COUNTER.u + 2 + p.y + COUNTER.v + 1 - 1.02, fn: () => at(c, p.x + COUNTER.u, p.y + COUNTER.v, () => counter(c)) });
+    out.push({ depth: p.x + 1.0 + p.y + 6.7, fn: () => at(c, p.x + .15, p.y + 3.3, () => bench(c)) });
+    out.push({ depth: p.x + 4.5 + p.y + 1.5, fn: () => at(c, p.x + 4, p.y + 1, () => { const box = FURN.box, P = FURN.P; box(c, .35, .35, .3, .3, 50, '#c0c8d0'); const [x, y] = P(.5, .5, 56); ART.ell(c, x, y, 10, 6, '#ff9ec0', ART.OUT, 1); }) }); // dryer stand
+    out.push({ depth: p.x + 9 + p.y + 1, fn: () => at(c, p.x + 8.5, p.y + .5, () => { const box = FURN.box; box(c, .1, .1, .8, .8, 16, '#f3e3c7'); const P = FURN.P, [x, y] = P(.5, .5, 16); for (let i = 0; i < 6; i++) ART.ell(c, x - 8 + i * 3 + Math.sin(i) * 2, y - 12 - (i % 3) * 5, 7, 8, i % 2 ? '#5ab86a' : '#3f9a5a'); }) });
+    out.push({ depth: p.x + 1 + p.y + 1, fn: () => at(c, p.x + .5, p.y + .5, () => { const box = FURN.box, P = FURN.P; box(c, .05, .05, .9, .9, 44, '#f3e3c7'); for (let r = 0; r < 3; r++) for (let i = 0; i < 3; i++) { const [x, y] = P(.9, .2 + i * .28, 10 + r * 13); c.font = '9px sans-serif'; c.textAlign = 'center'; c.fillText(['🧴', '🧼', '🪮'][(r + i) % 3], x, y); } c.textAlign = 'start'; }) });
     // 전면 유리벽 (남쪽 & 동쪽): 타일 단위로 분할 렌더링 + 나중에 지어진 인접 건물(병원 등)의 벽/부지를 침범하지 않도록 안전 검사
     const x0 = p.x, y0 = p.y, w = p.w, d = p.d;
     const hospBuilt = typeof S !== 'undefined' && S && S.hosp && S.hosp.built;

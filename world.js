@@ -100,12 +100,20 @@ if (isFish) {
 }
 
 c.save();
-// walk 이미지가 왼쪽 보는 그림 → 오른쪽 이동 시 좌우 반전
-// idle은 정면이라 반전 없음 (단, 기니피그/햄스터/저빌/페럿은 예외 -- 위 참고)
-// v2026-10-15: 걷기 프레임이 아직 로드 전이거나 애초에 없는 종이라도, 실제로 움직이는 중(st.moving)이면
-// 방향에 맞게 뒤집어줌 -- 안 그러면 이동 방향과 무관하게 항상 같은(기본 idle) 방향만 보여서, 따라다니는
-// 펫이 플레이어가 가는 쪽과 반대로 보이거나 뒷걸음질치는 것처럼 보이는 문제가 있었음.
-if (isWalk || sideProfile || st.moving) c.scale(-(st.dir || 1), 1);
+// walk/sideProfile/이동 방향에 따른 좌우 반전
+// 원본 walk PNG가 오른쪽을 보는 종 (치와와, 허스키, 시바견): 오른쪽 이동 시 반전 없이(+1), 왼쪽 이동 시 반전(-1)
+// 원본 walk PNG가 왼쪽을 보는 종 (말티즈, 달마시안, 푸들, 리트리버 등): 오른쪽 이동 시 반전(-1), 왼쪽 이동 시 원본(+1)
+const walkFacesRight = sp.startsWith('chihuahua_') || sp.startsWith('husky_') || sp.startsWith('shiba_sinu_');
+const idleFacesRight = sp.startsWith('chihuahua_') || sp.startsWith('husky_') || sp.startsWith('shiba_sinu_') || sp.startsWith('rat_');
+let hScale = -(st.dir || 1);
+if (isWalk) {
+  hScale = walkFacesRight ? (st.dir || 1) : -(st.dir || 1);
+} else if (sideProfile || st.moving) {
+  hScale = -(st.dir || 1);
+} else if (st.dir != null) {
+  hScale = idleFacesRight ? (st.dir || 1) : -(st.dir || 1);
+}
+c.scale(hScale, 1);
 ART.shadow(c, 0, 0, 14);
 c.translate(0, -bob);
 c.rotate(tilt);

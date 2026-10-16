@@ -5406,24 +5406,20 @@ function getFlowerSprite(kind) {
       const id = 'fw_' + who; alive.add(id);
       let a = actors.get(id); if (!a) a = mkActor(id, 'fpet', owner.x - .6, owner.y + .4, { pet: p, trail: [] });
       a.pet = p; a.t += dt;
-      // v2026-10-15 (v3): the pet's facing is now ALWAYS a direct copy of the owner's own current facing --
-      // not derived from the pet's own motion vector (the lagged trail-chase delta, or the idle-wander
-      // delta below). Deriving it from the pet's own movement kept producing "faces the wrong way" /
-      // "walks backward" glitches across several earlier attempts (near-zero deltas, lag after the owner
-      // turns around, etc). The owner's own a.dir is always correct -- it's how their own sprite already
-      // faces -- so just mirror it, unconditionally, every tick.
-      if (owner.dir != null) a.dir = owner.dir;
       const tr = a.trail; if (!tr.length || Math.hypot(tr[tr.length - 1].x - owner.x, tr[tr.length - 1].y - owner.y) > .15) tr.push({ x: owner.x, y: owner.y }); while (tr.length > 60) tr.shift();
-      const tgt = tr.length > 6 ? tr[tr.length - 6] : { x: owner.x - .5, y: owner.y + .3 }, dx = tgt.x - a.x, dy = tgt.y - a.y, d = Math.hypot(dx, dy);
+      const tgt = tr.length > 6 ? tr[tr.length - 6] : { x: owner.x - (owner.dir === -1 ? -0.5 : 0.5), y: owner.y + .3 }, dx = tgt.x - a.x, dy = tgt.y - a.y, d = Math.hypot(dx, dy);
+      const sdx = dx - dy;
+      const odx = (owner.x - a.x) - (owner.y - a.y);
+      if (Math.abs(sdx) > 0.05) a.dir = sdx > 0 ? 1 : -1;
+      else if (Math.abs(odx) > 0.05) a.dir = odx > 0 ? 1 : -1;
+      else if (owner.dir != null) a.dir = owner.dir;
       if (d > 6) { a.x = tgt.x; a.y = tgt.y; a.wTarget = null; } // owner went through a door / teleported
-      else if (d > .35) { // chasing the owner -- normal follow
+      else if (owner.moving || d > .35) { // chasing the owner -- normal follow
         a.wTarget = null; // cancel any idle wander, we're catching up again
-        const sp = Math.min(d, (owner.speed || 2.4) * 1.15 * dt * (d > 1.2 ? 1.6 : 1)); a.x += dx / d * sp; a.y += dy / d * sp; a.moving = true;
+        const sp = Math.min(d, (owner.speed || 2.4) * 1.15 * dt * (d > 1.2 ? 1.6 : 1));
+        if (d > 0.1) { a.x += dx / d * sp; a.y += dy / d * sp; }
+        a.moving = true;
       } else {
-        // v2026-10-15: close enough to the owner that there's nothing to chase -- instead of freezing in
-        // place (looked dead, especially for PNG species with no walk-cycle art at all), shuffle around in
-        // a small loop near the owner so the pet still feels alive while "following". Kept deliberately
-        // small/slow (and never touches a.dir -- see above) so it reads as fidgeting in place, not walking.
         if (!a.wTarget || Math.hypot(a.x - a.wTarget.x, a.y - a.wTarget.y) < .08) {
           a.wTarget = null; a.moving = false;
           if (!(a.wWait > 0)) { if (Math.random() < dt * .3) { const ang = Math.random() * Math.PI * 2, rad = .2 + Math.random() * .35; a.wTarget = { x: tgt.x + Math.cos(ang) * rad, y: tgt.y + Math.sin(ang) * rad }; } }
@@ -5432,7 +5428,12 @@ function getFlowerSprite(kind) {
         if (a.wTarget) {
           const wdx = a.wTarget.x - a.x, wdy = a.wTarget.y - a.y, wd = Math.hypot(wdx, wdy);
           if (wd < .06) { a.wTarget = null; a.wWait = 1 + Math.random() * 2.2; a.moving = false; }
-          else { const wsp = Math.min(wd, .55 * dt); a.x += wdx / wd * wsp; a.y += wdy / wd * wsp; a.moving = true; }
+          else {
+            const wsp = Math.min(wd, .55 * dt);
+            a.x += wdx / wd * wsp; a.y += wdy / wd * wsp; a.moving = true;
+            const wsdx = wdx - wdy;
+            if (Math.abs(wsdx) > 0.05) a.dir = wsdx > 0 ? 1 : -1;
+          }
         }
       }
       a.hidden = !!owner.hidden;
