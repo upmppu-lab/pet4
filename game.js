@@ -473,7 +473,22 @@ if (s.book) {
       // never stops them buying another, so the same resident can keep coming back (see TOWN.pickResidentOf above)
       if (c.residentId && typeof TOWN.residentById === 'function') {
         const res = TOWN.residentById(s, c.residentId);
-        if (res) { res.pets = res.pets || []; res.pets.push({ sp: c.pd.sp, name: c.pd.name, coat: c.pd.coat || 0, day: s.clock.day }); res.happy = Math.round(Math.min(100, (res.happy == null ? 70 : res.happy) + 8)); }
+        if (res) {
+          res.pets = res.pets || [];
+          res.pets.push({
+            sp: c.pd.sp,
+            name: c.pd.name,
+            coat: c.pd.coat || 0,
+            stars: c.pd.stars || 0,
+            blv: c.pd.blv || c.pd.lv || 1,
+            bxp: c.pd.bxp || 0,
+            trait: c.pd.trait,
+            sex: c.pd.sex,
+            rescued: !!c.pd.rescued,
+            day: s.clock.day
+          });
+          res.happy = Math.round(Math.min(100, (res.happy == null ? 70 : res.happy) + 8));
+        }
       }
       if (Math.random() < ({ celeb: 1, rescue: .8, great: .4, bad: .5 }[kind] || .2)) s.outbox.push({ id: s.lseq++, w: rnd(90, 240), due: s.clock.day + 1, from: c.name, seed: c.seed, celeb: c.type === 'celeb', pet: c.pd.name, sp: c.pd.sp, coat: c.pd.coat || 0, kind, n: rint(0, 9), likes: rint(20, 400) * (c.type === 'celeb' ? 50 : 1) });
       ev(s, { k: 'sell', by, pet: c.pd.name, sp: c.pd.sp, c: amount + tip, tip, cid: c.id, pd: c.pd, auto, match: c.match });
@@ -1155,7 +1170,7 @@ if (s.book) {
     const mk = matchKind(c, p), v = Math.round(price(s, p, c) * (mk === 'great' ? 1.3 : mk === 'bad' ? .9 : 1) * .95);
     addRep(s, mk === 'great' ? 3 : mk === 'bad' ? -2 : .5); if (p.rescued) addRep(s, 4); if (mk === 'great') qp(s, 'great');
     s.pets[slotOf(s, p.id)] = null;
-    c.match = mk; c.amount = v; c.waited = 99; c.pd = { sp: p.sp, coat: p.coat || 0, id: p.id, name: p.name, grow: 1, stars: p.stars || 0, rescued: !!p.rescued, trait: p.trait };
+    c.match = mk; c.amount = v; c.waited = 99; c.pd = { sp: p.sp, coat: p.coat || 0, id: p.id, name: p.name, grow: 1, stars: p.stars || 0, rescued: !!p.rescued, trait: p.trait, lv: p.lv || 1, blv: p.blv || p.lv || 1, bxp: p.bxp || 0, sex: p.sex || 'm' };
     s.online = s.online.filter(x => x !== c); pay(s, c, by, false);
     return { ok: 1, fx: 'coin', msg: 'onlineSold', p: { name: p.name, c: v, who: c.name } };
   }
@@ -1583,7 +1598,7 @@ if (s.book) {
         if (mk === 'great') qp(s, 'great');
         s.pets[slotOf(s, p.id)] = null;
         c.match = mk;
-        c.st = 'pay'; c.amount = v; c.pd = { sp: p.sp, coat: p.coat || 0, id: p.id, name: p.name, grow: 1, stars: p.stars || 0, rescued: !!p.rescued, trait: p.trait };
+        c.st = 'pay'; c.amount = v; c.pd = { sp: p.sp, coat: p.coat || 0, id: p.id, name: p.name, grow: 1, stars: p.stars || 0, rescued: !!p.rescued, trait: p.trait, lv: p.lv || 1, blv: p.blv || p.lv || 1, bxp: p.bxp || 0, sex: p.sex || 'm' };
         c.pat = c.max = 90 * (s.up.sign ? 1.5 : 1); c.waited = 0;
         ev(s, { k: 'handover', by, pet: p.name, sp: p.sp, cid: c.id, pd: c.pd });
         return { ok: 1, msg: mk === 'great' ? 'matchGreat' : mk === 'bad' ? 'matchBad' : 'matchOk', p: { name: p.name }, fx: 'love', match: mk };

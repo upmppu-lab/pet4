@@ -1420,6 +1420,17 @@ const roadTileOk = (s, x, y) => {
     if (moved || left) ev_(s, { k: 'townDay', moved, left, hap: st.hap });
     syncResidents(s); // move-ins/move-outs above change o.n per house, so the resident roster needs to catch up
     for (const r of T.residents) r.happy = Math.round(Math.max(0, Math.min(100, (r.happy == null ? st.hap : r.happy) * .85 + st.hap * .15))); // personal happiness drifts gently toward how the whole town feels
+    // 날짜 경과(Day)에 따른 주민 펫 성장: 매일 아침 함께한 펫들에게 일일 경험치 부여 (오랫동안 함께 산 베테랑 주민의 펫은 자연스럽게 레벨 3~6까지 성장)
+    for (const r of (T.residents || [])) {
+      for (const p of (r.pets || [])) {
+        p.blv = p.blv || 1;
+        p.bxp = p.bxp || 0;
+        if (p.blv < 7) {
+          const dayGain = 10 + Math.floor(Math.random() * 6);
+          grantResidentPetExp(r, p, dayGain);
+        }
+      }
+    }
     checkMilestones(s);
   }
   function checkMilestones(s) {
@@ -1873,6 +1884,37 @@ const roadTileOk = (s, x, y) => {
         T.residents = T.residents.filter(r => !drop.has(r.id));
       }
     }
+    // 기존 및 복원된 주민 펫들의 레벨/경험치 보정 (날짜 경과 및 별점에 맞춰 베테랑 펫 자연 성장)
+    const curDay = (s && s.clock && s.clock.day) || 1;
+    for (const r of T.residents) {
+      for (const p of (r.pets || [])) {
+        if (p.blv == null) {
+          const daysOwned = Math.max(0, curDay - (p.day || 1));
+          let blv = 1, bxp = 0;
+          let totalXp = Math.min(260, daysOwned * 14 + (p.stars || 0) * 15);
+          const need = (typeof BATTLE !== 'undefined' && BATTLE.needXp) ? BATTLE.needXp : (lv => 12 + (lv - 1) * 9);
+          while (blv < 7 && totalXp >= need(blv)) {
+            totalXp -= need(blv);
+            blv++;
+          }
+          p.blv = blv;
+          p.bxp = totalXp;
+        }
+      }
+    }
+  }
+  function grantResidentPetExp(res, pet, expGain) {
+    if (!pet || expGain <= 0) return 0;
+    pet.blv = pet.blv || 1;
+    pet.bxp = (pet.bxp || 0) + expGain;
+    const need = (typeof BATTLE !== 'undefined' && BATTLE.needXp) ? BATTLE.needXp : (lv => 12 + (lv - 1) * 9);
+    let lvup = 0;
+    while (pet.blv < 10 && pet.bxp >= need(pet.blv)) {
+      pet.bxp -= need(pet.blv);
+      pet.blv++;
+      lvup++;
+    }
+    return lvup;
   }
   function pickResidentOf(s, home) { // a specific, persistent person who lives in this house
     if (!home) return null;
@@ -6542,7 +6584,7 @@ function getFlowerSprite(kind) {
   // Only the designated destinations that villagers should visit:
   // 펫 카페, 동물병원, 펫 미용실, 동물원, 공원, 호수, 유기동물 보관소
   const VISIT = { cafe: '☕', hosp: '🏥', salon: '✂️', zoo: '🦁', park: '🌳', lake: '🎣', shelter: '🐾' };
-  const V = []; let vSeq = 0, vT = 2;
+  const V = []; let vSeq = 0, vT = 2, vDuelT = 4;
   // v2026-10-08: "공원 가면 한곳에 멍하니 서있다가 나오는게 너무 단순해" -- 공원 안의 6개 포인트
   // (분수/벤치/연못/놀이터 등)를 따로 뽑아서, 머무는 동안 이 사이를 몇 번 더 걸어다니고(wander),
   // 가끔 머리 위에 속마음을 띄우도록(say) 쓸 좌표/대사 목록.
@@ -6810,7 +6852,7 @@ function getFlowerSprite(kind) {
       a.say = rpick(spLines.rest);
       a.sayT = 3.5;
     } else if (currentAct === 'play_pet') {
-      // 3. 펫과 놀기: 귀여운 펫과 상호작용
+      // 3. 펫과 놀기: 귀여운 펫과 상호작용 및 산책/놀이 경험치 (+5~10 EXP)
       a.st = 'idle';
       a.tt = 4 + Math.random() * 4;
       a.emo = rpick(['💕', '🎾', '🦴', '🐾']);
@@ -6819,7 +6861,19 @@ function getFlowerSprite(kind) {
       a.sayT = 3.5;
       if (a.residentId) {
         const r2 = residentById(s, a.residentId);
-        if (r2) r2.happy = Math.round(Math.min(100, (r2.happy || 70) + 1));
+        if (r2) {
+          r2.happy = Math.round(Math.min(100, (r2.happy || 70) + 1));
+          const pet = (r2.pets || []).find(p => p.sp === a.pet) || (r2.pets || [])[0];
+          if (pet) {
+            const expGain = 5 + Math.floor(Math.random() * 6); // +5~10 EXP
+            const lvup = grantResidentPetExp(r2, pet, expGain);
+            if (lvup > 0) {
+              const lang2 = (s && s.lang) || 'ko';
+              a.say = (lang2 === 'ru' ? ('Наш ' + pet.name + ' повысил уровень! 🎉 Lv.' + pet.blv) : ('우리 ' + pet.name + ' 레벨업했다! 🎉 Lv.' + pet.blv));
+              a.sayT = 3.8; a.emo = '⭐'; a.emoT = 3.5;
+            }
+          }
+        }
       }
     } else if (currentAct === 'visit') {
       // 4. 시설 방문: 접근 가능한 지정 시설(펫 카페, 동물병원, 펫 미용실, 동물원, 공원, 호수, 유기동물 보관소)만 방문
@@ -6906,6 +6960,7 @@ function getFlowerSprite(kind) {
     for (let i = V.length - 1; i >= 0; i--) {
       const id = V[i], a = actors.get(id); if (!a) { V.splice(i, 1); continue; }
       alive.add(id); a.age += dt; if (a.emoT > 0) a.emoT -= dt;
+      if (a._duelCd > 0) a._duelCd -= dt;
       if (a.sayT > 0) { a.sayT -= dt; if (a.sayT <= 0) a.say = null; }
       // v2026-10-09: "길에 가만히 서있는 사람들" -- 목적지로 가려고 goTo()를 불렀는데 길이 끊겨 있어서
       // 길찾기가 실패하면(path가 비어있고 콜백도 안 불림) st가 'stroll'/'visit'/'back'에 그대로 멈춰
@@ -7086,6 +7141,26 @@ function getFlowerSprite(kind) {
           }
         }
         if (a.tt <= 0) {
+          // 시설 방문 완료 시 주민 펫 보너스 성장
+          if (a.residentId) {
+            const r2 = residentById(S, a.residentId);
+            const pet = (r2 && r2.pets) ? (r2.pets.find(p => p.sp === a.pet) || r2.pets[0]) : null;
+            if (pet) {
+              let bonusXp = 0;
+              if (a.dstK === 'hosp') bonusXp = 20; // 동물병원(🏥) 방문: 건강 검진과 체력 단련으로 EXP +20
+              else if (a.dstK === 'salon') bonusXp = 15; // 펫 미용실(✂️) 방문: 털 관리 및 컨디션 UP으로 EXP +15
+              else if (a.dstK === 'cafe') bonusXp = 15; // 펫 카페(☕) 방문: 다른 펫들과의 사회화 교류 및 특별 간식으로 EXP +15
+              else if (a.dstK === 'park' || a.dstK === 'lake') bonusXp = 8 + Math.floor(Math.random() * 3); // 공원/호수 산책 EXP +8~10
+              if (bonusXp > 0) {
+                const lvup = grantResidentPetExp(r2, pet, bonusXp);
+                if (lvup > 0) {
+                  const lang2 = (S && S.lang) || 'ko';
+                  a.say = (lang2 === 'ru' ? ('Наш ' + pet.name + ' повысил уровень! 🎉 Lv.' + pet.blv) : ('우리 ' + pet.name + ' 레벨업했다! 🎉 Lv.' + pet.blv));
+                  a.sayT = 3.8; a.emo = '⭐'; a.emoT = 3.5;
+                }
+              }
+            }
+          }
           // 유기동물 보관소 방문 시 하루 2~3회 주민 입양 발생 (직원이 손님에게 추천 및 판매/입양)
           if (a.dstK === 'shelter' && S.shelter && S.shelter.pets && S.shelter.pets.length > 0) {
             S.shelter.day = S.shelter.day || (S.clock ? S.clock.day : 1);
@@ -7099,6 +7174,24 @@ function getFlowerSprite(kind) {
                 const fee = 600 + Math.floor(Math.random() * 400);
                 S.coins += fee;
                 a.pet = adopted.sp;
+                if (a.residentId) {
+                  const r2 = residentById(S, a.residentId);
+                  if (r2) {
+                    r2.pets = r2.pets || [];
+                    r2.pets.push({
+                      sp: adopted.sp,
+                      name: adopted.name,
+                      coat: adopted.coat || 0,
+                      stars: adopted.stars || 0,
+                      blv: adopted.blv || adopted.lv || 1,
+                      bxp: adopted.bxp || 0,
+                      trait: adopted.trait,
+                      sex: adopted.sex,
+                      day: (S.clock && S.clock.day) || 1
+                    });
+                    r2.happy = Math.round(Math.min(100, (r2.happy || 70) + 10));
+                  }
+                }
                 if (typeof toast === 'function') {
                   const rawStaff = (S.shelter.staff && S.shelter.staff.name) || '미소';
                   const staffName = rawStaff === '미소' ? t('shelterStaffDefaultName') : rawStaff;
@@ -7115,6 +7208,62 @@ function getFlowerSprite(kind) {
         }
       }
       if (a.st === 'done' || a.age > 150 || (want === 0 && a.st !== 'back' && a.age > 20)) { actors.delete(id); V.splice(i, 1); }
+    }
+    // ③ 주민들 간의 자율 교류 (광장/길/공원 주민 친선 배틀 & 서로 EXP 획득)
+    vDuelT -= dt;
+    if (vDuelT <= 0 && V.length >= 2) {
+      vDuelT = 4 + Math.random() * 4;
+      for (let i = 0; i < V.length; i++) {
+        const a1 = actors.get(V[i]);
+        if (!a1 || a1.st === 'in' || a1.st === 'back' || (a1._duelCd || 0) > 0 || !a1.residentId) continue;
+        const r1 = residentById(S, a1.residentId);
+        if (!r1 || !r1.pets || !r1.pets.length) continue;
+        const p1 = r1.pets.find(p => p.sp === a1.pet) || r1.pets[0];
+        let foundPair = false;
+        for (let j = i + 1; j < V.length; j++) {
+          const a2 = actors.get(V[j]);
+          if (!a2 || a2.st === 'in' || a2.st === 'back' || (a2._duelCd || 0) > 0 || !a2.residentId) continue;
+          const r2 = residentById(S, a2.residentId);
+          if (!r2 || !r2.pets || !r2.pets.length) continue;
+          const p2 = r2.pets.find(p => p.sp === a2.pet) || r2.pets[0];
+          const dist = Math.hypot(a1.x - a2.x, a1.y - a2.y);
+          if (dist < 2.5) {
+            // 친선 연습 시합 발생!
+            a1.st = 'idle'; a1.tt = 3.6; a1._duelCd = 45;
+            a2.st = 'idle'; a2.tt = 3.6; a2._duelCd = 45;
+            a1.emo = '⚔️'; a1.emoT = 3.2;
+            a2.emo = '💥'; a2.emoT = 3.2;
+            if (typeof faceTo === 'function') {
+              faceTo(a1, a2.x, a2.y);
+              faceTo(a2, a1.x, a1.y);
+            }
+            const lv1 = p1.blv || 1, lv2 = p2.blv || 1;
+            const win1 = Math.random() < (0.5 + (lv1 - lv2) * 0.1);
+            const winner = win1 ? a1 : a2, loser = win1 ? a2 : a1;
+            const wPet = win1 ? p1 : p2, lPet = win1 ? p2 : p1;
+            const wRes = win1 ? r1 : r2, lRes = win1 ? r2 : r1;
+            const wXp = 15 + Math.floor(Math.random() * 11); // 승자 EXP +15~25
+            const lXp = 10 + Math.floor(Math.random() * 6);  // 패자 EXP +10~15
+            const wLvup = grantResidentPetExp(wRes, wPet, wXp);
+            const lLvup = grantResidentPetExp(lRes, lPet, lXp);
+            wRes.happy = Math.min(100, (wRes.happy || 70) + 2);
+            lRes.happy = Math.min(100, (lRes.happy || 70) + 1);
+
+            if (lang === 'ru') {
+              winner.say = wLvup ? ('Наш ' + wPet.name + ' повысил уровень! 🎉 Lv.' + wPet.blv) : rpick(['Наш ' + wPet.name + ' победил! 🎉', 'Отличная тренировка! ✨', 'Мы стали сильнее! 🐾']);
+              loser.say = lLvup ? ('Наш ' + lPet.name + ' повысил уровень! 🎉 Lv.' + lPet.blv) : rpick(['Хороший бой! В следующий раз мы победим!', 'Наш ' + lPet.name + ' тоже молодец! 💕', 'Спасибо за тренировку!']);
+            } else {
+              winner.say = wLvup ? ('우리 ' + wPet.name + ' 레벨업했다! 🎉 Lv.' + wPet.blv) : rpick(['우리 ' + wPet.name + '이(가) 이겼네! 🎉', '좋은 연습 승부였어! ✨', '한층 더 강해진 것 같아! 🐾']);
+              loser.say = lLvup ? ('우리 ' + lPet.name + ' 레벨업했다! 🎉 Lv.' + lPet.blv) : rpick(['좋은 승부였다! 다음엔 안 질 거야~', '우리 ' + lPet.name + '도 정말 잘 싸웠어! 💕', '멋진 대결 고마워!']);
+            }
+            winner.sayT = 3.5;
+            loser.sayT = 3.5;
+            foundPair = true;
+            break;
+          }
+        }
+        if (foundPair) break;
+      }
     }
     // 길가에 돌아다니는 길동물 (길강아지, 길토끼, 길쥐, 길고양이) 시뮬레이션
     strayStep(dt, actors, mkActor, alive, goTo);
@@ -7258,7 +7407,7 @@ function getFlowerSprite(kind) {
     return undefined;
   }
   return { houses, drawHouse, houseSolid, followStep, drawFollower, apply, FISH, FISH_MAX,
-    roadSet, roadNearShop, drawPlayerRoads, roadLine, drawRoadTool, ROAD_COST, ROAD_TYPES, pathRects, maxR, rotPt, ground, collect, zonesOf, laneOf, zoneAt, zoneCost, zoneLots, villagerStep, lvOf, capOf, upNeed, upCost, upLevel, canUp, LV_MAX, pow, has, inBig, bigBuilt, ensure, stats, tick, custK, maxAdd, spendK, bestPop, mood, pickHome, doorOf, canPlace, fpOf, kindCost, unlockedK, drawObj, depthOf, drawGhost, stageOf, pop, cap, countOf, occFrac, nearFree, fitShop, clearBuildingOverlaps, resolveBuildingOverlaps, hasAnyBuildingOverlap, trainZones, overlapsTrain, relocateBuildingsOffTracks, syncResidents, pickResidentOf, residentById, residentsOf, addressOf, residentStatus,
+    roadSet, roadNearShop, drawPlayerRoads, roadLine, drawRoadTool, ROAD_COST, ROAD_TYPES, pathRects, maxR, rotPt, ground, collect, zonesOf, laneOf, zoneAt, zoneCost, zoneLots, villagerStep, lvOf, capOf, upNeed, upCost, upLevel, canUp, LV_MAX, pow, has, inBig, bigBuilt, ensure, stats, tick, custK, maxAdd, spendK, bestPop, mood, pickHome, doorOf, canPlace, fpOf, kindCost, unlockedK, drawObj, depthOf, drawGhost, stageOf, pop, cap, countOf, occFrac, nearFree, fitShop, clearBuildingOverlaps, resolveBuildingOverlaps, hasAnyBuildingOverlap, trainZones, overlapsTrain, relocateBuildingsOffTracks, syncResidents, pickResidentOf, residentById, residentsOf, addressOf, residentStatus, grantResidentPetExp,
     tierOf, houseCapOf, houseNextReq, houseUpOk, HOUSE_TIER_MAX, HOUSE_TIERS, HOUSE_TIER_NAMES, houseTierName, houseTierBuyCost, nextHouseSlotLevel, canPlaceNewHouse, getTownHouseImg,
     isRoadTile, isCrosswalk, getCrosswalkRows, isRailCrossing, getRailCrossingRows, isRailCrossingTile, drawRailCrossings, facilityEntrances, isEntranceConnected, isFacilityAccessible, isHouseAccessible, drawCrosswalks,
     DEF: TOWN_DEF,

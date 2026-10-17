@@ -844,7 +844,7 @@ PANELS.villager = m => {
     <div class="m">🚶 ${t('villagerWhyVisits', { n: visits })}</div>
     <div class="m">🐾 ${t('villagerWhyPets', { n: pets.length })}</div></div>`;
   const body = pets.length
-    ? `<div class="t" style="margin-top:8px">🐾 ${t('villagerPets')}</div>${pets.map((p, i) => `<button class="li" data-a="villagerpet" data-v="${res.id}" data-w="${i}"><div class="ic" style="position:relative;overflow:visible">${lvBadge(p.blv || 1, true)}<img src="${PIC.pet(p.sp)}"></div><div class="grow"><div class="t">${esc(p.name)}</div><div class="m">${esc(spName(p.sp))}</div></div>›</button>`).join('')}`
+    ? `<div class="t" style="margin-top:8px">🐾 ${t('villagerPets')}</div>${pets.map((p, i) => `<button class="li" data-a="villagerpet" data-v="${res.id}" data-w="${i}"><div class="ic" style="position:relative;overflow:visible">${lvBadge(p.blv || 1, true)}<img src="${PIC.pet(p.sp, false, p.coat || 1)}"></div><div class="grow"><div class="t">${esc(p.name)}${p.stars ? ' ' + '⭐'.repeat(p.stars) : ''}</div><div class="m">${esc(spName(p.sp))} · Lv.${p.blv || 1}</div></div>›</button>`).join('')}`
     : `<div class="card center" style="margin-top:8px"><div class="m">${t('villagerNoPet')}</div></div>`;
   const battleBtn = (pets.length && typeof BATTLE !== 'undefined') ? `<button class="btn r block" style="margin-top:8px" data-a="villagerbattle" data-v="${res.id}" data-w="${esc(m.spHint || '')}">${t('battleChallengeBtn')}</button>` : '';
   return frameHTML('🏠 ' + t('villagerTitle'), head + why + body + battleBtn + `<button class="btn g block" data-a="close">${t('close')}</button>`);
@@ -857,10 +857,14 @@ PANELS.villagerpet = m => {
   const p = res && (res.pets || [])[m.pidx]; if (!p) return '';
   const blv = p.blv || 1;
   const tree = (typeof BATTLE !== 'undefined') ? BATTLE.skillTreeOf(p.sp, blv) : { atk: [], heal: [] };
+  const nextXp = (typeof BATTLE !== 'undefined' && BATTLE.needXp) ? BATTLE.needXp(blv) : (12 + (blv - 1) * 9);
+  const curXp = p.bxp || 0;
   const skillRow = s => `<div class="li" style="${s.unlocked ? '' : 'opacity:.5'}"><div class="ic" style="font-size:22px">${s.icon}</div><div class="grow"><div class="t">${esc(s.name)}</div><div class="m">${s.unlocked ? t(s.kind === 'heal' ? 'battleSkillHealTag' : 'battleSkillAtkTag') : t('battleSkillLockedTag', { n: s.lv })}</div></div></div>`;
   const body = `<div class="row"><div class="portrait" style="position:relative;overflow:visible">${lvBadge(blv)}<img src="${PIC.pet(p.sp, false, p.coat || ART.hashStr(p.name || p.sp))}" style="border-radius:13px"></div><div class="col grow">
-      <div class="t">${esc(p.name)}</div>
-      <div class="m">${esc(spName(p.sp))} · ${esc(res.name || t('villagerTitle'))}</div></div></div>
+      <div class="t">${esc(p.name)}${p.stars ? ' ' + '⭐'.repeat(p.stars) : ''}</div>
+      <div class="m">${esc(spName(p.sp))} · ${esc(res.name || t('villagerTitle'))}</div>
+      <div class="m" style="font-size:12px;color:var(--c-accent,#2b6cb0);margin-top:2px">전투 레벨: Lv.${blv} (EXP: ${curXp} / ${nextXp})</div>
+      </div></div>
     <div class="t" style="margin-top:8px">${t('battleSkillTreeL')}</div>
     ${tree.atk.map(skillRow).join('')}${tree.heal.map(skillRow).join('')}
     <button class="btn g block" style="margin-top:10px" data-a="villager" data-v="${res.id}">← ${t('villagerTitle')}</button>`;

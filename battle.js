@@ -297,6 +297,7 @@ const BATTLE = (() => {
       const p = s.home && (s.home.pets || []).find(q => q.id === b.pid);
       if (!p) return { ok: 1 };
       const T = TOWN.ensure(s), resident = (T.residents || []).find(r => r.id === b.foe.rid);
+      const resPet = resident && resident.pets && resident.pets[b.foe.idx];
       if (b.win) {
         // v2026-10-15: a win no longer auto-grants XP and auto-rolls a pet steal. Instead HP is restored
         // and the loser's happiness takes a big hit right away, then the player is asked to PICK ONE of
@@ -305,18 +306,46 @@ const BATTLE = (() => {
         p.hpFrac = 1; p.hpSetAt = null; // a win still fully restores the pet, same as before
         b.awaitChoice = true;
         if (resident) resident.happy = Math.max(0, (resident.happy || 70) - 30);
+        // 패배하더라도 실전 경험으로 EXP(+10~15) 획득. 플레이어가 강한 펫으로 도전할수록 주민 펫도 빠르게 단련.
+        if (resPet) {
+          const diffBonus = Math.max(0, ((p.blv || 1) - (b.foeBlv || 1)) * 2);
+          const foeGain = 10 + Math.floor(Math.random() * 6) + diffBonus;
+          const foeLvup = (typeof TOWN !== 'undefined' && TOWN.grantResidentPetExp) ? TOWN.grantResidentPetExp(resident, resPet, foeGain) : 0;
+          b.foeXpGain = foeGain;
+          b.foeLvup = foeLvup;
+          b.foeBlvAfter = resPet.blv || 1;
+        }
       } else {
         // v2: knocked down to effectively 1 HP (rather than locked out of battling entirely) -- it can
         // still fight again right away, just weak, and heals back up to full over BATTLE_REGEN_MS.
         p.hpFrac = 1 / (b.maxA || statOf(p.sp, p.blv || 1).hp || 1);
         p.hpSetAt = Date.now();
         b.lost = null;
+        // 주민 펫이 플레이어를 상대로 승리하면 대량의 EXP(+30~50) 획득 → 즉시 레벨업 및 상위 스킬(돌진 태클, 충성의 하울링 등) 해금!
+        if (resPet) {
+          const diffBonus = Math.max(0, ((p.blv || 1) - (b.foeBlv || 1)) * 4);
+          const foeGain = 30 + Math.floor(Math.random() * 21) + diffBonus;
+          const foeLvup = (typeof TOWN !== 'undefined' && TOWN.grantResidentPetExp) ? TOWN.grantResidentPetExp(resident, resPet, foeGain) : 0;
+          b.foeXpGain = foeGain;
+          b.foeLvup = foeLvup;
+          b.foeBlvAfter = resPet.blv || 1;
+        }
         if (resident && !p.fav && (s.home.pets || []).length > 1 && Math.random() < BATTLE_STEAL_LOSE) {
           const idx = s.home.pets.findIndex(q => q.id === p.id);
           if (idx >= 0) {
             const taken = s.home.pets.splice(idx, 1)[0];
             resident.pets = resident.pets || [];
-            resident.pets.push({ sp: taken.sp, name: taken.name, coat: taken.coat || 1, day: (s.clock && s.clock.day) || 1 });
+            resident.pets.push({
+              sp: taken.sp,
+              name: taken.name,
+              coat: taken.coat || 1,
+              stars: taken.stars || 0,
+              blv: taken.blv || 1,
+              bxp: taken.bxp || 0,
+              trait: taken.trait,
+              sex: taken.sex,
+              day: (s.clock && s.clock.day) || 1
+            });
             resident.happy = Math.min(100, (resident.happy || 70) + 8);
             if (s.follow) for (const k in s.follow) if (s.follow[k] === taken.id) delete s.follow[k];
             b.lost = taken.name;
@@ -343,8 +372,8 @@ const BATTLE = (() => {
           if (Math.random() < chance) {
             const taken = resident.pets.splice(b.foe.idx, 1)[0];
             const np = { id: 'p' + Date.now() + Math.floor(Math.random() * 1000), sp: taken.sp, name: taken.name,
-              sex: Math.random() < .5 ? 'm' : 'f', coat: taken.coat || 1, gen: 0, grow: 1, hunger: 70, clean: 90, happy: 70, stress: 20, bored: 30,
-              trait: (typeof randTrait === 'function') ? randTrait() : undefined, bcd: 0, pat: 0, stars: 0, blv: 1, bxp: 0 };
+              sex: taken.sex || (Math.random() < .5 ? 'm' : 'f'), coat: taken.coat || 1, gen: 0, grow: 1, hunger: 70, clean: 90, happy: 70, stress: 20, bored: 30,
+              trait: taken.trait || ((typeof randTrait === 'function') ? randTrait() : undefined), bcd: 0, pat: 0, stars: taken.stars || 0, blv: taken.blv || 1, bxp: taken.bxp || 0 };
             if (typeof STORAGE !== 'undefined' && STORAGE.push(s, { type: 'pet', pet: np })) b.stolen = np.name;
             else b.choiceFail = 'full'; // 보관상자가 가득 차서 데려올 수 없었음
           } else b.choiceFail = 'luck'; // 확률에서 실패
