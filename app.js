@@ -840,18 +840,8 @@ PANELS.cust = m => {
 };
 // v2026-10-08: tap a villager on the street/park to see who they are -- a real, fixed resident (TOWN.residentById), not a random passerby
 PANELS.villager = m => {
-  if (typeof TOWN !== 'undefined' && TOWN.rebalanceResidentPets && typeof S !== 'undefined' && S && S.town) {
-    if (!S.town.residentPetsBalancedV20261017_Final) {
-      TOWN.rebalanceResidentPets(S);
-    }
-  }
   const res = typeof TOWN !== 'undefined' && TOWN.residentById ? TOWN.residentById(S, m.rid) : null;
   if (!res) return '';
-  if (res.pets && res.pets.some(p => (p.blv || 1) >= 6)) {
-    if (typeof TOWN !== 'undefined' && TOWN.rebalanceResidentPets && typeof S !== 'undefined' && S) {
-      TOWN.rebalanceResidentPets(S);
-    }
-  }
   const lk = ART.randomHuman(res.seed), pets = res.pets || [], happy = res.happy == null ? 70 : res.happy;
   const home = typeof TOWN.objs === 'function' ? TOWN.objs().find(o => o.id === res.home) : null;
   const addr = home && TOWN.addressOf ? TOWN.addressOf(S, home) : '';

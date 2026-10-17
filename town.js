@@ -1437,8 +1437,10 @@ const roadTileOk = (s, x, y) => {
         p.blv = p.blv || p.lv || 1;
         p.bxp = p.bxp || 0;
         let dayGain = 0;
-        if (p.blv < 3) {
-          dayGain = Math.random() < (isHappyOwner ? 0.35 : 0.2) ? 1 : 0;
+        if (p.blv < 6) {
+          dayGain = Math.random() < (isHappyOwner ? 0.75 : 0.5) ? (Math.random() < 0.25 ? 2 : 1) : 0;
+        } else if (p.blv < 10) {
+          dayGain = Math.random() < (isHappyOwner ? 0.4 : 0.2) ? 1 : 0;
         }
         if (dayGain > 0) {
           grantResidentPetExp(r, p, dayGain);
@@ -1906,6 +1908,19 @@ const roadTileOk = (s, x, y) => {
 
     // 주민 펫 레벨/경험치 보존 및 기본값 보정 (사갈 때의 레벨 p.blv / p.lv과 경험치 p.bxp / p.exp 유지)
     for (const r of T.residents) {
+      if (r.pets && r.pets.length > RESIDENT_PET_MAX) {
+        while (r.pets.length > RESIDENT_PET_MAX) {
+          let highestIdx = 0, highestLv = -1;
+          r.pets.forEach((p, idx) => {
+            const lv = p.blv || p.lv || 1;
+            if (lv > highestLv) {
+              highestLv = lv;
+              highestIdx = idx;
+            }
+          });
+          r.pets.splice(highestIdx, 1);
+        }
+      }
       for (const p of (r.pets || [])) {
         if (p.blv == null) {
           p.blv = p.lv || 1;
@@ -1972,11 +1987,36 @@ const roadTileOk = (s, x, y) => {
     }
     return lvup;
   }
-  function pickResidentOf(s, home) { // a specific, persistent person who lives in this house
+  const RESIDENT_PET_MAX = 10;
+  function addPetToResident(res, petData) {
+    if (!res || !petData) return;
+    res.pets = res.pets || [];
+    // 펫 10마리가 되면 순차적으로 가장 높은 레벨의 펫이 자립/독립(순환)하여 자리 마련
+    while (res.pets.length >= RESIDENT_PET_MAX) {
+      let highestIdx = 0, highestLv = -1;
+      res.pets.forEach((p, idx) => {
+        const lv = p.blv || p.lv || 1;
+        if (lv > highestLv) {
+          highestLv = lv;
+          highestIdx = idx;
+        }
+      });
+      res.pets.splice(highestIdx, 1);
+    }
+    res.pets.push(petData);
+    res.happy = Math.round(Math.min(100, (res.happy == null ? 70 : res.happy) + 8));
+  }
+  function pickResidentOf(s, home, forAdoption) { // a specific, persistent person who lives in this house
     if (!home) return null;
     syncResidents(s);
-    const T = ensure(s), list = (T.residents || []).filter(r => r.home === home.id);
-    return list.length ? rpick(list) : null;
+    const T = ensure(s);
+    let list = (T.residents || []).filter(r => r.home === home.id);
+    if (!list.length) return null;
+    if (forAdoption) {
+      const roomList = list.filter(r => (r.pets || []).length < RESIDENT_PET_MAX);
+      if (roomList.length) list = roomList;
+    }
+    return rpick(list);
   }
   function residentById(s, rid) { if (!rid) return null; const T = ensure(s); return (T.residents || []).find(r => r.id === rid) || null; }
   function residentsOf(s, homeId) { syncResidents(s); const T = ensure(s); return (T.residents || []).filter(r => r.home === homeId); } // everyone who lives in one specific house
@@ -7234,8 +7274,7 @@ function getFlowerSprite(kind) {
                 if (a.residentId) {
                   const r2 = residentById(S, a.residentId);
                   if (r2) {
-                    r2.pets = r2.pets || [];
-                    r2.pets.push({
+                    addPetToResident(r2, {
                       sp: adopted.sp,
                       name: adopted.name,
                       coat: adopted.coat || 0,
@@ -7246,7 +7285,6 @@ function getFlowerSprite(kind) {
                       sex: adopted.sex,
                       day: (S.clock && S.clock.day) || 1
                     });
-                    r2.happy = Math.round(Math.min(100, (r2.happy || 70) + 10));
                   }
                 }
                 if (typeof toast === 'function') {
@@ -7464,7 +7502,7 @@ function getFlowerSprite(kind) {
     return undefined;
   }
   return { houses, drawHouse, houseSolid, followStep, drawFollower, apply, FISH, FISH_MAX,
-    roadSet, roadNearShop, drawPlayerRoads, roadLine, drawRoadTool, ROAD_COST, ROAD_TYPES, pathRects, maxR, rotPt, ground, collect, zonesOf, laneOf, zoneAt, zoneCost, zoneLots, villagerStep, lvOf, capOf, upNeed, upCost, upLevel, canUp, LV_MAX, pow, has, inBig, bigBuilt, ensure, stats, tick, custK, maxAdd, spendK, bestPop, mood, pickHome, doorOf, canPlace, fpOf, kindCost, unlockedK, drawObj, depthOf, drawGhost, stageOf, pop, cap, countOf, occFrac, nearFree, fitShop, clearBuildingOverlaps, resolveBuildingOverlaps, hasAnyBuildingOverlap, trainZones, overlapsTrain, relocateBuildingsOffTracks, syncResidents, pickResidentOf, residentById, residentsOf, addressOf, residentStatus, grantResidentPetExp, rebalanceResidentPets,
+    roadSet, roadNearShop, drawPlayerRoads, roadLine, drawRoadTool, ROAD_COST, ROAD_TYPES, pathRects, maxR, rotPt, ground, collect, zonesOf, laneOf, zoneAt, zoneCost, zoneLots, villagerStep, lvOf, capOf, upNeed, upCost, upLevel, canUp, LV_MAX, pow, has, inBig, bigBuilt, ensure, stats, tick, custK, maxAdd, spendK, bestPop, mood, pickHome, doorOf, canPlace, fpOf, kindCost, unlockedK, drawObj, depthOf, drawGhost, stageOf, pop, cap, countOf, occFrac, nearFree, fitShop, clearBuildingOverlaps, resolveBuildingOverlaps, hasAnyBuildingOverlap, trainZones, overlapsTrain, relocateBuildingsOffTracks, syncResidents, pickResidentOf, residentById, residentsOf, addressOf, residentStatus, grantResidentPetExp, rebalanceResidentPets, RESIDENT_PET_MAX, addPetToResident,
     tierOf, houseCapOf, houseNextReq, houseUpOk, HOUSE_TIER_MAX, HOUSE_TIERS, HOUSE_TIER_NAMES, houseTierName, houseTierBuyCost, nextHouseSlotLevel, canPlaceNewHouse, getTownHouseImg,
     isRoadTile, isCrosswalk, getCrosswalkRows, isRailCrossing, getRailCrossingRows, isRailCrossingTile, drawRailCrossings, facilityEntrances, isEntranceConnected, isFacilityAccessible, isHouseAccessible, drawCrosswalks,
     DEF: TOWN_DEF,

@@ -430,7 +430,7 @@ if (s.book) {
       const wk = dist / 1.6; base.home = hm.id; base.pat += wk; base.max += wk;
       // v2026-10-08: when we can, this customer IS a specific, persistent town resident (same face/name as when they're out walking the streets) --
       // so a purchase here shows up later in their own "my pets" collection, and they can keep coming back to buy more (owning one never blocks another).
-      const res = typeof TOWN.pickResidentOf === 'function' ? TOWN.pickResidentOf(s, hm) : null;
+      const res = typeof TOWN.pickResidentOf === 'function' ? TOWN.pickResidentOf(s, hm, true) : null;
       if (res) { base.residentId = res.id; base.seed = res.seed; base.name = res.name; }
     } } // walks over from their house: the walk does not eat their patience
     const dp = decorPts(s), R = s.rep || 0;
@@ -530,8 +530,7 @@ if (s.book) {
       if (c.residentId && typeof TOWN.residentById === 'function') {
         const res = TOWN.residentById(s, c.residentId);
         if (res) {
-          res.pets = res.pets || [];
-          res.pets.push({
+          const petData = {
             sp: c.pd.sp,
             name: c.pd.name,
             coat: c.pd.coat || 0,
@@ -542,8 +541,22 @@ if (s.book) {
             sex: c.pd.sex,
             rescued: !!c.pd.rescued,
             day: s.clock.day
-          });
-          res.happy = Math.round(Math.min(100, (res.happy == null ? 70 : res.happy) + 8));
+          };
+          if (typeof TOWN.addPetToResident === 'function') {
+            TOWN.addPetToResident(res, petData);
+          } else {
+            res.pets = res.pets || [];
+            while (res.pets.length >= 10) {
+              let highestIdx = 0, highestLv = -1;
+              res.pets.forEach((p, idx) => {
+                const lv = p.blv || p.lv || 1;
+                if (lv > highestLv) { highestLv = lv; highestIdx = idx; }
+              });
+              res.pets.splice(highestIdx, 1);
+            }
+            res.pets.push(petData);
+            res.happy = Math.round(Math.min(100, (res.happy == null ? 70 : res.happy) + 8));
+          }
         }
       }
       if (Math.random() < ({ celeb: 1, rescue: .8, great: .4, bad: .5 }[kind] || .2)) s.outbox.push({ id: s.lseq++, w: rnd(90, 240), due: s.clock.day + 1, from: c.name, seed: c.seed, celeb: c.type === 'celeb', pet: c.pd.name, sp: c.pd.sp, coat: c.pd.coat || 0, kind, n: rint(0, 9), likes: rint(20, 400) * (c.type === 'celeb' ? 50 : 1) });
