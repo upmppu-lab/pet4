@@ -627,7 +627,9 @@ return true;
     if (a.farmAction) { a.farmAction.t += dt; if (a.farmAction.t > (a.farmAction.kind === 'harvest' ? .5 : .45)) { a.farmAction = null; if (a.type === 'me' || a.type === 'hstaff') a.diag = 0; } }
     if (a.harvMsg) { a.harvMsg.t -= dt; if (a.harvMsg.t <= 0) a.harvMsg = null; }
     if (a.path.length) {
-      const n = a.path[0], dx = n.x - a.x, dy = n.y - a.y, d = Math.hypot(dx, dy), s = a.speed * dt;
+      const isHuman = (a.type === 'me' || a.type === 'staff' || a.type === 'cust' || a.type === 'vil' || a.type === 'cafeguest' || a.type === 'patient' || a.type === 'hstaff' || a.type === 'insp' || a.type === 'reg' || a.type === 'thief');
+      const pulse = isHuman ? (1 + Math.sin(a.t * 9 * 2) * 0.12) : 1;
+      const n = a.path[0], dx = n.x - a.x, dy = n.y - a.y, d = Math.hypot(dx, dy), s = a.speed * dt * pulse;
       // 길 단절 감지: 이동 중 길이 삭제되거나 끊겼을 때
       const allowDelivery = a.type === 'me' || a.type === 'staff';
       if (!walk(Math.floor(n.x), Math.floor(n.y), allowDelivery)) {
@@ -1797,7 +1799,7 @@ return true;
       }
       else if (e.fn) e.fn();
     }
-    drawHearts(dt); drawFarmParts(dt);
+    drawHearts(dt); drawFarmParts(dt); drawFootDust(dt);
     for (const m of S.messes || []) { if (!poopShown(m)) continue; // tiny bouncing line-arrow marker over things to clean
       const sx = ISO.wx(m.x + .5, m.y + .5), sy = ISO.wy(m.x + .5, m.y + .5) - 16 - Math.abs(Math.sin(T * 4 + m.x)) * 3;
       if (!isPtVis(sx, sy, 40, 40)) continue;
@@ -2294,6 +2296,16 @@ return true;
       { const tg = a.sit ? 1 : 0, dA = Math.min(.1, Math.max(0, T - (a.skT == null ? T : a.skT))); a.skT = T; a.sk = a.sk == null ? tg : a.sk + Math.sign(tg - a.sk) * Math.min(Math.abs(tg - a.sk), dA * 3.5); ART.setSit(a.sk); } // sit down / stand up: the legs fold over ~.3s
       ART.human(c, a.type === 'me' ? CFG.look : a.look, vface, a.t, a.moving && !a.sit, (a.type === 'cafeguest' || a.type === 'patient' || a.type === 'hstaff') ? (a.angry ? 'angry' : a.happyT > 0 ? 'happy' : 'calm') : humMood(a), a.diag, a.faceBack);
       ART.setSit(0);
+      if (a.moving && !a.sit) {
+        a._dustT = (a._dustT || 0) + 0.016;
+        if (a._dustT >= 0.22) {
+          a._dustT = 0;
+          const fOff = (Math.sin(a.t * 9) > 0 ? 5 : -5) * (vdir < 0 ? -1 : 1);
+          fxFootDust(sx + fOff, sy + 3, vdir);
+        }
+      } else {
+        a._dustT = 0;
+      }
       if (a.type === 'me' || a.type === 'hstaff') drawFarmToolSwing(a);
       if (sweeping(a)) drawBroom();
       if (held && (vface !== 1 || a.type === 'staff')) drawHeld(a); // staff carrying a pet: always visible in their arms
@@ -2587,6 +2599,40 @@ return true;
   function drawHearts(dt) {
     for (let i = hearts.length - 1; i >= 0; i--) { const h = hearts[i]; h.t += dt; if (h.t > 1.2) { hearts.splice(i, 1); continue; } c.globalAlpha = 1 - h.t / 1.2; c.font = '12px sans-serif'; c.fillText('♥', h.x + Math.sin(h.t * 6) * 4, h.y - h.t * 30); }
     c.globalAlpha = 1;
+  }
+  // v1.100.90: 발걸음 흙먼지 파티클 (착지감 및 지면 마찰감 부여로 미끄러짐 방지)
+  const footDusts = [];
+  function fxFootDust(x, y, dir) {
+    if (footDusts.length < 40) {
+      footDusts.push({
+        x: x + (Math.random() - .5) * 2,
+        y: y + (Math.random() - .5) * 1.5,
+        vx: -(dir || 1) * (6 + Math.random() * 8),
+        vy: -3 - Math.random() * 4,
+        r: 2.2 + Math.random() * 1.4,
+        t: 0,
+        life: 0.28
+      });
+    }
+  }
+  function drawFootDust(dt) {
+    if (!footDusts.length) return;
+    c.save();
+    for (let i = footDusts.length - 1; i >= 0; i--) {
+      const p = footDusts[i];
+      p.t += dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      if (p.t >= p.life) { footDusts.splice(i, 1); continue; }
+      const prog = p.t / p.life;
+      const alpha = (1 - prog) * 0.45;
+      const radius = p.r * (1 + prog * 0.9);
+      c.fillStyle = 'rgba(215, 200, 180, ' + alpha.toFixed(3) + ')';
+      c.beginPath();
+      c.arc(p.x, p.y, radius, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.restore();
   }
   // farm action fx: dirt clods on till, drops on water, a rising crop+sparkle on harvest,
   // plus a brief tool-swing pose on `me` so tilling/watering/harvesting reads as an action

@@ -1313,10 +1313,17 @@ const P2 = {
     return off;
   }
   // v1.100.2: 회전 대신 위아래로 살짝 이동시키는 방식으로 변경.
-  // (정면/뒷면에서 다리를 옆으로 돌리면 실제 걸음과 다르게 보인다는 피드백 반영 - 한쪽 다리/팔이
-  //  무릎 굽히듯 살짝 올라가고 반대쪽은 바닥을 딛듯 내려가는 식의 "제자리걸음" 느낌으로 교체)
+  // v1.100.90: offL/offR이 0이면 이미지를 절대로 가위질(split)하지 않고 100% 온전한 원본 그림 1장으로 깨끗하게 그림
   function drawSplitPart(c, img, p, hueDeg, mirror, offL, offR, cacheKey) {
     const dx = mirror ? -(p.x + p.size) : p.x;
+    if (!offL && !offR) {
+      c.save();
+      if (mirror) c.scale(-1, 1);
+      if (hueDeg) c.filter = 'hue-rotate(' + hueDeg + 'deg)';
+      c.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, dx, p.y, p.size, p.size);
+      c.restore();
+      return;
+    }
     const S = SPLIT_HALF_SIZE;
     const half = (isLeftHalf, off) => {
       const halfImg = getHalfImg(cacheKey, img, isLeftHalf);
@@ -1353,11 +1360,18 @@ const P2 = {
     SPLIT_HALF_CACHE[key] = off;
     return off;
   }
-  // v1.100.5: 소매를 어깨 축으로 "돌리면"(rotate) 아래쪽이 좌우로 벌어져 보여 팔이 찢어진 것처럼
-  // 보인다는 피드백 반영 - 다리(drawSplitPart)와 같은 방식으로, 돌리지 않고 위아래로만 살짝 이동시켜
-  // 제자리걸음처럼 앞뒤로 흔드는 느낌을 낸다. 가운데(몸통)는 항상 고정.
+  // v1.100.5: 소매를 위아래로 살짝 이동시켜 제자리걸음처럼 흔드는 느낌을 낸다. 가운데(몸통)는 항상 고정.
+  // v1.100.90: offL/offR이 0이면 상의 전체를 온전한 한 장으로 직접 렌더링.
   function drawArmSplit(c, img, p, hueDeg, mirror, offL, offR, cacheKey) {
     const dx = mirror ? -(p.x + p.size) : p.x;
+    if (!offL && !offR) {
+      c.save();
+      if (mirror) c.scale(-1, 1);
+      if (hueDeg) c.filter = 'hue-rotate(' + hueDeg + 'deg)';
+      c.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, dx, p.y, p.size, p.size);
+      c.restore();
+      return;
+    }
     const S = SPLIT_HALF_SIZE;
     const band = (which, off) => {
       const bimg = getBandImg(cacheKey, img, which);
@@ -1450,22 +1464,33 @@ const P2 = {
     const botPos = { size: P2.bottom.size, x: botXY.x, y: botXY.y + 3 };  // 발이 그림자에 닿도록 3px 아래
     const hairDrawPos = { size: P2.hair.size, x: hairXY.x, y: hairXY.y };
 
-    // ---- 걷기 모션 계산 (기존 벡터 캐릭터의 걸음걸이 리듬을 그대로 재사용) ----
+    // ---- 걷기 모션 계산 (몸체를 찢지 않고 자연스러운 탄성과 체중이동을 주는 물리 보행) ----
     const canWalk = !isSit;
     const walkT = moving && canWalk ? t * 9 : 0;
     const sideView = (effDir === 2 || effDir === 3);
-    // v1.100.2: 다리는 회전 대신 위아래 1.3px만 살짝 움직임 (좌우 회전은 다리가 4개로 보인다는 버그 제기됨)
-    // v1.100.8: 옆면(2)/대각선(3)일 때는 정면보다 보폭을 1/4로 줄여(0.3px) 다리가 반으로 쪼개져 보이는 느낌을 최소화
     const bob = moving && canWalk ? Math.abs(Math.sin(walkT)) * 2.8 : Math.sin(t * 2) * .5;
-    const stepAmp = moving && canWalk ? (sideView ? 0.3 : 1.3) : 0;
-    const legStepL = stepAmp ? Math.sin(walkT) * stepAmp : 0;
-    const legStepR = stepAmp ? -Math.sin(walkT) * stepAmp : 0;
-    const armBandAmp = moving && canWalk ? (sideView ? 0.2 : 0.9) : 0;
-    const armBandL = armBandAmp ? -Math.sin(walkT) * armBandAmp : 0;
-    const armBandR = armBandAmp ? Math.sin(walkT) * armBandAmp : 0;
+    
+    // 1. 발바닥 접지 피벗 체중이동 틸트 (정면/뒷면: 발은 땅에 딛고 좌우로 사뿐사뿐 체중 싣기)
+    const tilt = moving && canWalk && !sideView ? Math.sin(walkT) * 0.038 : 0;
+    
+    // 2. 옆면/대각선: 진행 방향으로 살짝 상체를 숙이는 전진 추진력 락킹
+    const forwardLean = moving && canWalk && sideView ? (0.04 + Math.sin(walkT) * 0.025) : 0;
+    
+    // 3. 착지/도약 스쿼시 & 스트레치 (발을 딛는 순간 납작해지고 찰 때 늘어나는 생생한 탄성감)
+    const stepPhase = Math.cos(walkT * 2);
+    const squash = moving && canWalk ? Math.max(0, -stepPhase) * 0.035 : 0;
+    const stretch = moving && canWalk ? Math.max(0, stepPhase) * 0.025 : 0;
+    const scaleX = 1 + squash * 0.7 - stretch * 0.5;
+    const scaleY = 1 - squash + stretch;
+
+    const legStepL = 0, legStepR = 0;
+    const armBandL = 0, armBandR = 0;
 
     c.save();
+    if (tilt) c.rotate(tilt);
+    if (forwardLean) c.rotate(forwardLean);
     c.translate(0, -bob);
+    c.scale(scaleX, scaleY);
     // v1.100.12: 상/하의는 기존엔 그림 전체(옷+팔다리 피부)에 hue-rotate를 걸어서 팔다리까지 같이
     // 물들었음 - 헤어처럼 "그림에서 가장 많이 쓰인 옷 색"만 찾아 그 색만 바꾸는 방식으로 교체.
     // v1.100.14: 목 색상이 얼굴을 따라가게 했던 기능은 상의/하의 구분 오류로 취소 요청 - 원래대로 옷 색만 적용
@@ -1817,16 +1842,24 @@ const P2 = {
 
     const canWalk = !isSit;
     const walkT = moving && canWalk ? t * 9 : 0;
+    const sideView = (effDir === 2 || effDir === 3);
     const bob = moving && canWalk ? Math.abs(Math.sin(walkT)) * 2.8 : Math.sin(t * 2) * .5;
-    const stepAmp = moving && canWalk ? 1.3 : 0;
-    const legStepL = stepAmp ? Math.sin(walkT) * stepAmp : 0;
-    const legStepR = stepAmp ? -Math.sin(walkT) * stepAmp : 0;
+    const tilt = moving && canWalk && !sideView ? Math.sin(walkT) * 0.038 : 0;
+    const forwardLean = moving && canWalk && sideView ? (0.04 + Math.sin(walkT) * 0.025) : 0;
+    const stepPhase = Math.cos(walkT * 2);
+    const squash = moving && canWalk ? Math.max(0, -stepPhase) * 0.035 : 0;
+    const stretch = moving && canWalk ? Math.max(0, stepPhase) * 0.025 : 0;
+    const scaleX = 1 + squash * 0.7 - stretch * 0.5;
+    const scaleY = 1 - squash + stretch;
 
     c.save();
+    if (tilt) c.rotate(tilt);
+    if (forwardLean) c.rotate(forwardLean);
     c.translate(0, -bob);
+    c.scale(scaleX, scaleY);
     if (isRoleArt) { c.translate(0, STAFF_FOOT_Y); c.scale(ROLE_ART_SCALE, ROLE_ART_SCALE); c.translate(0, -STAFF_FOOT_Y); }
-    // 옷(몸통+다리 통합 한 장)은 좌우 반씩 잘라 다리가 번갈아 움직이는 보폭 효과
-    drawSplitPart(c, outfitImg, bodyPos, 0, mirror, legStepL, legStepR, outfitCat + '_' + o.staffOutfit);
+    // 옷은 쪼개지 않고 온전한 한 장으로 직접 렌더링
+    drawSplitPart(c, outfitImg, bodyPos, 0, mirror, 0, 0, outfitCat + '_' + o.staffOutfit);
     c.save();
     if (mirror) c.scale(-1, 1);
     const hdx = mirror ? -(headPos.x + headPos.size) : headPos.x;
@@ -1938,24 +1971,26 @@ const P2 = {
 
     const canWalk = !isSit;
     const walkT = moving && canWalk ? t * 9 : 0;
+    const sideView = (effDir === 2 || effDir === 3);
     const bob = moving && canWalk ? Math.abs(Math.sin(walkT)) * (bodyDestH * 0.035) : Math.sin(t * 2) * .5;
-    const stepAmp = moving && canWalk ? bodyDestH * 0.02 : 0;
-    const legStepL = stepAmp ? Math.sin(walkT) * stepAmp : 0;
-    const legStepR = stepAmp ? -Math.sin(walkT) * stepAmp : 0;
+    const tilt = moving && canWalk && !sideView ? Math.sin(walkT) * 0.038 : 0;
+    const forwardLean = moving && canWalk && sideView ? (0.04 + Math.sin(walkT) * 0.025) : 0;
+    const stepPhase = Math.cos(walkT * 2);
+    const squash = moving && canWalk ? Math.max(0, -stepPhase) * 0.035 : 0;
+    const stretch = moving && canWalk ? Math.max(0, stepPhase) * 0.025 : 0;
+    const scaleX = 1 + squash * 0.7 - stretch * 0.5;
+    const scaleY = 1 - squash + stretch;
 
     c.save();
+    if (tilt) c.rotate(tilt);
+    if (forwardLean) c.rotate(forwardLean);
     c.translate(0, -bob);
+    c.scale(scaleX, scaleY);
     c.save();
     if (mirror) c.scale(-1, 1);
 
     const bdx = mirror ? -(bodyDestX + bodyDestW) : bodyDestX;
-    const halfSrcW = ROLE_ART_CANVAS / 2, halfDestW = bodyDestW / 2;
-    c.save(); c.translate(0, legStepL);
-    c.drawImage(img, 0, neckSrcY, halfSrcW, bodySrcH, bdx, bodyDestY, halfDestW, bodyDestH);
-    c.restore();
-    c.save(); c.translate(0, legStepR);
-    c.drawImage(img, halfSrcW, neckSrcY, halfSrcW, bodySrcH, bdx + halfDestW, bodyDestY, halfDestW, bodyDestH);
-    c.restore();
+    c.drawImage(img, 0, neckSrcY, ROLE_ART_CANVAS, bodySrcH, bdx, bodyDestY, bodyDestW, bodyDestH);
 
     const hdx = mirror ? -(headDestX + headDestW) : headDestX;
     c.drawImage(img, 0, 0, ROLE_ART_CANVAS, headSrcH, hdx, headDestY, headDestW, headDestH);
@@ -2060,25 +2095,27 @@ const P2 = {
     // 몸통을 좌/우로 반을 나눠 위아래로 교차 이동시켜(제자리걸음) 다리가 번갈아 움직이는 것처럼 보이게 함.
     const canWalk = !isSit;
     const walkT = moving && canWalk ? t * 9 : 0;
+    const sideView = (effDir === 2 || effDir === 3);
     const bob = moving && canWalk ? Math.abs(Math.sin(walkT)) * (bodyDestH * 0.035) : Math.sin(t * 2) * .5;
-    const stepAmp = moving && canWalk ? bodyDestH * 0.02 : 0;
-    const legStepL = stepAmp ? Math.sin(walkT) * stepAmp : 0;
-    const legStepR = stepAmp ? -Math.sin(walkT) * stepAmp : 0;
+    const tilt = moving && canWalk && !sideView ? Math.sin(walkT) * 0.038 : 0;
+    const forwardLean = moving && canWalk && sideView ? (0.04 + Math.sin(walkT) * 0.025) : 0;
+    const stepPhase = Math.cos(walkT * 2);
+    const squash = moving && canWalk ? Math.max(0, -stepPhase) * 0.035 : 0;
+    const stretch = moving && canWalk ? Math.max(0, stepPhase) * 0.025 : 0;
+    const scaleX = 1 + squash * 0.7 - stretch * 0.5;
+    const scaleY = 1 - squash + stretch;
 
     c.save();
+    if (tilt) c.rotate(tilt);
+    if (forwardLean) c.rotate(forwardLean);
     c.translate(0, -bob);
+    c.scale(scaleX, scaleY);
     c.save();
     if (mirror) c.scale(-1, 1);
 
-    // 1. 몸통 그리기 (좌/우 반으로 나눠 다리가 번갈아 움직이는 걷기 모션)
+    // 1. 몸통 그리기 (쪼개지 않고 온전한 한 장으로 렌더링)
     const bdx = mirror ? -(bodyDestX + bodyDestW) : bodyDestX;
-    const halfSrcW = TOWNCHAR_CANVAS / 2, halfDestW = bodyDestW / 2;
-    c.save(); c.translate(0, legStepL);
-    c.drawImage(img, 0, neckSrcY, halfSrcW, bodySrcH, bdx, bodyDestY, halfDestW, bodyDestH);
-    c.restore();
-    c.save(); c.translate(0, legStepR);
-    c.drawImage(img, halfSrcW, neckSrcY, halfSrcW, bodySrcH, bdx + halfDestW, bodyDestY, halfDestW, bodyDestH);
-    c.restore();
+    c.drawImage(img, 0, neckSrcY, TOWNCHAR_CANVAS, bodySrcH, bdx, bodyDestY, bodyDestW, bodyDestH);
 
     // 2. 머리 그리기 (몸통 위에 얹음, 다리 움직임과 무관하게 고정)
     const hdx = mirror ? -(headDestX + headDestW) : headDestX;
