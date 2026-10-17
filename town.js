@@ -1327,8 +1327,8 @@ const roadTileOk = (s, x, y) => {
     }
     syncFacilityGateRoads(s);
     fitShop(s);
-    if (!s.town.residentPetsBalancedV5) {
-      syncResidents(s);
+    if (!s.town.residentPetsBalancedV20261017_Final) {
+      rebalanceResidentPets(s);
     }
     return s.town;
   }
@@ -1437,10 +1437,8 @@ const roadTileOk = (s, x, y) => {
         p.blv = p.blv || p.lv || 1;
         p.bxp = p.bxp || 0;
         let dayGain = 0;
-        if (p.blv < 6) {
-          dayGain = 1 + (isHappyOwner ? 1 : 0); // 1~2 EXP: 밸런스를 해치지 않는 완만한 일상 성장
-        } else if (p.blv < 10) {
-          dayGain = Math.random() < 0.4 ? 1 : 0; // 고레벨 쏠림 방지
+        if (p.blv < 3) {
+          dayGain = Math.random() < (isHappyOwner ? 0.35 : 0.2) ? 1 : 0;
         }
         if (dayGain > 0) {
           grantResidentPetExp(r, p, dayGain);
@@ -1457,7 +1455,7 @@ const roadTileOk = (s, x, y) => {
   function tick(s, dt) {
     const T = ensure(s);
     if (T.day !== s.clock.day) newDay(s);
-    if (!T.residentsInit || !T.residentPetsBalancedV5) { syncResidents(s); T.residentsInit = 1; } // first load on an existing save: backfill residents once, immediately (don't wait for the next day)
+    if (!T.residentsInit || !T.residentPetsBalancedV20261017_Final) { syncResidents(s); T.residentsInit = 1; } // first load on an existing save: backfill residents once, immediately (don't wait for the next day)
     // the shop grew over a house? move that house to the nearest free spot (host only: guests never tick)
     fitShop(s);
   }
@@ -1900,40 +1898,10 @@ const roadTileOk = (s, x, y) => {
         T.residents = T.residents.filter(r => !drop.has(r.id));
       }
     }
-    // v2026-10-17: 주민 펫 레벨 정상화 및 다양화 (기존 세이브에서 모든 펫이 Lv.6/7/8로 고정되던 문제 완벽 해결)
-    // 펫의 기본 레벨은 Lv.1이며, 입양 순서(오래된 펫 vs 최근 펫), 별점, 산책/배틀 활동에 따라 자연스러운 레벨 편차를 갖습니다.
-    if (!T.residentPetsBalancedV5) {
-      const need = (typeof BATTLE !== 'undefined' && BATTLE.needXp) ? BATTLE.needXp : (lv => 12 + (lv - 1) * 9);
-      const hashFn = (typeof ART !== 'undefined' && ART.hashStr) ? ART.hashStr : (str => Math.abs(String(str || '').split('').reduce((a, b) => (a * 31 + b.charCodeAt(0)) | 0, 0)));
-      for (const r of T.residents) {
-        const pets = r.pets || [];
-        pets.forEach((p, idx) => {
-          if (!p) return;
-          const starsBonus = Math.floor((p.stars || 0) * 0.5);
-          const varBonus = hashFn(p.name || p.sp) % 2;
-          let targetLv = 1;
-          if (idx === 0) {
-            // 주민의 첫 번째(가장 오래 함께한) 대표 펫: Lv.3 ~ Lv.4 (별점 보너스 시 Lv.5)
-            targetLv = Math.min(5, Math.max(3, 3 + starsBonus + varBonus));
-          } else if (idx === 1) {
-            // 두 번째 펫: Lv.2 ~ Lv.3
-            targetLv = Math.min(3, Math.max(2, 2 + starsBonus));
-          } else if (idx === 2) {
-            // 세 번째 펫: Lv.2
-            targetLv = 2;
-          } else {
-            // 그 이후 입양한 펫: Lv.1 (별점 2개 이상이면 Lv.2)
-            targetLv = 1 + (p.stars >= 2 ? 1 : 0);
-          }
-          p.blv = targetLv;
-          p.lv = targetLv;
-          const maxExp = need(targetLv);
-          const frac = ((hashFn((p.name || '') + (r.id || '') + idx) % 55) + 15) / 100;
-          p.bxp = Math.floor(maxExp * frac);
-          p.exp = p.bxp;
-        });
-      }
-      T.residentPetsBalancedV5 = 1;
+    // v2026-10-17: 주민 펫 레벨 정상화 및 현실적인 RPG 분포 적용
+    // (레벨 1이 다수, 레벨 2도 다수, 레벨 3/4는 가끔, 레벨 5는 드물게)
+    if (!T.residentPetsBalancedV20261017_Final) {
+      rebalanceResidentPets(s);
     }
 
     // 주민 펫 레벨/경험치 보존 및 기본값 보정 (사갈 때의 레벨 p.blv / p.lv과 경험치 p.bxp / p.exp 유지)
@@ -1947,6 +1915,49 @@ const roadTileOk = (s, x, y) => {
         }
       }
     }
+  }
+  // 주민 펫 전체 재조정 함수: 레벨 1이 대부분이고, 레벨 2도 많으며, 레벨 3~4는 가끔, 레벨 5는 드물게 분포
+  function rebalanceResidentPets(s) {
+    if (!s || !s.town) return;
+    const T = s.town;
+    if (!Array.isArray(T.residents)) return;
+    const need = (typeof BATTLE !== 'undefined' && BATTLE.needXp) ? BATTLE.needXp : (lv => 12 + (lv - 1) * 9);
+    const hashFn = (typeof ART !== 'undefined' && ART.hashStr) ? ART.hashStr : (str => Math.abs(String(str || '').split('').reduce((a, b) => (a * 31 + b.charCodeAt(0)) | 0, 0)));
+    for (const r of T.residents) {
+      const pets = r.pets || [];
+      if (!pets.length) continue;
+      pets.forEach((p, idx) => {
+        if (!p) return;
+        const seedVal = hashFn((p.name || '') + (p.sp || '') + (r.id || '') + idx);
+        let targetLv = 1;
+        if (idx === 0) {
+          // 주민의 첫 번째 대표 펫: 대부분 Lv.2~3, 가끔(약 20%) Lv.4, 극소수(5%) Lv.5
+          const roll = seedVal % 100;
+          if (roll < 45) targetLv = 2;
+          else if (roll < 75) targetLv = 3;
+          else if (roll < 95) targetLv = 4;
+          else targetLv = 5;
+        } else if (idx === 1) {
+          // 두 번째 펫: Lv.1 (60%) 또는 Lv.2 (40%)
+          targetLv = (seedVal % 10 < 6) ? 1 : 2;
+        } else if (idx === 2) {
+          // 세 번째 펫: Lv.1 (75%) 또는 Lv.2 (25%)
+          targetLv = (seedVal % 4 === 0) ? 2 : 1;
+        } else {
+          // 네 번째 이후 입양한 펫 (대다수): 기본 Lv.1! (별점 3개 이상인 특별한 펫만 가끔 Lv.2)
+          targetLv = (p.stars >= 3 && (seedVal % 3 === 0)) ? 2 : 1;
+        }
+        p.blv = targetLv;
+        p.lv = targetLv;
+        const maxExp = need(targetLv);
+        const frac = ((seedVal % 50) + 10) / 100;
+        p.bxp = Math.floor(maxExp * frac);
+        p.exp = p.bxp;
+      });
+    }
+    T.residentPetsBalancedV20261017_Final = 1;
+    T.residentPetsBalancedV6 = 1;
+    T.residentPetsBalancedV5 = 1;
   }
   function grantResidentPetExp(res, pet, expGain) {
     if (!pet || expGain <= 0) return 0;
@@ -7453,7 +7464,7 @@ function getFlowerSprite(kind) {
     return undefined;
   }
   return { houses, drawHouse, houseSolid, followStep, drawFollower, apply, FISH, FISH_MAX,
-    roadSet, roadNearShop, drawPlayerRoads, roadLine, drawRoadTool, ROAD_COST, ROAD_TYPES, pathRects, maxR, rotPt, ground, collect, zonesOf, laneOf, zoneAt, zoneCost, zoneLots, villagerStep, lvOf, capOf, upNeed, upCost, upLevel, canUp, LV_MAX, pow, has, inBig, bigBuilt, ensure, stats, tick, custK, maxAdd, spendK, bestPop, mood, pickHome, doorOf, canPlace, fpOf, kindCost, unlockedK, drawObj, depthOf, drawGhost, stageOf, pop, cap, countOf, occFrac, nearFree, fitShop, clearBuildingOverlaps, resolveBuildingOverlaps, hasAnyBuildingOverlap, trainZones, overlapsTrain, relocateBuildingsOffTracks, syncResidents, pickResidentOf, residentById, residentsOf, addressOf, residentStatus, grantResidentPetExp,
+    roadSet, roadNearShop, drawPlayerRoads, roadLine, drawRoadTool, ROAD_COST, ROAD_TYPES, pathRects, maxR, rotPt, ground, collect, zonesOf, laneOf, zoneAt, zoneCost, zoneLots, villagerStep, lvOf, capOf, upNeed, upCost, upLevel, canUp, LV_MAX, pow, has, inBig, bigBuilt, ensure, stats, tick, custK, maxAdd, spendK, bestPop, mood, pickHome, doorOf, canPlace, fpOf, kindCost, unlockedK, drawObj, depthOf, drawGhost, stageOf, pop, cap, countOf, occFrac, nearFree, fitShop, clearBuildingOverlaps, resolveBuildingOverlaps, hasAnyBuildingOverlap, trainZones, overlapsTrain, relocateBuildingsOffTracks, syncResidents, pickResidentOf, residentById, residentsOf, addressOf, residentStatus, grantResidentPetExp, rebalanceResidentPets,
     tierOf, houseCapOf, houseNextReq, houseUpOk, HOUSE_TIER_MAX, HOUSE_TIERS, HOUSE_TIER_NAMES, houseTierName, houseTierBuyCost, nextHouseSlotLevel, canPlaceNewHouse, getTownHouseImg,
     isRoadTile, isCrosswalk, getCrosswalkRows, isRailCrossing, getRailCrossingRows, isRailCrossingTile, drawRailCrossings, facilityEntrances, isEntranceConnected, isFacilityAccessible, isHouseAccessible, drawCrosswalks,
     DEF: TOWN_DEF,

@@ -154,40 +154,45 @@ const G = (() => {
     ensureOffers(s);
     EXTRA.migrate(s); HOME.ensure(s); TOWN.ensure(s); // PET TOWN
     // v2026-10-17: 기존 세이브에서 매일 아침 경험치 과지급으로 모든 펫이 Lv.6/Lv.7로 고정되어 있던 문제 즉시 정상화
-    // 입양 순서(오래된 대표 펫 vs 최근 입양 펫)와 별점에 따라 자연스러운 레벨 편차(Lv.1~Lv.4, 별점 보너스 시 Lv.5)로 재분배
+    // 레벨 1이 대다수, 레벨 2도 다수, 레벨 3~4는 가끔, 레벨 5는 드물게 분포
     if (s.town && Array.isArray(s.town.residents)) {
-      if (!s.town.residentPetsBalancedV5) {
-        const need = lv => 12 + (lv - 1) * 9;
-        const hashFn = str => Math.abs(String(str || '').split('').reduce((a, b) => (a * 31 + b.charCodeAt(0)) | 0, 0));
-        for (const r of s.town.residents) {
-          const pets = r.pets || [];
-          pets.forEach((p, idx) => {
-            if (!p) return;
-            const starsBonus = Math.floor((p.stars || 0) * 0.5);
-            const varBonus = hashFn(p.name || p.sp) % 2;
-            let targetLv = 1;
-            if (idx === 0) {
-              // 주민의 첫 번째(가장 오래 함께한) 대표 펫: Lv.3 ~ Lv.4 (별점 보너스 시 Lv.5)
-              targetLv = Math.min(5, Math.max(3, 3 + starsBonus + varBonus));
-            } else if (idx === 1) {
-              // 두 번째 펫: Lv.2 ~ Lv.3
-              targetLv = Math.min(3, Math.max(2, 2 + starsBonus));
-            } else if (idx === 2) {
-              // 세 번째 펫: Lv.2
-              targetLv = 2;
-            } else {
-              // 네 번째 이후 입양한 펫: Lv.1 (별점 2개 이상이면 Lv.2)
-              targetLv = 1 + (p.stars >= 2 ? 1 : 0);
-            }
-            p.blv = targetLv;
-            p.lv = targetLv;
-            const maxExp = need(targetLv);
-            const frac = ((hashFn((p.name || '') + (r.id || '') + idx) % 55) + 15) / 100;
-            p.bxp = Math.floor(maxExp * frac);
-            p.exp = p.bxp;
-          });
+      if (!s.town.residentPetsBalancedV20261017_Final) {
+        if (typeof TOWN !== 'undefined' && TOWN.rebalanceResidentPets) {
+          TOWN.rebalanceResidentPets(s);
+        } else {
+          const need = lv => 12 + (lv - 1) * 9;
+          const hashFn = str => Math.abs(String(str || '').split('').reduce((a, b) => (a * 31 + b.charCodeAt(0)) | 0, 0));
+          for (const r of s.town.residents) {
+            const pets = r.pets || [];
+            pets.forEach((p, idx) => {
+              if (!p) return;
+              const seedVal = hashFn((p.name || '') + (p.sp || '') + (r.id || '') + idx);
+              let targetLv = 1;
+              if (idx === 0) {
+                const roll = seedVal % 100;
+                if (roll < 45) targetLv = 2;
+                else if (roll < 75) targetLv = 3;
+                else if (roll < 95) targetLv = 4;
+                else targetLv = 5;
+              } else if (idx === 1) {
+                targetLv = (seedVal % 10 < 6) ? 1 : 2;
+              } else if (idx === 2) {
+                targetLv = (seedVal % 4 === 0) ? 2 : 1;
+              } else {
+                targetLv = (p.stars >= 3 && (seedVal % 3 === 0)) ? 2 : 1;
+              }
+              p.blv = targetLv;
+              p.lv = targetLv;
+              const maxExp = need(targetLv);
+              const frac = ((seedVal % 50) + 10) / 100;
+              p.bxp = Math.floor(maxExp * frac);
+              p.exp = p.bxp;
+            });
+          }
+          s.town.residentPetsBalancedV20261017_Final = 1;
+          s.town.residentPetsBalancedV6 = 1;
+          s.town.residentPetsBalancedV5 = 1;
         }
-        s.town.residentPetsBalancedV5 = 1;
       }
     }
 	// v1.101: 기존 벡터 종 → 새 PNG 종 (A안)
