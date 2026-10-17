@@ -12,7 +12,7 @@ const SALON_STAGES = [{ k: 'bath', icon: '🛁', t: 4 }, { k: 'dry', icon: '💨
 const SALON_SPECIES = ['pomeranian', 'maltese', 'maltese_cream', 'maltese_brown', 'poodle', 'bichon', 'shiba', 'shiba_black', 'shiba_red', 'corgi', 'persian', 'ragdoll', 'samoyed', 'yorkie', 'shihtzu', 'hollandlop', 'kitten', 'golden', 'husky', 'munchkin'];
 const SALON = (() => {
   // lot-local layout: two grooming tables along the back wall, a waiting bench on the west wall, the counter by the east entrance
-  const TABLES = [{ u: 2, v: 1 }, { u: 5.5, v: 1 }], SEATS = [{ u: .65, v: 3.85 }, { u: .65, v: 4.95 }, { u: .65, v: 6.05 }, { u: 1.8, v: 6.6 }], COUNTER = { u: 7.4, v: 4.6 };
+  const TABLES = [{ u: 2, v: 1 }, { u: 5.5, v: 1 }], SEATS = [{ u: .55, v: 3.9 }, { u: .55, v: 4.8 }, { u: .55, v: 5.7 }], COUNTER = { u: 7.4, v: 4.6 };
   const ensure = s => { const sl = s.salon = s.salon || {}; if (!sl.q) sl.q = []; if (!sl.staff) sl.staff = []; if (!sl.seq) sl.seq = 1; if (sl.spawnT == null) sl.spawnT = 8; if (sl.built && sl.bldSeq == null) sl.bldSeq = 1; return sl; };
   const built = () => !!(typeof S !== 'undefined' && S && S.salon && S.salon.built);
   const payOf = sp => 200 + Math.round(((SPECIES[sp] && SPECIES[sp].sell) || 600) * .3);
@@ -23,13 +23,13 @@ const SALON = (() => {
     for (const c of sl.q) c.age = (c.age || 0) + dt;
     for (const c of sl.q.slice()) {
       if (c.ph === 'in' && (c.arr || c.age > 30)) { c.ph = 'wait'; c.wt = 0; }
-      else if (c.ph === 'wait') { c.wt += dt; if (c.wt > 110) { c.ph = 'angry'; c.t = 0; sl.lost = (sl.lost | 0) + 1; TOWN.mood(s, -1.2, 'salon'); } }
+      else if (c.ph === 'wait') { c.wt += dt; /* 손님은 소파에서 차례를 기다림 */ }
       else if (c.ph === 'groom') { const m = c.by !== 'me' ? sl.staff.find(x => 'm' + x.id === c.by) : null, k = m ? 1 + .35 * (m.lv - 1) : 2.0; c.t -= dt * k;
         if (c.t <= 0) { c.stg++; if (c.stg >= SALON_STAGES.length) { c.ph = 'pay'; c.t = 0; if (m) { m.cid = null; m.done = (m.done | 0) + 1; } } else c.t = SALON_STAGES[c.stg].t; } }
-      else if (c.ph === 'pay') { c.t += dt; if (c.t > 6 && !c.paid) { const pay = Math.round(payOf(c.sp) * (1 + .06 * sl.staff.reduce((a, m) => a + m.lv, 0))); s.coins += pay; c.paid = pay; sl.served = (sl.served | 0) + 1; if (s.today) s.today.earned = (s.today.earned || 0) + pay; } if (c.t > 9) { c.ph = 'out'; c.t = 0; } }
+      else if (c.ph === 'pay') { c.t += dt; if (c.t > 4 && !c.paid) { const pay = Math.round(payOf(c.sp) * (1 + .06 * sl.staff.reduce((a, m) => a + m.lv, 0))); s.coins += pay; c.paid = pay; sl.served = (sl.served | 0) + 1; if (s.today) s.today.earned = (s.today.earned || 0) + pay; } if (c.t > 7) { c.ph = 'out'; c.t = 0; } }
       else if (c.ph === 'out' || c.ph === 'angry') { c.t += dt; if (c.t > 120 || c.gone) sl.q = sl.q.filter(x => x !== c); }
     }
-    // free groomers take the next waiting guest to a free table
+    // free groomers take the next waiting guest's pet to a free grooming table
     for (const m of sl.staff) {
       if (m.cid != null && !sl.q.some(c => c.id === m.cid && c.ph === 'groom')) m.cid = null;
       if (m.cid != null || !open && !sl.q.some(c => c.ph === 'wait')) continue;
@@ -41,7 +41,7 @@ const SALON = (() => {
     if (sl.spawnT <= 0 && sl.q.filter(c => c.ph !== 'out' && c.ph !== 'angry').length < SEATS.length) {
       const sp = SALON_SPECIES[Math.floor(Math.random() * SALON_SPECIES.length)];
       sl.q.push({ id: sl.seq++, seed: 1 + Math.floor(Math.random() * 1e6), sp, coat: 1 + Math.floor(Math.random() * 1e9), ph: 'in', age: 0, stg: 0 });
-      sl.spawnT = 26 + Math.random() * 24;
+      sl.spawnT = 22 + Math.random() * 20;
     }
   }
   const freeTable = sl => { for (let i = 0; i < TABLES.length; i++) if (!sl.q.some(c => c.ph === 'groom' && c.st === i)) return i; return -1; };

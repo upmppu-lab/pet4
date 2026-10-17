@@ -57,7 +57,7 @@ const HOSP_TX = [
 ];
 const hospTx = id => HOSP_TX.find(x => x.id === id);
 // how long a step really takes for THIS patient: the illness sets how serious it is (a cold is quick, a tumour is not), and every patient adds a random spread (paperwork, a nervous pet, a tricky case)
-const HOSP_SEV = { cold: .7, stomach: .85, wound: 1, skin: 1.1, fracture: 1.5, chill: 1, swallow: 1.9, tumor: 2.2, beak: 1.3 };
+const HOSP_SEV = { checkup: .5, cold: .7, stomach: .85, wound: 1, skin: 1.1, fracture: 1.5, chill: 1, swallow: 1.9, tumor: 2.2, beak: 1.3 };
 const hospDurK = (p, st) => st === 'reg' || st === 'route' ? (p.rv || 1) : st === 'pay' ? (p.pv || 1) : (HOSP_SEV[p.ail] || 1) * ((p.dv || [])[p.k] || 1) * (st === 'exam' ? .9 : 1);
 const HOSP_CAPPED = ['bench', 'tbed', 'exam', 'xray', 'ct', 'surgery', 'bed', 'incubator', 'medbath'];
 const HOSP_STN = ['exam', 'tbed', 'xray', 'ct', 'surgery', 'bed', 'incubator', 'medbath'];
@@ -68,6 +68,7 @@ const hospStage = p => p.k < 0 ? 'reg' : p.k >= p.plan.length ? 'pay' : (p.routi
 //   bench (sitting in the lobby waiting for a free room) -> toStn (walking there) -> atStn (waiting for the doctor/nurse)
 //   -> treat (being treated) ... -> deskwait/deskserve for the payment -> leaving
 const HOSP_AIL = [
+  { id: 'checkup', icon: '🩺', plan: ['exam'], w: 4 }, // 가벼운 건강검진: 진료실 진료 후 바로 수납 및 귀가
   { id: 'cold', icon: '🤧', plan: ['exam', 'drip'], w: 5 },
   { id: 'stomach', icon: '🤢', plan: ['exam', 'vaccine'], w: 4 },
   { id: 'wound', icon: '🩹', plan: ['exam', 'bandage'], w: 4 },
@@ -736,38 +737,88 @@ const HOSP = (() => {
     let tot = 0; opts.forEach(a => tot += a.w); let r = Math.random() * tot, ail = opts[0] || HOSP_AIL[0];
     for (const a of opts) { r -= a.w; if (r <= 0) { ail = a; break; } }
     const plan = opts.length ? ail.plan.slice() : ['exam'];
-    return { id: hp.seq++, seed: 1 + Math.floor(Math.random() * 1e6), sp, ail: ail.id, plan, k: -1, ph: 'walkin', tm: 45, stn: null, bill: 0, q: 1, qt: 0, rv: .6 + Math.random() * 1.1, pv: .6 + Math.random() * .9, dv: plan.map(() => .6 + Math.random() * .95) };
+    return { id: hp.seq++, seed: 1 + Math.floor(Math.random() * 1e6), sp, ail: ail.id, plan, k: -1, ph: 'walkin', tm: 1.2, stn: null, bill: 0, q: 1, qt: 0, rv: .5 + Math.random() * .8, pv: .5 + Math.random() * .7, dv: plan.map(() => .6 + Math.random() * .9) };
   }
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   // which station (by key) a patient at `from` should use for this kind: a free one (nobody reserved it)
-  const freeStation = (hp, kind) => hospStations().find(x => x.it.k === kind && x.it.sx != null && !hp.patients.some(q => q.stn === x.key));
+  const freeStation = (hp, kind) => hospStations().find(x => x.it.k === kind && x.it.sx != null && !hp.patients.some(q => q.stn === x.key && (q.ph === 'toStn' || q.ph === 'atStn' || q.ph === 'treat')));
   // after a step: register / exam / treatment done -> what next? (walk to the next room, or sit down and wait, or go pay)
-  // v2026-10-17: 진료/치료 한 단계가 끝날 때마다 먼저 접수대로 돌아가 안내를 받고(route), 그 다음에야 다음 방을 기다린다.
-  // atDesk=true는 '방금 접수(reg)를 마친 직후'뿐 -- 그때는 이미 접수대 앞이라 다시 걸어갈 필요 없이 바로 첫 방 대기열로 보낸다.
   function nextStep(s, hp, p, L, from, atDesk) {
-    if (atDesk) { p.ph = 'bench'; p.qt = hp.clock; p.stn = null; return; }
+    if (atDesk) {
+      // 방금 접수(reg) 완료:
+      // 진료실(exam)이 비어있으면 즉시 진료실로 입장, 이미 다른 손님이 진료 중이면 의자(소파)에 앉아서 대기!
+      const tx = hospTx(hospStage(p));
+      const free = (tx && tx.stn) ? freeStation(hp, tx.stn) : null;
+      if (free) {
+        p.stn = free.key;
+        p.ph = 'toStn';
+        const to = { x: free.it.sx, y: free.it.sy };
+        p.tm = 1.2 + dist(L.wait[0] || { x: L.reception.x, y: L.reception.y }, to) / 2.2;
+      } else {
+        p.ph = 'bench';
+        p.qt = hp.clock;
+        p.stn = null;
+      }
+      return;
+    }
     const desk = L.wait[0] || { x: L.reception.x, y: L.reception.y };
-    p.routing = p.k < p.plan.length; // 더 할 단계가 남아있으면 '안내' 단계, 다 끝났으면 '수납' 단계
-    p.ph = 'toDesk'; p.tm = 1 + dist(from || desk, desk) / 2.2; p.stn = null;
+    p.routing = p.k < p.plan.length; // 진료/치료 후 남은 단계가 있으면 접수 직원이 안내, 다 끝났으면 수납
+    p.ph = 'toDesk';
+    p.tm = 1 + dist(from || desk, desk) / 2.2;
+    p.stn = null;
   }
   const stationPos = (L, key) => { const x = L.stations.find(q => String(q.id) === key); return x ? { x: x.sx, y: x.sy } : L.wait[0] || { x: L.reception.x, y: L.reception.y }; };
   function finishStage(s, hp, p, L) {
     const st = hospStage(p), tx = hospTx(st);
-    if (st === 'pay') { const c = Math.round(p.bill); s.coins += c; H.addXp(s, 4); p.paid = c; p.ph = 'leaving'; p.tm = 120; p.stn = null; hp.treated++; if (typeof TOWN !== 'undefined') TOWN.mood(s, .6); if (H.addRep) H.addRep(s, 1); return; }
-    if (st === 'route') { p.routing = false; p.ph = 'bench'; p.qt = hp.clock; p.stn = null; return; } // 접수대 안내가 끝남 -> 다음 방 배정 대기열로
-    p.bill += st === 'reg' ? hospTxFee(tx, 1) : hospTxFee(tx, tx.mini ? p.q : 1); H.addXp(s, tx.mini ? 8 : 3);
-    const from = p.stn ? stationPos(L, p.stn) : null; p.k++; p.stn = null; nextStep(s, hp, p, L, from, st === 'reg');
+    if (st === 'pay') {
+      const c = Math.round(p.bill);
+      s.coins += c;
+      H.addXp(s, 4);
+      p.paid = c;
+      p.ph = 'leaving';
+      p.tm = 120;
+      p.stn = null;
+      hp.treated++;
+      if (typeof TOWN !== 'undefined') TOWN.mood(s, .6);
+      if (H.addRep) H.addRep(s, 1);
+      return;
+    }
+    if (st === 'route') {
+      // 접수직원이 의사의 진료 결과(병명)를 듣고 다음 치료실/수술실/X-RAY실로 안내
+      p.routing = false;
+      const nextTx = hospTx(hospStage(p));
+      const free = (nextTx && nextTx.stn) ? freeStation(hp, nextTx.stn) : null;
+      if (free) {
+        // 해당 치료실/장비가 비어있으면 즉시 이동
+        p.stn = free.key;
+        p.ph = 'toStn';
+        const from = L.wait[0] || { x: L.reception.x, y: L.reception.y };
+        const to = { x: free.it.sx, y: free.it.sy };
+        p.tm = 1.2 + dist(from, to) / 2.2;
+      } else {
+        // 이미 다른 손님이 치료 중이면 소파에 앉아서 차례 기다림
+        p.ph = 'bench';
+        p.qt = hp.clock;
+        p.stn = null;
+      }
+      return;
+    }
+    p.bill += st === 'reg' ? hospTxFee(tx, 1) : hospTxFee(tx, tx.mini ? p.q : 1);
+    H.addXp(s, tx.mini ? 8 : 3);
+    const from = p.stn ? stationPos(L, p.stn) : null;
+    p.k++;
+    p.stn = null;
+    nextStep(s, hp, p, L, from, st === 'reg');
   }
   function tick(s, dt) {
     const hp = ensure(s); if (!hp.built) return;
     hp.clock = (hp.clock || 0) + dt;
     const L = HOSP_LAYOUT(), keys = new Set(L.stations.map(x => String(x.id)));
     for (const p of hp.patients) {
-      if (p.stn && !keys.has(p.stn)) { p.stn = null; if (p.ph === 'toStn' || p.ph === 'atStn' || p.ph === 'treat') nextStep(s, hp, p, L, null); } // its room's equipment was sold
+      if (p.stn && !keys.has(p.stn)) { p.stn = null; if (p.ph === 'toStn' || p.ph === 'atStn' || p.ph === 'treat') nextStep(s, hp, p, L, null); }
       p.tm = (p.tm || 0) - dt;
       switch (p.ph) {
-        case 'walkin': if (p.tm <= 0) { if (p.full) { p.ph = 'full'; p.tm = 3.5; } else p.ph = 'deskwait'; } break; // p.full: the benches are taken -> look in, say so, leave
-        case 'full': if (p.tm <= 0) { p.ph = 'leaving'; p.tm = 120; p.turned = 1; if (typeof TOWN !== 'undefined') TOWN.mood(s, -.8, 'hosp'); } break; // PET TOWN: turned away
+        case 'walkin': if (p.tm <= 0) p.ph = 'deskwait'; break; // 접수대 도착 -> 접수 대기
         case 'deskserve': if (p.tm <= 0) finishStage(s, hp, p, L); break;
         case 'toDesk': if (p.tm <= 0) p.ph = 'deskwait'; break;
         case 'toStn': if (p.tm <= 0) p.ph = 'atStn'; break;
@@ -776,52 +827,86 @@ const HOSP = (() => {
       }
     }
     hp.patients = hp.patients.filter(p => !p.gone);
-    // the lobby's queue: patients sitting on the benches go to a free room in the order they sat down
+    // 대기 의자에 앉아있는 환자: 원하는 진료실/치료실이 비면 앉은 순서대로 호출되어 입장
     for (const p of hp.patients.filter(x => x.ph === 'bench').sort((a, b) => a.qt - b.qt)) {
       const tx = hospTx(hospStage(p)); if (!tx || !tx.stn) continue;
       const free = freeStation(hp, tx.stn);
-      if (free) { p.stn = free.key; p.ph = 'toStn'; const from = L.seats[0] || L.wait[0] || { x: L.reception.x, y: L.reception.y }, to = { x: free.it.sx, y: free.it.sy }; p.tm = 1.5 + dist(from, to) / 2.2; }
+      if (free) {
+        p.stn = free.key;
+        p.ph = 'toStn';
+        const from = L.seats[0] || L.wait[0] || { x: L.reception.x, y: L.reception.y }, to = { x: free.it.sx, y: free.it.sy };
+        p.tm = 1.2 + dist(from, to) / 2.2;
+      }
     }
     staffWork(s, hp, dt);
-    // new patients: a few at a time, only while there's a reception + at least one treatment room to send them to
-    const away = q => q.ph === 'leaving' || q.ph === 'full' || q.full;
-    const inside = hp.patients.filter(q => !away(q)), seatsN = L.seats.length;
-    // people who still need a bench (not already in a room): when they'd outnumber the seats, the next visitor is turned away
-    const needSeat = inside.filter(q => !(q.ph === 'toStn' || q.ph === 'atStn' || q.ph === 'treat')).length;
-    if (!G.isOpen(s)) return; // v9.74: the hospital keeps the pet shop's hours -- patients inside are still treated
-    if (inside.length >= seatsN + L.stations.length + 2) return;
+    // 신규 환자 유입: 병원은 기다리는 것이 당연하므로 임의로 쫓아내지 않고 자연스럽게 수용
+    const inside = hp.patients.filter(q => q.ph !== 'leaving');
+    const seatsN = L.seats.length;
+    if (!G.isOpen(s)) return;
+    if (inside.length >= Math.max(8, seatsN + L.stations.length + 3)) return;
     hp.spawnT -= dt;
     if (hp.spawnT > 0) return;
     if (!hospTxAvail().length || !L.wait.length) { hp.spawnT = 10; return; }
-    if (needSeat >= seatsN + 4 && hp.patients.filter(q => q.full).length >= 2) { hp.spawnT = 6; return; }
-    const np = newPatient(s, hp); if (needSeat >= seatsN + 4) np.full = 1;
+    const np = newPatient(s, hp);
     hp.patients.push(np);
-    hp.spawnT = 20 + Math.random() * 28;
+    hp.spawnT = 18 + Math.random() * 20;
   }
   // someone starts serving a patient: the clerk at the desk, the doctor / nurse at the room. `by` is 'me' or a staff id.
   function serve(s, hp, p, by, q) {
     if (p.ph !== 'deskwait' && p.ph !== 'atStn') return false;
     const st = hospStage(p), tx = hospTx(st);
     p.by = by; p.q = tx.mini ? Math.max(.7, Math.min(1.5, +q || 1)) : 1;
-    p.ph = (st === 'reg' || st === 'pay' || st === 'route') ? 'deskserve' : 'treat'; p.tdur = Math.round(tx.dur * hospDurK(p, st) * 10) / 10; p.tm = p.tdur;
+    p.ph = (st === 'reg' || st === 'pay' || st === 'route') ? 'deskserve' : 'treat';
+    p.tdur = Math.round(tx.dur * hospDurK(p, st) * 10) / 10;
+    p.tm = p.tdur;
     return true;
   }
   const stageReady = p => p.ph === 'deskwait' || p.ph === 'atStn';
   function staffWork(s, hp, dt) {
     const L = HOSP_LAYOUT();
     for (const m of hp.staff) {
-      m.t = (m.t == null ? 3 : m.t) - dt; if (m.tt > 0) { m.tt -= dt; continue; } // v9.93: busy with a patient -> the next free colleague takes the next one
+      m.t = (m.t == null ? 0.2 : m.t) - dt;
+      if (m.tt > 0) { m.tt -= dt; continue; }
       if (m.t > 0) continue;
       const role = hospStaffRole(m.role); if (!role) continue;
-      const sp = hospSpecOf(hp, m, L), ready = x => (x.ph === 'deskwait' || x.ph === 'atStn') && role.does.includes(hospStage(x));
-      // v2026-10-17: 예전엔 배열 순서상 '처음 맞는 사람'을 집었는데, 그게 꼭 가장 오래 기다린 사람은 아니었음(접수 직원이 노는 것처럼 보이던 원인 중 하나).
-      // 이제 자기 담당(own room)이든 돕는 것(any)이든, 그 안에서는 항상 가장 오래 기다린 환자부터 처리한다.
-      const pickLongest = arr => arr.reduce((a, b) => (!a || (b.wt || 0) > (a.wt || 0)) ? b : a, null);
-      const own = hp.patients.filter(x => ready(x) && sp.does.includes(hospStage(x)) && (x.wt || 0) >= 2);
-      const any = hp.patients.filter(x => ready(x) && (x.wt || 0) >= 7); // own room first; helps the colleague when a patient has waited long
-      const p = pickLongest(own) || pickLongest(any);
-      if (p) { serve(s, hp, p, 'm' + m.id, 1); m.pid = p.id; m.tt = p.tdur; m.done = (m.done | 0) + 1; m.t = Math.max(0, (HOSP_STAFF_DUR[m.lv] || 6) - p.tdur); }
-      else m.t = .8;
+      const sp = hospSpecOf(hp, m, L);
+
+      if (m.role === 'recept') {
+        // 접수 직원은 쉬지 않고 계속 업무를 처리:
+        // 1순위: 치료가 끝난 환자 수납(pay) - 우선 정산
+        // 2순위: 의사 진료 후 다음 방 안내(route) - 병명 듣고 치료실/수술실/X-RAY실로 배정
+        // 3순위: 새로 온 환자 접수(reg) - 어디가 아픈지 묻고 진료실로 안내
+        const readyPatients = hp.patients.filter(x => x.ph === 'deskwait');
+        const payP = readyPatients.find(x => hospStage(x) === 'pay');
+        const routeP = readyPatients.find(x => hospStage(x) === 'route');
+        const regP = readyPatients.find(x => hospStage(x) === 'reg');
+        const p = payP || routeP || regP;
+        if (p) {
+          serve(s, hp, p, 'm' + m.id, 1);
+          m.pid = p.id;
+          m.tt = p.tdur;
+          m.done = (m.done | 0) + 1;
+          m.t = 0.25; // 다음 대기 환자 즉시 응대
+        } else {
+          m.t = 0.5;
+        }
+      } else {
+        // 의사(doctor: 진료, 수술, X-RAY) 및 간호사(nurse: 치료실 처치, 입원실 케어)
+        const ready = x => (x.ph === 'deskwait' || x.ph === 'atStn') && role.does.includes(hospStage(x));
+        const pickLongest = arr => arr.reduce((a, b) => (!a || (b.wt || 0) > (a.wt || 0)) ? b : a, null);
+        const own = hp.patients.filter(x => ready(x) && sp.does.includes(hospStage(x)));
+        const any = hp.patients.filter(x => ready(x) && (x.wt || 0) >= 3);
+        const p = pickLongest(own) || pickLongest(any);
+        if (p) {
+          serve(s, hp, p, 'm' + m.id, 1);
+          m.pid = p.id;
+          m.tt = p.tdur;
+          m.done = (m.done | 0) + 1;
+          m.t = Math.max(0.3, (HOSP_STAFF_DUR[m.lv] || 4) - p.tdur);
+        } else {
+          m.t = 0.6;
+        }
+      }
     }
     for (const p of hp.patients) if (p.ph === 'deskwait' || p.ph === 'atStn') p.wt = (p.wt || 0) + dt; else p.wt = 0;
   }

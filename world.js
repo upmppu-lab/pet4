@@ -1049,12 +1049,15 @@ return true;
             }
             if (seat) {
               a.seatAt = seat;
-              a.face = seat.faceSouth ? 0 : 1; // User Request 4: Always face outward into the room, never facing the wall!
+              a.x = seat.x; a.y = seat.y; // 벤치 방석 위로 착석
+              a.sit = true;
+              a.face = seat.faceSouth ? 0 : 1; // 방 안쪽을 향해 바깥쪽 보기
               a.faceBack = !seat.faceSouth;
             } else if (fx != null) faceTo(a, fx, fy);
           });
         }
-        a.sit = !!a.seatAt && p.ph === 'bench' && Math.hypot(a.seatAt.x - a.x, a.seatAt.y - a.y) < .06;
+        if (p.ph !== 'bench') { if (a.seatAt) { a.x = a.seatAt.ox; a.y = a.seatAt.oy; a.seatAt = null; } a.sit = false; a.seatIdx = null; }
+        a.sit = !!a.seatAt && p.ph === 'bench';
         a.hold = (p.ph === 'atStn' || p.ph === 'treat') ? null : { sp: p.sp, grow: 1 };
         a.talk = p.ph === 'deskserve';
       }
