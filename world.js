@@ -2463,7 +2463,18 @@ return true;
       if (a.salon) { // v9.99: salon guests -- waiting (tap to groom), then paying with the amount, holding a pet with a bow
         if (a.salonWait) { bubble(sx, sy - 66, () => { c.font = '16px sans-serif'; c.textAlign = 'center'; c.fillText('⏳', 0, 0); c.textAlign = 'start'; }); }
         if (a.hold && a.happyT > 0) { c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillText('🎀', sx + 6, sy - 44); c.textAlign = 'start'; }
-        if (a.salonPaid) { const msg = '+\u{1FA99}' + fmt(a.salonPaid); c.save(); c.font = 'bold 12px sans-serif'; const tw = c.measureText(msg).width + 14, by = sy - 100; ART.rrect(c, sx - tw / 2, by - 12, tw, 22, 10); c.fillStyle = '#fff6d6'; c.fill(); c.lineWidth = 1.6; c.strokeStyle = '#e0a820'; c.stroke(); c.fillStyle = '#9a6a10'; c.textAlign = 'center'; c.fillText(msg, sx, by + 3); c.restore(); }
+        if (a.salonPaid) {
+          c.save(); c.font = 'bold 12px sans-serif';
+          const numTxt = '+' + fmt(a.salonPaid);
+          const tw = c.measureText(numTxt).width + 30, by = sy - 100;
+          ART.rrect(c, sx - tw / 2, by - 12, tw, 22, 10); c.fillStyle = '#fff6d6'; c.fill();
+          c.lineWidth = 1.6; c.strokeStyle = '#e0a820'; c.stroke();
+          const coinX = sx - tw / 2 + 12, coinY = by - 1;
+          c.beginPath(); c.arc(coinX, coinY, 5.5, 0, Math.PI * 2); c.fillStyle = '#f5b020'; c.fill();
+          c.lineWidth = 1; c.strokeStyle = '#b87508'; c.stroke();
+          c.beginPath(); c.arc(coinX, coinY, 3.5, 0, Math.PI * 2); c.strokeStyle = '#ffe875'; c.stroke();
+          c.fillStyle = '#9a6a10'; c.textAlign = 'left'; c.fillText(numTxt, coinX + 8, by + 3); c.restore();
+        }
       }
       if (a.type === 'hstaff' && a.cafeCook) drawCafeCooking(a, sx, sy);
       if (a.type === 'hstaff' && a.carry) { const d0 = sx + 12 * (a.dir || 1), bob = a.moving ? Math.abs(Math.sin(T * 9)) * 1.5 : 0; ART.ell(c, d0, sy - 34 - bob, 10, 4, '#fff', ART.OUT, 1); c.font = '15px sans-serif'; c.textAlign = 'center'; c.fillText(a.carry, d0, sy - 36 - bob); c.textAlign = 'start'; }
@@ -2495,11 +2506,25 @@ return true;
       { let amt = null, age = 0;
         if (a.type === 'cafeguest' && a.payT > 0 && a.order && a.order.paid) { amt = a.order.paid; age = 2.6 - a.payT; }
         else if (a.type === 'cafeguest' && S.cafe && S.cafe.slotPaid) { const k = a.id.slice(2), sp0 = S.cafe.slotPaid[k]; if (sp0) { amt = sp0.c; age = sp0.t; } }
-        else if (a.type === 'patient' && a.pat && a.pat.paid && a.pat.ph === 'leaving' && a.pat.tm > 10.5) { amt = a.pat.paid; age = 14 - a.pat.tm; }
-        if (amt) { const msg = '+\u{1FA99}' + fmt(amt); c.save(); c.font = 'bold 12px sans-serif'; const tw = c.measureText(msg).width + 14, by = sy - (a.type === 'cafeguest' && a.payT > 0 ? 128 : a.type === 'patient' ? 124 : 100) - Math.min(1, age) * 6; // above the receipt bubble
-          c.globalAlpha = Math.min(1, 3.5 - age * .7 > 1 ? 1 : Math.max(.2, 3.5 - age * .7));
-          ART.rrect(c, sx - tw / 2, by - 12, tw, 22, 10); c.fillStyle = '#fff6d6'; c.fill(); c.lineWidth = 1.6; c.strokeStyle = '#e0a820'; c.stroke();
-          c.fillStyle = '#9a6a10'; c.textAlign = 'center'; c.fillText(msg, sx, by + 3); c.restore(); } }
+        else if (a.type === 'patient' && a.pat && a.pat.paid && (a.pat.paidT > 0)) { amt = a.pat.paid; age = 3.0 - a.pat.paidT; }
+        if (amt && age >= 0 && age < 3.2) {
+          c.save();
+          c.font = 'bold 12px sans-serif';
+          const numTxt = '+' + fmt(amt);
+          const tw = c.measureText(numTxt).width + 30;
+          const by = sy - (a.type === 'cafeguest' && a.payT > 0 ? 128 : 110) - Math.min(1.5, Math.max(0, age)) * 8;
+          const alpha = Math.max(0, Math.min(1, (3.0 - age) / 0.8));
+          c.globalAlpha = alpha;
+          ART.rrect(c, sx - tw / 2, by - 12, tw, 22, 10);
+          c.fillStyle = '#fff6d6'; c.fill();
+          c.lineWidth = 1.6; c.strokeStyle = '#e0a820'; c.stroke();
+          const coinX = sx - tw / 2 + 12, coinY = by - 1;
+          c.beginPath(); c.arc(coinX, coinY, 5.5, 0, Math.PI * 2); c.fillStyle = '#f5b020'; c.fill();
+          c.lineWidth = 1; c.strokeStyle = '#b87508'; c.stroke();
+          c.beginPath(); c.arc(coinX, coinY, 3.5, 0, Math.PI * 2); c.strokeStyle = '#ffe875'; c.stroke();
+          c.fillStyle = '#9a6a10'; c.textAlign = 'left'; c.fillText(numTxt, coinX + 8, by + 3); c.restore();
+        }
+      }
       if (a.type === 'cafeguest' && a.payT > 0) { // paying at the cashier's desk: coins hop up
         const k2 = (2.6 - a.payT) / 2.6; c.save(); c.textAlign = 'center'; c.globalAlpha = Math.min(1, a.payT * 2); c.font = '16px sans-serif'; c.fillText('🪙', sx + 10, sy - 30 - 34 * k2); c.restore();
         bubble(sx, sy - 66, () => { c.font = '18px sans-serif'; c.textAlign = 'center'; c.fillText(Math.floor(T * 3) % 2 ? '💰' : '🧾', 0, 0); c.textAlign = 'start'; });

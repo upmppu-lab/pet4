@@ -153,6 +153,43 @@ const G = (() => {
     s.pets.forEach(p => { if (p) fixPet(p); });
     ensureOffers(s);
     EXTRA.migrate(s); HOME.ensure(s); TOWN.ensure(s); // PET TOWN
+    // v2026-10-17: 기존 세이브에서 매일 아침 경험치 과지급으로 모든 펫이 Lv.6/Lv.7로 고정되어 있던 문제 즉시 정상화
+    // 입양 순서(오래된 대표 펫 vs 최근 입양 펫)와 별점에 따라 자연스러운 레벨 편차(Lv.1~Lv.4, 별점 보너스 시 Lv.5)로 재분배
+    if (s.town && Array.isArray(s.town.residents)) {
+      if (!s.town.residentPetsBalancedV3) {
+        s.town.residentPetsBalancedV3 = 1;
+        const need = lv => 12 + (lv - 1) * 9;
+        const hashFn = str => Math.abs(String(str || '').split('').reduce((a, b) => (a * 31 + b.charCodeAt(0)) | 0, 0));
+        for (const r of s.town.residents) {
+          const pets = r.pets || [];
+          pets.forEach((p, idx) => {
+            if (!p) return;
+            const starsBonus = Math.floor((p.stars || 0) * 0.5);
+            const varBonus = hashFn(p.name || p.sp) % 2;
+            let targetLv = 1;
+            if (idx === 0) {
+              // 주민의 첫 번째(가장 오래 함께한) 대표 펫: Lv.3 ~ Lv.4 (별점 보너스 시 Lv.5)
+              targetLv = Math.min(5, Math.max(3, 3 + starsBonus + varBonus));
+            } else if (idx === 1) {
+              // 두 번째 펫: Lv.2 ~ Lv.3
+              targetLv = Math.min(3, Math.max(2, 2 + starsBonus));
+            } else if (idx === 2) {
+              // 세 번째 펫: Lv.2
+              targetLv = 2;
+            } else {
+              // 네 번째 이후 입양한 펫: Lv.1 (별점 2개 이상이면 Lv.2)
+              targetLv = 1 + (p.stars >= 2 ? 1 : 0);
+            }
+            p.blv = targetLv;
+            p.lv = targetLv;
+            const maxExp = need(targetLv);
+            const frac = ((hashFn((p.name || '') + (r.id || '') + idx) % 55) + 15) / 100;
+            p.bxp = Math.floor(maxExp * frac);
+            p.exp = p.bxp;
+          });
+        }
+      }
+    }
 	// v1.101: 기존 벡터 종 → 새 PNG 종 (A안)
 const SP_MAP = {
   hamster: 'hamster_brown',

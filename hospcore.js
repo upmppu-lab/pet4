@@ -788,6 +788,7 @@ const HOSP = (() => {
       p.paid = c;
       p.ph = 'leaving';
       p.tm = 120;
+      p.paidT = 3.0; // 3초간만 결제 말풍선 표시
       p.stn = null;
       hp.treated++;
       if (typeof TOWN !== 'undefined') TOWN.mood(s, .6);
@@ -835,7 +836,10 @@ const HOSP = (() => {
         case 'toDesk': if (p.arr || p.tm <= 0) p.ph = 'deskwait'; break;
         case 'toStn': if (p.arr || p.tm <= 0) p.ph = 'atStn'; break;
         case 'treat': if (p.tm <= 0) finishStage(s, hp, p, L); break;
-        case 'leaving': if (p.tm <= 0 || p.gone) p.gone = 1; break;
+        case 'leaving':
+          if (p.paidT > 0) p.paidT = Math.max(0, p.paidT - dt);
+          if (p.tm <= 0 || p.gone) p.gone = 1;
+          break;
       }
     }
     hp.patients = hp.patients.filter(p => !p.gone);

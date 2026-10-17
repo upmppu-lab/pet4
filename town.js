@@ -1327,6 +1327,7 @@ const roadTileOk = (s, x, y) => {
     }
     syncFacilityGateRoads(s);
     fitShop(s);
+    if (!s.town.residentPetsBalancedV3) syncResidents(s);
     return s.town;
   }
   // building levels (v1.3): shops/public buildings go Lv1 -> Lv3. 집(house)은 더 이상 이 lv를 안 쓰고
@@ -1899,33 +1900,36 @@ const roadTileOk = (s, x, y) => {
     }
     // v2026-10-17: 주민 펫 레벨 정상화 및 다양화 (기존 세이브에서 모든 펫이 Lv.7로 고정되던 문제 완벽 해결)
     // 펫의 기본 레벨은 Lv.1이며, 입양 순서(오래된 펫 vs 최근 펫), 별점, 산책/배틀 활동에 따라 자연스러운 레벨 편차를 갖습니다.
-    if (!T.residentPetLvRebalancedV2) {
-      T.residentPetLvRebalancedV2 = 1;
+    if (!T.residentPetsBalancedV3) {
+      T.residentPetsBalancedV3 = 1;
       const need = (typeof BATTLE !== 'undefined' && BATTLE.needXp) ? BATTLE.needXp : (lv => 12 + (lv - 1) * 9);
       const hashFn = (typeof ART !== 'undefined' && ART.hashStr) ? ART.hashStr : (str => Math.abs(String(str || '').split('').reduce((a, b) => (a * 31 + b.charCodeAt(0)) | 0, 0)));
       for (const r of T.residents) {
         const pets = r.pets || [];
         pets.forEach((p, idx) => {
+          if (!p) return;
           const starsBonus = Math.floor((p.stars || 0) * 0.5);
           const varBonus = hashFn(p.name || p.sp) % 2;
           let targetLv = 1;
           if (idx === 0) {
-            // 주민의 첫 번째(가장 오래 함께한) 대표 펫: Lv.3 ~ Lv.5 (별점에 따라 최대 Lv.6)
-            targetLv = Math.min(6, Math.max(3, 3 + starsBonus + varBonus));
+            // 주민의 첫 번째(가장 오래 함께한) 대표 펫: Lv.3 ~ Lv.4 (별점 보너스 시 Lv.5)
+            targetLv = Math.min(5, Math.max(3, 3 + starsBonus + varBonus));
           } else if (idx === 1) {
             // 두 번째 펫: Lv.2 ~ Lv.3
-            targetLv = Math.min(4, Math.max(2, 2 + starsBonus));
+            targetLv = Math.min(3, Math.max(2, 2 + starsBonus));
           } else if (idx === 2) {
             // 세 번째 펫: Lv.2
-            targetLv = Math.min(3, 2 + (p.stars >= 2 ? 1 : 0));
+            targetLv = 2;
           } else {
-            // 그 이후 입양한 펫: Lv.1 (별점이 높으면 Lv.2)
-            targetLv = 1 + (p.stars >= 3 ? 1 : 0);
+            // 그 이후 입양한 펫: Lv.1 (별점 2개 이상이면 Lv.2)
+            targetLv = 1 + (p.stars >= 2 ? 1 : 0);
           }
           p.blv = targetLv;
+          p.lv = targetLv;
           const maxExp = need(targetLv);
-          const frac = ((hashFn((p.name || '') + idx) % 55) + 15) / 100;
+          const frac = ((hashFn((p.name || '') + (r.id || '') + idx) % 55) + 15) / 100;
           p.bxp = Math.floor(maxExp * frac);
+          p.exp = p.bxp;
         });
       }
     }
