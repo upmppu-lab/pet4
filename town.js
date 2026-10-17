@@ -6367,10 +6367,13 @@ function getFlowerSprite(kind) {
       if (st !== 'step') {
         curC.strokeStyle = st === 'tile' ? 'rgba(194,65,12,.75)' : st === 'stone' ? 'rgba(180,142,35,.85)' : st === 'yellow' ? 'rgba(180,83,9,.85)' : st === 'brick' ? 'rgba(122,46,27,.80)' : st === 'block' ? 'rgba(84,78,70,.75)' : st === 'dirt' ? 'rgba(122,75,34,.65)' : 'rgba(72,60,48,.75)';
         curC.lineWidth = 1.3;
-        if (!R.has(x + ',' + (y - 1))) { const a = Q(x, y), b2 = Q(x + 1, y); curC.beginPath(); curC.moveTo(a[0], a[1]); curC.lineTo(b2[0], b2[1]); curC.stroke(); }
-        if (!R.has(x + ',' + (y + 1))) { const a = Q(x, y + 1), b2 = Q(x + 1, y + 1); curC.beginPath(); curC.moveTo(a[0], a[1]); curC.lineTo(b2[0], b2[1]); curC.stroke(); }
-        if (!R.has((x - 1) + ',' + y)) { const a = Q(x, y), b2 = Q(x, y + 1); curC.beginPath(); curC.moveTo(a[0], a[1]); curC.lineTo(b2[0], b2[1]); curC.stroke(); }
-        if (!R.has((x + 1) + ',' + y)) { const a = Q(x + 1, y), b2 = Q(x + 1, y + 1); curC.beginPath(); curC.moveTo(a[0], a[1]); curC.lineTo(b2[0], b2[1]); curC.stroke(); }
+        curC.beginPath();
+        let anyEdge = false;
+        if (!R.has(x + ',' + (y - 1))) { const a = Q(x, y), b2 = Q(x + 1, y); curC.moveTo(a[0], a[1]); curC.lineTo(b2[0], b2[1]); anyEdge = true; }
+        if (!R.has(x + ',' + (y + 1))) { const a = Q(x, y + 1), b2 = Q(x + 1, y + 1); curC.moveTo(a[0], a[1]); curC.lineTo(b2[0], b2[1]); anyEdge = true; }
+        if (!R.has((x - 1) + ',' + y)) { const a = Q(x, y), b2 = Q(x, y + 1); curC.moveTo(a[0], a[1]); curC.lineTo(b2[0], b2[1]); anyEdge = true; }
+        if (!R.has((x + 1) + ',' + y)) { const a = Q(x + 1, y), b2 = Q(x + 1, y + 1); curC.moveTo(a[0], a[1]); curC.lineTo(b2[0], b2[1]); anyEdge = true; }
+        if (anyEdge) curC.stroke();
       }
     }
     // 공원·호수·동물원 입구 자동 길 렌더링 (활성 doorDir 방향)
@@ -6381,17 +6384,31 @@ function getFlowerSprite(kind) {
     drawRailCrossings(curC, S);
   };
 
+  let _cachedLaneSet = null, _cachedLaneKey = '';
+  function getCachedLaneData(s) {
+    const zoneList = zonesOf(s);
+    const key = zoneList.length + ':' + (s && s.town && s.town.rv || 0);
+    if (key === _cachedLaneKey && _cachedLaneSet) return { zoneList, laneSet: _cachedLaneSet };
+    const laneSet = new Set();
+    for (let i = 0; i < zoneList.length; i++) {
+      const L = laneOf(zoneList[i]);
+      for (let lx = L.x; lx < L.x + L.w; lx++) {
+        for (let ly = L.y; ly < L.y + L.d; ly++) {
+          laneSet.add(lx + ',' + ly);
+        }
+      }
+    }
+    _cachedLaneKey = key;
+    _cachedLaneSet = laneSet;
+    return { zoneList, laneSet };
+  }
+
   function ground(c, T) {
     const W = Wd(), H = Hd();
     const R = roadSet(S); // road tiles the player paved
     const rstyles = (S && S.town && S.town.rstyle) || {};
-    // v2026-10-09: 주택가(zone) 골목길(lane) 타일 전부 모음
-    const zoneList = zonesOf(S);
-    const laneSet = new Set();
-    for (const z of zoneList) {
-      const L = laneOf(z);
-      for (let lx = L.x; lx < L.x + L.w; lx++) for (let ly = L.y; ly < L.y + L.d; ly++) laneSet.add(lx + ',' + ly);
-    }
+    // v2026-10-09: 주택가(zone) 골목길(lane) 타일 전부 모음 (캐싱 적용으로 매 프레임 GC 렉 방지)
+    const { zoneList, laneSet } = getCachedLaneData(S);
     const cb = (typeof World !== 'undefined' && World.cullBounds) ? World.cullBounds() : null;
     const cx = cb ? cb.cx : 0, cy = cb ? cb.cy : 0;
     const rw = cb ? cb.rw : 1e9, rh = cb ? cb.rh : 1e9;
@@ -6427,6 +6444,7 @@ function getFlowerSprite(kind) {
           const flX = Math.floor(hx), flY = Math.floor(hy);
           if (R.has(flX + ',' + flY) || R.has(Math.floor(hx - .1) + ',' + Math.floor(hy - .1)) || (typeof houseConnectorSet === 'function' && houseConnectorSet(S).has(flX + ',' + flY))) continue;
           const q = Q(hx, hy);
+          if (cb && (Math.abs(q[0] - cx) > rw + 40 || Math.abs(q[1] - cy) > rh + 40)) continue;
           const spr = getHedgeSprite(i);
           c.drawImage(spr, q[0] - spr.width / 2, q[1] - spr.height + 4);
         }

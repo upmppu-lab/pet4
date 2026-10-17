@@ -2604,24 +2604,45 @@ const FURN = (() => {
 
   function groundTex(c, x0, y0, x1, y1, skip, lod) {
     const Q = (x, y) => [ISO.wx(x, y), ISO.wy(x, y)];
+    if (!lod) {
+      // Fast path when zoomed out: only draw subtle tone patches, skip heavy image & flower draws
+      const dark = new Path2D(), lite = new Path2D();
+      const ox0 = Math.floor(Math.min(x0, x1)), ox1 = Math.ceil(Math.max(x0, x1));
+      const oy0 = Math.floor(Math.min(y0, y1)), oy1 = Math.ceil(Math.max(y0, y1));
+      for (let y = oy0; y < oy1; y += 2) {
+        for (let x = ox0; x < ox1; x += 2) {
+          if (skip && skip(x + .5, y + .5)) continue;
+          const r = th(x, y, 1);
+          if (r < .13) {
+            const p = Q(x + th(x, y, 2), y + th(x, y, 3)), rx = 24 + th(x, y, 4) * 26, pa = r < .05 ? dark : lite;
+            pa.moveTo(p[0] + rx, p[1]);
+            pa.ellipse(p[0], p[1], rx, rx * .5, 0, 0, Math.PI * 2);
+          }
+        }
+      }
+      c.save();
+      c.fillStyle = 'rgba(70,130,45,.09)'; c.fill(dark);
+      c.fillStyle = 'rgba(220,242,160,.22)'; c.fill(lite);
+      c.restore();
+      return;
+    }
     c.save(); c.lineCap = 'round';
     // 1. 잔디 톤 패치 (Path2D) + 꽃 배열
     const dark = new Path2D(), lite = new Path2D(), fl = [];
     // 2. 잔디 다발 & 돌멩이 sprite 배치 목록 (매번 그리지 않고 drawImage로)
     const grassList = [];
     const stoneList = [];
+    const curS = typeof S !== 'undefined' ? S : null;
+    const rSet = (typeof TOWN !== 'undefined' && TOWN.roadSet) ? TOWN.roadSet(curS) : null;
+    const isRd = (typeof TOWN !== 'undefined' && TOWN.isRoadTile) ? TOWN.isRoadTile : null;
     for (let y = Math.floor(y0); y < y1; y++) for (let x = Math.floor(x0); x < x1; x++) {
       if (skip && skip(x + .5, y + .5)) continue;
-      if (typeof TOWN !== 'undefined') {
-        const curS = typeof S !== 'undefined' ? S : null;
-        if ((TOWN.roadSet && TOWN.roadSet(curS).has(x + ',' + y)) || (TOWN.isRoadTile && TOWN.isRoadTile(curS, x, y))) continue;
-      }
+      if (rSet && (rSet.has(x + ',' + y) || (isRd && isRd(curS, x, y)))) continue;
       const r = th(x, y, 1);
       // 잔디 톤 패치
       if (r < .13) { const p = Q(x + th(x, y, 2), y + th(x, y, 3)), rx = 22 + th(x, y, 4) * 26, pa = r < .05 ? dark : lite; pa.moveTo(p[0] + rx, p[1]); pa.ellipse(p[0], p[1], rx, rx * .5, 0, 0, Math.PI * 2); }
-      // 잔디 다발 (lod=0일 때도 그리되, 확률 낮춤)
-      const dSpr = lod ? .010 : .005;
-      if (th(x, y, 20) < dSpr) {
+      // 잔디 다발
+      if (th(x, y, 20) < .010) {
         const p = Q(x + th(x, y, 21) * .9 + .05, y + th(x, y, 22) * .9 + .05);
         const v = Math.floor(th(x, y, 23) * 15);
         const img0 = GRASS_IMGS[v];
@@ -2631,50 +2652,67 @@ const FURN = (() => {
         const mir = th(x, y, 25) < .5 ? -1 : 1;
         grassList.push({ x: p[0], y: p[1], v, scale, mir });
       }
-      // 돌멩이 (grass 파일처럼 같은 빈도와 같은 크기로 맵에 설치)
-      if (th(x, y, 30) < dSpr) {
+      // 돌멩이
+      if (th(x, y, 30) < .010) {
         const p = Q(x + th(x, y, 31) * .9 + .05, y + th(x, y, 32) * .9 + .05);
         const v = Math.floor(th(x, y, 33) * 15);
         const img0 = STONE_IMGS[v];
         const baseSz = (img0 && img0.naturalWidth) || 512;
-        const targetW = 34 + th(x, y, 34) * 26;      // 화면에 나올 목표 크기: 34~60px (grass와 동일)
+        const targetW = 34 + th(x, y, 34) * 26;
         const scale = targetW / baseSz;
         const mir = th(x, y, 35) < .5 ? -1 : 1;
         stoneList.push({ x: p[0], y: p[1], v, scale, mir });
       }
-      // 꽃 (lod=1일 때만)
-      if (lod && th(x, y, 13) < .03) fl.push([Q(x + .5, y + .5), ['#ffffff', '#ffe27a', '#f9a8c9', '#cdb8f6'][(th(x, y, 14) * 4) | 0]]);
+      // 꽃
+      if (th(x, y, 13) < .03) fl.push([Q(x + .5, y + .5), ['#ffffff', '#ffe27a', '#f9a8c9', '#cdb8f6'][(th(x, y, 14) * 4) | 0]]);
     }
     // 톤 패치 렌더
     c.fillStyle = 'rgba(70,130,45,.09)'; c.fill(dark);
     c.fillStyle = 'rgba(220,242,160,.22)'; c.fill(lite);
-    // 돌멩이 렌더 (원화 PNG 15종: grass와 동일 크기 & 동일 앵커)
-    for (const st of stoneList) {
+    // 돌멩이 렌더
+    for (let i = 0; i < stoneList.length; i++) {
+      const st = stoneList[i];
       const img = STONE_IMGS[st.v];
       if (!img || !img.complete || !img.naturalWidth) continue;
       const w = img.width * st.scale;
       const h = img.height * st.scale;
-      c.save();
-      c.translate(st.x, st.y);
-      c.scale(st.mir, 1);
-      c.drawImage(img, -w / 2, -h + 2, w, h);
-      c.restore();
+      if (st.mir === -1) {
+        c.save();
+        c.translate(st.x, st.y);
+        c.scale(-1, 1);
+        c.drawImage(img, -w / 2, -h + 2, w, h);
+        c.restore();
+      } else {
+        c.drawImage(img, st.x - w / 2, st.y - h + 2, w, h);
+      }
     }
-    // 잔디 다발 렌더 (원화 PNG 15종)
-    for (const gs of grassList) {
+    // 잔디 다발 렌더
+    for (let i = 0; i < grassList.length; i++) {
+      const gs = grassList[i];
       const img = GRASS_IMGS[gs.v];
       if (!img || !img.complete || !img.naturalWidth) continue;
       const w = img.width * gs.scale;
       const h = img.height * gs.scale;
-      c.save();
-      c.translate(gs.x, gs.y);
-      c.scale(gs.mir, 1);
-      c.drawImage(img, -w / 2, -h + 2, w, h);
-      c.restore();
+      if (gs.mir === -1) {
+        c.save();
+        c.translate(gs.x, gs.y);
+        c.scale(-1, 1);
+        c.drawImage(img, -w / 2, -h + 2, w, h);
+        c.restore();
+      } else {
+        c.drawImage(img, gs.x - w / 2, gs.y - h + 2, w, h);
+      }
     }
     // 꽃 렌더
-    if (lod) {
-      for (const [p, col] of fl) { ell(c, p[0] + 1, p[1] + 1, 3.4, 1.4, 'rgba(40,80,20,.18)'); c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(p[0], p[1] - 4); c.lineWidth = 1; c.strokeStyle = '#5f9a3e'; c.stroke(); for (let k = 0; k < 5; k++) { const a = k * 1.2566; ell(c, p[0] + Math.cos(a) * 2.8, p[1] - 5 + Math.sin(a) * 1.9, 2.1, 1.7, col, 'rgba(120,90,60,.35)', .5); } ell(c, p[0], p[1] - 5, 1.5, 1.3, '#f0a93a'); }
+    for (let i = 0; i < fl.length; i++) {
+      const [p, col] = fl[i];
+      ell(c, p[0] + 1, p[1] + 1, 3.4, 1.4, 'rgba(40,80,20,.18)');
+      c.beginPath(); c.moveTo(p[0], p[1]); c.lineTo(p[0], p[1] - 4); c.lineWidth = 1; c.strokeStyle = '#5f9a3e'; c.stroke();
+      for (let k = 0; k < 5; k++) {
+        const a = k * 1.2566;
+        ell(c, p[0] + Math.cos(a) * 2.8, p[1] - 5 + Math.sin(a) * 1.9, 2.1, 1.7, col, 'rgba(120,90,60,.35)', .5);
+      }
+      ell(c, p[0], p[1] - 5, 1.5, 1.3, '#f0a93a');
     }
     c.restore();
   }

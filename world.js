@@ -1464,7 +1464,9 @@ return true;
   // ---------- rendering ----------
   function resize() {
     cvRect = null;
-    dpr = Math.min(2, window.devicePixelRatio || 1);
+    const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth < 900);
+    const maxDpr = isMobile ? 1.4 : 2;
+    dpr = Math.min(maxDpr, window.devicePixelRatio || 1);
     vw = cv.clientWidth; vh = cv.clientHeight;
     cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr);
   }
@@ -1751,7 +1753,7 @@ return true;
       for (const e of SALON.collect(c, T, h => hits.push(h))) list.push(e);
     }
     for (const e of TOWN.collect(c, T, h => hits.push(h))) list.push(e);
-    { const cx = cam.x, cy = cam.y, rw = vw / cam.z / 2 + 200, rh = vh / cam.z / 2 + 200, tp = App.tplace; // PET TOWN: everything the player built (houses, trees, small facilities)
+    { const cx = cam.x, cy = cam.y, rw = vw / cam.z / 2 + 110, rh = vh / cam.z / 2 + 140, tp = App.tplace; // PET TOWN: everything the player built (houses, trees, small facilities)
       for (const o of TOWN.objs()) {
         if (tp && tp.mv === o.id) continue;
         const f = TOWN.fpOf(o.k, o.r), sx = ISO.wx(o.x + f.w / 2, o.y + f.d / 2), sy = ISO.wy(o.x + f.w / 2, o.y + f.d / 2), zpad = o.k === 'zoo' ? 360 : 0;
@@ -2774,11 +2776,13 @@ return true;
     const vs = VILLAGE_S_MAX() + 7;
     const X0 = VILLAGE_X0 - 5, Y0 = VILLAGE_Y0 - 5, XE = w + VILLAGE_XE + 5;
     poly([q(X0, Y0), q(XE, Y0), q(XE, vs), q(X0, vs)], '#86c860');
-    // grass texture outside the baked bg canvas, only for the tiles actually on screen (tufts/flowers only when zoomed in enough to see them)
-    { const cs = [toGrid(0, 0), toGrid(vw, 0), toGrid(0, vh), toGrid(vw, vh)];
+    // grass texture outside the baked bg canvas: only when zoomed in (tufts/flowers when close, skip when zoomed out)
+    if (cam.z >= .35) {
+      const cs = [toGrid(0, 0), toGrid(vw, 0), toGrid(0, vh), toGrid(vw, vh)];
       const x0 = Math.max(X0, Math.min(...cs.map(p => p.x)) - 1), x1 = Math.min(XE, Math.max(...cs.map(p => p.x)) + 1);
       const y0 = Math.max(Y0, Math.min(...cs.map(p => p.y)) - 1), y1 = Math.min(vs, Math.max(...cs.map(p => p.y)) + 1);
-      FURN.groundTex(c, x0, y0, x1, y1, (x, y) => (x > -8 && x < w + 27 && y > -22 && y < h + 26) || (x > w + .9 && x < w + 8.7), cam.z >= .32 ? 1 : 0); }
+      FURN.groundTex(c, x0, y0, x1, y1, (x, y) => (x > -8 && x < w + 27 && y > -22 && y < h + 26) || (x > w + .9 && x < w + 8.7), cam.z >= .55 ? 1 : 0);
+    }
     for (const [y0, y1] of [[Y0, -21.9], [h + 25.9, vs]]) FURN.road(c, w, y0, y1);
     // the edge of the village: a low picket fence all the way round, open where the road runs out
     { const fx0 = VILLAGE_X0 - .3, fx1 = w + VILLAGE_XE + 1.2, fy0 = VILLAGE_Y0 - .3, fy1 = VILLAGE_S_MAX() + 1.2, gx0 = w + 1.1, gx1 = w + 8.5;
