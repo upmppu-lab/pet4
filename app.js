@@ -1011,8 +1011,10 @@ PANELS.market = m => {
   });
   for (const o of offers) {
     const kind = G.kindOf(o.sp), free = G.freeSlotsKind(S, kind).length > 0, wait = o.cd > now;
-    h += `<div class="tile">${o.stars ? `<span class="badge" style="background:#f0b43c">${'★'.repeat(o.stars)}</span>` : ''}${o.gift ? '<span class="badge" style="background:#ff7ab8;left:4px;right:auto">🎁</span>' : ''}${rareOf(o.coat || 0) ? '<span class="badge" style="background:#9a6aff;left:4px;right:auto;top:22px">✨</span>' : ''}<img src="${PIC.pet(o.sp, false, o.coat)}"><div class="t">${esc(spName(o.sp))} <span class="sex ${o.sex}">${o.sex === 'm' ? '♂' : '♀'}</span></div>
-      <div class="m">${o.stars ? t('rare') + ' · ' : ''}${t('sellPrice', { c: fmt(Math.round(SPECIES[o.sp].sell * (1 + .3 * o.stars) * (rareOf(o.coat || 0) ? RARE_SELL_MUL : 1))) })}</div>${rareOf(o.coat || 0) ? `<div class="m" style="color:#b07a10">👑 ${t('vipOnlyTag')}</div>` : ''}
+    const olv = o.lv || 1;
+    const estSell = Math.round(SPECIES[o.sp].sell * (1 + .3 * (o.stars || 0)) * (1 + 0.18 * (olv - 1)) * (rareOf(o.coat || 0) ? RARE_SELL_MUL : 1));
+    h += `<div class="tile">${lvBadge(olv, true)}${o.stars ? `<span class="badge" style="background:#f0b43c;top:22px">${'★'.repeat(o.stars)}</span>` : ''}${o.gift ? '<span class="badge" style="background:#ff7ab8;left:4px;right:auto">🎁</span>' : ''}${rareOf(o.coat || 0) ? '<span class="badge" style="background:#9a6aff;left:4px;right:auto;top:22px">✨</span>' : ''}<img src="${PIC.pet(o.sp, false, o.coat)}"><div class="t">${esc(spName(o.sp))} <span class="sex ${o.sex}">${o.sex === 'm' ? '♂' : '♀'}</span> <span class="m" style="font-weight:bold;color:#e66a20">Lv.${olv}</span></div>
+      <div class="m">${o.stars ? t('rare') + ' · ' : ''}${t('sellPrice', { c: fmt(estSell) })}</div>${rareOf(o.coat || 0) ? `<div class="m" style="color:#b07a10">👑 ${t('vipOnlyTag')}</div>` : ''}
       <div class="m" style="color:${free ? '#3f8a28' : '#c0502e'}">${HAB_ICON[kind]} ${t('hk_' + kind)} ${free ? '✓' : '✗'}</div>
       <button class="btn sm ${S.coins < o.cost || !free || wait ? 'dis' : ''}" data-a="adopt" data-v="${o.id}">${wait ? '⏳' : '📝 ' + t('apply')} · 🪙${fmt(o.cost)}</button></div>`;
   }

@@ -1420,13 +1420,26 @@ const roadTileOk = (s, x, y) => {
     if (moved || left) ev_(s, { k: 'townDay', moved, left, hap: st.hap });
     syncResidents(s); // move-ins/move-outs above change o.n per house, so the resident roster needs to catch up
     for (const r of T.residents) r.happy = Math.round(Math.max(0, Math.min(100, (r.happy == null ? st.hap : r.happy) * .85 + st.hap * .15))); // personal happiness drifts gently toward how the whole town feels
-    // 날짜 경과(Day)에 따른 주민 펫 성장: 매일 아침 함께한 펫들에게 일일 경험치 부여 (오랫동안 함께 산 베테랑 주민의 펫은 자연스럽게 레벨 3~6까지 성장)
+    // 날짜 경과(Day)에 따른 주민 펫 성장:
+    // 어제 펫을 산 사람과 오늘 펫을 산 사람 간의 경험치/레벨 차이가 자연스럽게 반영되도록,
+    // 매일 아침 모든 주민의 모든 펫에게 밸런스를 깨뜨리지 않는 미세한 정성 돌봄 경험치(기본 1 EXP, 주민 행복도 높으면 +1 EXP)를 지급합니다.
+    // 고레벨(Lv.6 이상)에서는 특정 레벨 쏠림을 방지하기 위해 매일 오르지 않고 확률적(40%)으로만 1 EXP 부여되며,
+    // 주된 성장은 산책, 공원 놀이, 친선 배틀, 병원 진료 등 마을 활동을 통해 이루어집니다.
     for (const r of (T.residents || [])) {
-      for (const p of (r.pets || [])) {
-        p.blv = p.blv || 1;
+      const pets = r.pets || [];
+      if (!pets.length) continue;
+      const isHappyOwner = (r.happy || 70) >= 75;
+      for (const p of pets) {
+        if (!p) continue;
+        p.blv = p.blv || p.lv || 1;
         p.bxp = p.bxp || 0;
-        if (p.blv < 7) {
-          const dayGain = 10 + Math.floor(Math.random() * 6);
+        let dayGain = 0;
+        if (p.blv < 6) {
+          dayGain = 1 + (isHappyOwner ? 1 : 0); // 1~2 EXP: 밸런스를 해치지 않는 완만한 일상 성장
+        } else if (p.blv < 10) {
+          dayGain = Math.random() < 0.4 ? 1 : 0; // 고레벨 쏠림 방지
+        }
+        if (dayGain > 0) {
           grantResidentPetExp(r, p, dayGain);
         }
       }
@@ -1884,21 +1897,47 @@ const roadTileOk = (s, x, y) => {
         T.residents = T.residents.filter(r => !drop.has(r.id));
       }
     }
-    // 기존 및 복원된 주민 펫들의 레벨/경험치 보정 (날짜 경과 및 별점에 맞춰 베테랑 펫 자연 성장)
-    const curDay = (s && s.clock && s.clock.day) || 1;
+    // v2026-10-17: 주민 펫 레벨 정상화 및 다양화 (기존 세이브에서 모든 펫이 Lv.7로 고정되던 문제 완벽 해결)
+    // 펫의 기본 레벨은 Lv.1이며, 입양 순서(오래된 펫 vs 최근 펫), 별점, 산책/배틀 활동에 따라 자연스러운 레벨 편차를 갖습니다.
+    if (!T.residentPetLvRebalancedV2) {
+      T.residentPetLvRebalancedV2 = 1;
+      const need = (typeof BATTLE !== 'undefined' && BATTLE.needXp) ? BATTLE.needXp : (lv => 12 + (lv - 1) * 9);
+      const hashFn = (typeof ART !== 'undefined' && ART.hashStr) ? ART.hashStr : (str => Math.abs(String(str || '').split('').reduce((a, b) => (a * 31 + b.charCodeAt(0)) | 0, 0)));
+      for (const r of T.residents) {
+        const pets = r.pets || [];
+        pets.forEach((p, idx) => {
+          const starsBonus = Math.floor((p.stars || 0) * 0.5);
+          const varBonus = hashFn(p.name || p.sp) % 2;
+          let targetLv = 1;
+          if (idx === 0) {
+            // 주민의 첫 번째(가장 오래 함께한) 대표 펫: Lv.3 ~ Lv.5 (별점에 따라 최대 Lv.6)
+            targetLv = Math.min(6, Math.max(3, 3 + starsBonus + varBonus));
+          } else if (idx === 1) {
+            // 두 번째 펫: Lv.2 ~ Lv.3
+            targetLv = Math.min(4, Math.max(2, 2 + starsBonus));
+          } else if (idx === 2) {
+            // 세 번째 펫: Lv.2
+            targetLv = Math.min(3, 2 + (p.stars >= 2 ? 1 : 0));
+          } else {
+            // 그 이후 입양한 펫: Lv.1 (별점이 높으면 Lv.2)
+            targetLv = 1 + (p.stars >= 3 ? 1 : 0);
+          }
+          p.blv = targetLv;
+          const maxExp = need(targetLv);
+          const frac = ((hashFn((p.name || '') + idx) % 55) + 15) / 100;
+          p.bxp = Math.floor(maxExp * frac);
+        });
+      }
+    }
+
+    // 주민 펫 레벨/경험치 보존 및 기본값 보정 (사갈 때의 레벨 p.blv / p.lv과 경험치 p.bxp / p.exp 유지)
     for (const r of T.residents) {
       for (const p of (r.pets || [])) {
         if (p.blv == null) {
-          const daysOwned = Math.max(0, curDay - (p.day || 1));
-          let blv = 1, bxp = 0;
-          let totalXp = Math.min(260, daysOwned * 14 + (p.stars || 0) * 15);
-          const need = (typeof BATTLE !== 'undefined' && BATTLE.needXp) ? BATTLE.needXp : (lv => 12 + (lv - 1) * 9);
-          while (blv < 7 && totalXp >= need(blv)) {
-            totalXp -= need(blv);
-            blv++;
-          }
-          p.blv = blv;
-          p.bxp = totalXp;
+          p.blv = p.lv || 1;
+        }
+        if (p.bxp == null) {
+          p.bxp = p.exp || 0;
         }
       }
     }

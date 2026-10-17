@@ -215,11 +215,14 @@ if (s.book) {
     p.exp += n;
     while (p.lv < PET_MAX_LV && p.exp >= petLvNeed(p.lv)) {
       p.exp -= petLvNeed(p.lv); p.lv++;
+      p.blv = p.lv;
       const cat = (SPECIES[p.sp] || {}).cat || 'small';
       const tr = (TRICKS[cat] || TRICKS.small).find(([, l]) => l === p.lv);
       ev(s, { k: 'petLevel', pet: p.name, pid: p.id, lv: p.lv, trick: tr ? tr[0] : null });
       if (p.lv === 7) EXTRA.photo(s, p, true);
     }
+    p.blv = p.lv;
+    p.bxp = p.exp;
   }
   const addRep = (s, n) => { const tr = repTier(s.rep); if (n > 0 && tr > 0) n /= 1 + tr * .8; else if (n < 0 && tr > 0) n /= 1 + tr * .3; s.rep = clamp((s.rep || 0) + n, 0, REP_MAX); };
   const unlocked = s => SPECIES_RAW.filter(r => TOWN_SP[r[0]] ? TOWN.bestPop(s) >= TOWN_SP[r[0]] : r[2] <= s.level).map(r => r[0]); // PET TOWN: some breeds only come to a big enough town
@@ -228,7 +231,8 @@ if (s.book) {
 
   function price(s, p, c) {
     const sp = SPECIES[p.sp] || { sell: 500, cat: 'small', grow: 3, cost: 200 };
-    let v = sp.sell * (0.6 + 0.6 * cond(p) / 100) * (1 + 0.3 * (p.stars || 0)) * (1 + 0.05 * ((p.lv || 1) - 1)) * (p.rescued ? .6 : 1);
+    // v2026-10-17: 레벨 1은 기본가, 레벨 5 등 고레벨은 훈련/육성 보너스로 고가 판매 (레벨당 +18%)
+    let v = sp.sell * (0.6 + 0.6 * cond(p) / 100) * (1 + 0.3 * (p.stars || 0)) * (1 + 0.18 * ((p.lv || 1) - 1)) * (p.rescued ? .6 : 1);
     if (p.groomed) v *= 1.2;
     if (rareOf(p.coat || 0)) v *= RARE_SELL_MUL;
     v *= housePrice(s.houses[slotOf(s, p.id)] || 1);
@@ -305,7 +309,17 @@ if (s.book) {
     // favour newer species a bit
     const sp = optSp || (Math.random() < .4 ? un[Math.max(0, un.length - 1 - rint(0, 3))] : pick(un));
     const r = Math.random(), stars = r < .05 ? 2 : r < .28 ? 1 : 0;
-    const rare = Math.random() < .035; return { id: s.seq++, sp, coat: rare ? rareCoat() : 1 + Math.floor(Math.random() * 1e9), sex: Math.random() < .5 ? 'm' : 'f', stars, cost: Math.round(SPECIES[sp].cost * (1 + .5 * stars) * (rare ? 2.2 : 1)), cd: 0 };
+    const rare = Math.random() < .035;
+    // v2026-10-17: 펫샵 분양 게시판 레벨 다양화 (Lv.1 기본가는 저렴, Lv.2~Lv.5는 훈련/육성된 고가 펫)
+    const lvRoll = Math.random();
+    let lv = 1;
+    if (stars >= 2) lv = lvRoll < .4 ? 4 : lvRoll < .75 ? 3 : 2;
+    else if (stars === 1) lv = lvRoll < .3 ? 3 : lvRoll < .7 ? 2 : 1;
+    else lv = lvRoll < .12 ? 3 : lvRoll < .35 ? 2 : 1;
+    if (s.level >= 8 && Math.random() < .15) lv = Math.min(5, lv + 1);
+    const lvCostMul = 1 + (lv - 1) * 0.35; // 레벨 1은 싸고, 레벨 5는 비쌈
+    const cost = Math.round(SPECIES[sp].cost * (1 + .5 * stars) * lvCostMul * (rare ? 2.2 : 1));
+    return { id: s.seq++, sp, coat: rare ? rareCoat() : 1 + Math.floor(Math.random() * 1e9), sex: Math.random() < .5 ? 'm' : 'f', stars, lv, cost, cd: 0 };
   }
   function ensureOffers(s, force) {
     if (!force && s.offerDay === s.clock.day && s.offers && s.offers.length) return;
@@ -1550,7 +1564,7 @@ if (s.book) {
         if (!free.length) return { err: 'needHouse', p: { h: kind } };
         s.coins -= o.cost;
         s.offers = s.offers.filter(x => x.id !== o.id);
-        const d = { id: s.seq++, sp: o.sp, coat: o.coat, sex: o.sex, stars: o.stars, slot: free[0], left: deliveryTime(o.sp), max: deliveryTime(o.sp), st: 'road', lang: a.lang };
+        const d = { id: s.seq++, sp: o.sp, coat: o.coat, sex: o.sex, stars: o.stars, lv: o.lv || 1, slot: free[0], left: deliveryTime(o.sp), max: deliveryTime(o.sp), st: 'road', lang: a.lang };
         s.deliveries.push(d); qp(s, 'buy'); addXp(s, 5);
         ev(s, { k: 'ordered', by, sp: o.sp });
         return { ok: 1, fx: 'coin', msg: 'ordered', p: { sp: o.sp, t: d.left } };
@@ -1571,6 +1585,7 @@ if (s.book) {
           slot = f[0];
         } else if (s.pets[slot] || habKind(s, slot) !== kindOf(d.sp)) { const f = freeSlotsKind(s, kindOf(d.sp)); if (!f.length) return { err: 'needHouse', p: { h: kindOf(d.sp) } }; slot = f[0]; }
         const np = mkPet(s, d.sp, d.lang || a.lang); np.sex = d.sex; np.stars = d.stars; if (d.coat) np.coat = d.coat;
+        if (d.lv) { np.lv = d.lv; np.blv = d.lv; }
         EXTRA.noteRare(s, np); EXTRA.photo(s, np, true);
         s.pets[slot] = np; s.book[d.sp] = 1; s.stats.bought++;
         s.deliveries = s.deliveries.filter(x => x.id !== d.id);
@@ -1598,7 +1613,7 @@ if (s.book) {
         if (mk === 'great') qp(s, 'great');
         s.pets[slotOf(s, p.id)] = null;
         c.match = mk;
-        c.st = 'pay'; c.amount = v; c.pd = { sp: p.sp, coat: p.coat || 0, id: p.id, name: p.name, grow: 1, stars: p.stars || 0, rescued: !!p.rescued, trait: p.trait, lv: p.lv || 1, blv: p.blv || p.lv || 1, bxp: p.bxp || 0, sex: p.sex || 'm' };
+        c.st = 'pay'; c.amount = v; c.pd = { sp: p.sp, coat: p.coat || 0, id: p.id, name: p.name, grow: 1, stars: p.stars || 0, rescued: !!p.rescued, trait: p.trait, lv: p.lv || 1, blv: p.blv || p.lv || 1, bxp: p.bxp || p.exp || 0, sex: p.sex || 'm' };
         c.pat = c.max = 90 * (s.up.sign ? 1.5 : 1); c.waited = 0;
         ev(s, { k: 'handover', by, pet: p.name, sp: p.sp, cid: c.id, pd: c.pd });
         return { ok: 1, msg: mk === 'great' ? 'matchGreat' : mk === 'bad' ? 'matchBad' : 'matchOk', p: { name: p.name }, fx: 'love', match: mk };
