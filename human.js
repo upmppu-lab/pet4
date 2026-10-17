@@ -1322,10 +1322,7 @@ const P2 = {
       const halfImg = getHalfImg(cacheKey, img, isLeftHalf);
       c.save();
       if (mirror) c.scale(-1, 1);
-      if (off) {
-        if (typeof off === 'object') c.translate(off.x || 0, off.y || 0);
-        else c.translate(0, off);
-      }
+      if (off) c.translate(0, off);
       if (hueDeg) c.filter = 'hue-rotate(' + hueDeg + 'deg)';
       if (halfImg) c.drawImage(halfImg, 0, 0, S, S, dx, p.y, p.size, p.size);
       else c.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, dx, p.y, p.size, p.size);
@@ -1366,10 +1363,7 @@ const P2 = {
       const bimg = getBandImg(cacheKey, img, which);
       c.save();
       if (mirror) c.scale(-1, 1);
-      if (off) {
-        if (typeof off === 'object') c.translate(off.x || 0, off.y || 0);
-        else c.translate(0, off);
-      }
+      if (off) c.translate(0, off);
       if (hueDeg) c.filter = 'hue-rotate(' + hueDeg + 'deg)';
       if (bimg) c.drawImage(bimg, 0, 0, S, S, dx, p.y, p.size, p.size);
       else c.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, dx, p.y, p.size, p.size);
@@ -1456,22 +1450,20 @@ const P2 = {
     const botPos = { size: P2.bottom.size, x: botXY.x, y: botXY.y + 3 };  // 발이 그림자에 닿도록 3px 아래
     const hairDrawPos = { size: P2.hair.size, x: hairXY.x, y: hairXY.y };
 
-    // ---- 걷기 모션 계산 (자연스러운 체중 이동 및 보폭) ----
+    // ---- 걷기 모션 계산 (기존 벡터 캐릭터의 걸음걸이 리듬을 그대로 재사용) ----
     const canWalk = !isSit;
     const walkT = moving && canWalk ? t * 9 : 0;
     const sideView = (effDir === 2 || effDir === 3);
-    const bob = moving && canWalk ? Math.abs(Math.sin(walkT)) * 2.5 : Math.sin(t * 2) * .5;
-    const stepAmp = moving && canWalk ? 3.4 : 0;
-    const strideX = (moving && canWalk && sideView) ? Math.sin(walkT) * 3.0 : 0;
-    const legStepL = { x: strideX, y: Math.sin(walkT) * stepAmp };
-    const legStepR = { x: -strideX, y: -Math.sin(walkT) * stepAmp };
-    const armBandAmp = moving && canWalk ? 2.4 : 0;
-    const armBandL = { x: -strideX * 0.8, y: -Math.sin(walkT) * armBandAmp }; // 반대쪽 다리와 같은 위상
-    const armBandR = { x: strideX * 0.8, y: Math.sin(walkT) * armBandAmp };
+    // v1.100.2: 다리는 회전 대신 위아래 1.3px만 살짝 움직임 (좌우 회전은 다리가 4개로 보인다는 버그 제기됨)
+    // v1.100.8: 옆면(2)/대각선(3)일 때는 정면보다 보폭을 1/4로 줄여(0.3px) 다리가 반으로 쪼개져 보이는 느낌을 최소화
+    const bob = moving && canWalk ? Math.abs(Math.sin(walkT)) * 2.8 : Math.sin(t * 2) * .5;
+    const stepAmp = moving && canWalk ? (sideView ? 0.3 : 1.3) : 0;
+    const legStepL = stepAmp ? Math.sin(walkT) * stepAmp : 0;
+    const legStepR = stepAmp ? -Math.sin(walkT) * stepAmp : 0;
+    const armBandAmp = moving && canWalk ? (sideView ? 0.2 : 0.9) : 0;
+    const armBandL = armBandAmp ? -Math.sin(walkT) * armBandAmp : 0;
+    const armBandR = armBandAmp ? Math.sin(walkT) * armBandAmp : 0;
 
-    // 자연스러운 체중 이동 틸트 (발바닥을 축으로 살짝 기울어져 미끄러짐 방지)
-    const sway = moving && canWalk ? Math.sin(walkT) * (sideView ? 0.022 : 0.030) : (!isSit ? 0.012 : 0);
-    c.rotate(sway);
     c.save();
     c.translate(0, -bob);
     // v1.100.12: 상/하의는 기존엔 그림 전체(옷+팔다리 피부)에 hue-rotate를 걸어서 팔다리까지 같이
@@ -1825,15 +1817,11 @@ const P2 = {
 
     const canWalk = !isSit;
     const walkT = moving && canWalk ? t * 9 : 0;
-    const sideView = (effDir === 2 || effDir === 3);
-    const bob = moving && canWalk ? Math.abs(Math.sin(walkT)) * 2.5 : Math.sin(t * 2) * .5;
-    const stepAmp = moving && canWalk ? 3.4 : 0;
-    const strideX = (moving && canWalk && sideView) ? Math.sin(walkT) * 3.0 : 0;
-    const legStepL = { x: strideX, y: Math.sin(walkT) * stepAmp };
-    const legStepR = { x: -strideX, y: -Math.sin(walkT) * stepAmp };
-    const sway = moving && canWalk ? Math.sin(walkT) * (sideView ? 0.022 : 0.030) : 0;
+    const bob = moving && canWalk ? Math.abs(Math.sin(walkT)) * 2.8 : Math.sin(t * 2) * .5;
+    const stepAmp = moving && canWalk ? 1.3 : 0;
+    const legStepL = stepAmp ? Math.sin(walkT) * stepAmp : 0;
+    const legStepR = stepAmp ? -Math.sin(walkT) * stepAmp : 0;
 
-    c.rotate(sway);
     c.save();
     c.translate(0, -bob);
     if (isRoleArt) { c.translate(0, STAFF_FOOT_Y); c.scale(ROLE_ART_SCALE, ROLE_ART_SCALE); c.translate(0, -STAFF_FOOT_Y); }
@@ -1950,15 +1938,11 @@ const P2 = {
 
     const canWalk = !isSit;
     const walkT = moving && canWalk ? t * 9 : 0;
-    const sideView = (effDir === 2 || effDir === 3);
-    const bob = moving && canWalk ? Math.abs(Math.sin(walkT)) * (bodyDestH * 0.042) : Math.sin(t * 2) * .5;
-    const stepAmp = moving && canWalk ? bodyDestH * 0.046 : 0;
-    const strideX = (moving && canWalk && sideView) ? Math.sin(walkT) * (bodyDestW * 0.035) : 0;
-    const legStepLX = strideX, legStepLY = Math.sin(walkT) * stepAmp;
-    const legStepRX = -strideX, legStepRY = -legStepLY;
-    const sway = moving && canWalk ? Math.sin(walkT) * (sideView ? 0.022 : 0.030) : 0;
+    const bob = moving && canWalk ? Math.abs(Math.sin(walkT)) * (bodyDestH * 0.035) : Math.sin(t * 2) * .5;
+    const stepAmp = moving && canWalk ? bodyDestH * 0.02 : 0;
+    const legStepL = stepAmp ? Math.sin(walkT) * stepAmp : 0;
+    const legStepR = stepAmp ? -Math.sin(walkT) * stepAmp : 0;
 
-    c.rotate(sway);
     c.save();
     c.translate(0, -bob);
     c.save();
@@ -1966,10 +1950,10 @@ const P2 = {
 
     const bdx = mirror ? -(bodyDestX + bodyDestW) : bodyDestX;
     const halfSrcW = ROLE_ART_CANVAS / 2, halfDestW = bodyDestW / 2;
-    c.save(); c.translate(legStepLX, legStepLY);
+    c.save(); c.translate(0, legStepL);
     c.drawImage(img, 0, neckSrcY, halfSrcW, bodySrcH, bdx, bodyDestY, halfDestW, bodyDestH);
     c.restore();
-    c.save(); c.translate(legStepRX, legStepRY);
+    c.save(); c.translate(0, legStepR);
     c.drawImage(img, halfSrcW, neckSrcY, halfSrcW, bodySrcH, bdx + halfDestW, bodyDestY, halfDestW, bodyDestH);
     c.restore();
 
@@ -2076,15 +2060,11 @@ const P2 = {
     // 몸통을 좌/우로 반을 나눠 위아래로 교차 이동시켜(제자리걸음) 다리가 번갈아 움직이는 것처럼 보이게 함.
     const canWalk = !isSit;
     const walkT = moving && canWalk ? t * 9 : 0;
-    const sideView = (effDir === 2 || effDir === 3);
-    const bob = moving && canWalk ? Math.abs(Math.sin(walkT)) * (bodyDestH * 0.042) : Math.sin(t * 2) * .5;
-    const stepAmp = moving && canWalk ? bodyDestH * 0.046 : 0; // ~3.5px
-    const strideX = (moving && canWalk && sideView) ? Math.sin(walkT) * (bodyDestW * 0.035) : 0;
-    const legStepLX = strideX, legStepLY = Math.sin(walkT) * stepAmp;
-    const legStepRX = -strideX, legStepRY = -legStepLY;
-    const sway = moving && canWalk ? Math.sin(walkT) * (sideView ? 0.022 : 0.030) : 0;
+    const bob = moving && canWalk ? Math.abs(Math.sin(walkT)) * (bodyDestH * 0.035) : Math.sin(t * 2) * .5;
+    const stepAmp = moving && canWalk ? bodyDestH * 0.02 : 0;
+    const legStepL = stepAmp ? Math.sin(walkT) * stepAmp : 0;
+    const legStepR = stepAmp ? -Math.sin(walkT) * stepAmp : 0;
 
-    c.rotate(sway);
     c.save();
     c.translate(0, -bob);
     c.save();
@@ -2093,10 +2073,10 @@ const P2 = {
     // 1. 몸통 그리기 (좌/우 반으로 나눠 다리가 번갈아 움직이는 걷기 모션)
     const bdx = mirror ? -(bodyDestX + bodyDestW) : bodyDestX;
     const halfSrcW = TOWNCHAR_CANVAS / 2, halfDestW = bodyDestW / 2;
-    c.save(); c.translate(legStepLX, legStepLY);
+    c.save(); c.translate(0, legStepL);
     c.drawImage(img, 0, neckSrcY, halfSrcW, bodySrcH, bdx, bodyDestY, halfDestW, bodyDestH);
     c.restore();
-    c.save(); c.translate(legStepRX, legStepRY);
+    c.save(); c.translate(0, legStepR);
     c.drawImage(img, halfSrcW, neckSrcY, halfSrcW, bodySrcH, bdx + halfDestW, bodyDestY, halfDestW, bodyDestH);
     c.restore();
 

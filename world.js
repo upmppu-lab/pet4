@@ -675,12 +675,9 @@ return true;
       if (diag) { a.face = 3; a.faceBack = sdy < 0; }
       else { a.faceBack = false; if (adx > 1.15 * ady) a.face = 2; else if (ady > .2 * d) a.face = sdy < 0 ? 1 : 0; }
       if (d <= s) {
-        a.walkDist = (a.walkDist || 0) + d;
         a.x = n.x; a.y = n.y; a.path.shift();
         if (!a.path.length) {
           a.moving = false;
-          a.walkDist = 0;
-          a.stepT = 0;
           if (a.partialEnd) {
             a.partialEnd = false;
             a.cb = null;
@@ -694,14 +691,10 @@ return true;
         }
       }
       else {
-        a.walkDist = (a.walkDist || 0) + s;
         a.x += dx / d * s; a.y += dy / d * s;
       }
-      a.stepT = (a.walkDist || 0) * 0.58;
     } else {
       a.moving = false;
-      a.walkDist = 0;
-      a.stepT = 0;
       if (a._retryTarget) {
         a._retryWait = (a._retryWait || 0) + dt;
         if (a._retryWait > 1.0) {
@@ -2299,8 +2292,7 @@ return true;
       const held = a.hold && (a.type === 'cust' || a.type === 'me' || a.type === 'patient' || a.type === 'staff') && !(a.cust && a.cust.st === 'gwait' && a.arrived);
       if (held && vface === 1 && a.type !== 'staff') drawHeld(a);
       { const tg = a.sit ? 1 : 0, dA = Math.min(.1, Math.max(0, T - (a.skT == null ? T : a.skT))); a.skT = T; a.sk = a.sk == null ? tg : a.sk + Math.sign(tg - a.sk) * Math.min(Math.abs(tg - a.sk), dA * 3.5); ART.setSit(a.sk); } // sit down / stand up: the legs fold over ~.3s
-      const animT = (a.moving && a.stepT != null) ? a.stepT : a.t;
-      ART.human(c, a.type === 'me' ? CFG.look : a.look, vface, animT, a.moving && !a.sit, (a.type === 'cafeguest' || a.type === 'patient' || a.type === 'hstaff') ? (a.angry ? 'angry' : a.happyT > 0 ? 'happy' : 'calm') : humMood(a), a.diag, a.faceBack);
+      ART.human(c, a.type === 'me' ? CFG.look : a.look, vface, a.t, a.moving && !a.sit, (a.type === 'cafeguest' || a.type === 'patient' || a.type === 'hstaff') ? (a.angry ? 'angry' : a.happyT > 0 ? 'happy' : 'calm') : humMood(a), a.diag, a.faceBack);
       ART.setSit(0);
       if (a.type === 'me' || a.type === 'hstaff') drawFarmToolSwing(a);
       if (sweeping(a)) drawBroom();
