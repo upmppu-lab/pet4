@@ -1037,11 +1037,24 @@ return true;
         if (tx == null) { const i = Math.max(0, deskQ.indexOf(p)), w = L.wait[Math.min(i, L.wait.length - 1)] || { x: rc.x + .5, y: rc.y + 1.5 }; tx = w.x; ty = w.y; fx = rc.x + rc.w / 2; fy = rc.y; }
         if (p.ph !== 'bench') a.seatIdx = null;
         const key = Math.floor(tx) + ',' + Math.floor(ty);
+        const dDist = Math.hypot(a.x - tx, a.y - ty);
+        if (dDist < 0.85) {
+          p.arr = true;
+          if (seat && p.ph === 'bench' && !a.sit) {
+            a.seatAt = seat;
+            a.x = seat.x; a.y = seat.y;
+            a.sit = true;
+            a.arrived = true;
+            a.face = seat.faceSouth ? 0 : 1;
+            a.faceBack = !seat.faceSouth;
+          }
+        }
         if (a.tkey !== key) {
           a.tkey = key; a.arrived = false;
           if (a.seatAt) { a.x = a.seatAt.ox; a.y = a.seatAt.oy; a.seatAt = null; } // stand up: step off the bench first
           goTo(a, tx, ty, () => {
             a.arrived = true;
+            p.arr = true;
             if (p.ph === 'leaving') {
               p.gone = 1;
               actors.delete(id);
@@ -1092,22 +1105,28 @@ return true;
         }
         // v1.121: 서있을 때 앞모습이 보이도록 하고, 가벼운 제자리 활동 후에도 정면을 바라봄
         if (!p) {
-          a._idleT = (a._idleT == null) ? 1.5 + Math.random() * 2.5 : a._idleT - dt;
-          if (a._idleT <= 0 && a.arrived && !a.moving && (!a.path || !a.path.length)) {
-            if (!a._idleOut) {
-              const offs = [[0.7, 0], [-0.7, 0], [0, 0.6], [0, -0.6], [0.5, 0.4], [-0.5, -0.4]].sort(() => Math.random() - .5);
-              let moved = false;
-              for (const [odx, ody] of offs) {
-                const nx = tgt.x + odx, ny = tgt.y + ody, k2 = Math.floor(nx) + ',' + Math.floor(ny);
-                if (L.solid.has(k2)) continue;
-                a._idleOut = true; a._idleT = 1.4 + Math.random() * 1.6;
-                goTo(a, nx, ny, () => { a.dir = 1; a.face = 0; a.faceBack = false; a.diag = false; });
-                moved = true; break;
+          if (m.role === 'recept') {
+            // 접수 직원은 데스크 뒤에서 로비와 손님을 항상 주시하며 대기 (밖으로 배회하지 않음)
+            a._idleOut = false; a._idleT = null;
+            if (a.arrived) { a.dir = 1; a.face = 0; a.faceBack = false; a.diag = false; }
+          } else {
+            a._idleT = (a._idleT == null) ? 1.5 + Math.random() * 2.5 : a._idleT - dt;
+            if (a._idleT <= 0 && a.arrived && !a.moving && (!a.path || !a.path.length)) {
+              if (!a._idleOut) {
+                const offs = [[0.7, 0], [-0.7, 0], [0, 0.6], [0, -0.6], [0.5, 0.4], [-0.5, -0.4]].sort(() => Math.random() - .5);
+                let moved = false;
+                for (const [odx, ody] of offs) {
+                  const nx = tgt.x + odx, ny = tgt.y + ody, k2 = Math.floor(nx) + ',' + Math.floor(ny);
+                  if (L.solid.has(k2)) continue;
+                  a._idleOut = true; a._idleT = 1.4 + Math.random() * 1.6;
+                  goTo(a, nx, ny, () => { a.dir = 1; a.face = 0; a.faceBack = false; a.diag = false; });
+                  moved = true; break;
+                }
+                if (!moved) a._idleT = 2 + Math.random() * 3;
+              } else {
+                a._idleOut = false; a._idleT = 3 + Math.random() * 4;
+                goTo(a, tgt.x, tgt.y, () => { a.arrived = true; a.dir = 1; a.face = 0; a.faceBack = false; a.diag = false; });
               }
-              if (!moved) a._idleT = 2 + Math.random() * 3;
-            } else {
-              a._idleOut = false; a._idleT = 3 + Math.random() * 4;
-              goTo(a, tgt.x, tgt.y, () => { a.arrived = true; a.dir = 1; a.face = 0; a.faceBack = false; a.diag = false; });
             }
           }
         } else { a._idleOut = false; a._idleT = null; }
@@ -1681,7 +1700,9 @@ return true;
       let dep = q[0] + q[1] + (a.sleep && !a.inHab ? .1 : 0) + (a.sit && a.seatAt && a.seatAt.dep ? Math.max(0, a.seatAt.dep + .01 - (q[0] + q[1])) : 0);
       if (typeof SALON !== 'undefined' && SALON.built && SALON.built()) {
         const sp = SALON_POS();
-        if (a.x >= sp.x - 1 && a.x <= sp.x + sp.w + 2 && a.y >= sp.y - 1 && a.y <= sp.y + sp.d + 2 && (a.x >= sp.x + sp.w - .1 || a.y >= sp.y + sp.d - .1)) {
+        if (a.salon && a.sit) {
+          dep = Math.max(dep, sp.x + 1.0 + sp.y + 6.7 + 0.8);
+        } else if (a.x >= sp.x - 1 && a.x <= sp.x + sp.w + 2 && a.y >= sp.y - 1 && a.y <= sp.y + sp.d + 2 && (a.x >= sp.x + sp.w - .1 || a.y >= sp.y + sp.d - .1)) {
           dep = Math.max(dep, sp.x + sp.w + sp.y + sp.d + .6);
         }
       }
@@ -2246,8 +2267,12 @@ return true;
     }
     let [vdir, vface] = VIEW.df(a.dir || 1, a.face || 0);
     if (vface === 1 && sweeping(a)) vface = 0; // v1.19: sweep facing the camera so face and broom show
-    if (a.type === 'hstaff' && !a.moving && !a.talk) { vface = 0; a.faceBack = false; a.diag = false; }
-    c.save(); c.translate(sx, sy);
+    if (a.grooming || (a.m && a.m.role === 'groomer' && a.busy)) {
+      vface = 1; a.face = 1; a.faceBack = true; a.dir = 1;
+    } else if (a.type === 'hstaff' && !a.moving && !a.talk && !a.faceBack) {
+      vface = 0; a.faceBack = false; a.diag = false;
+    }
+    c.save(); c.translate(sx, (a.salon && a.sit) ? sy - 5 : sy);
     if (a.type === 'me' || a.type === 'partner' || a.type === 'cust' || a.type === 'insp' || a.type === 'reg' || a.type === 'staff' || a.type === 'thief' || a.type === 'cafeguest' || a.type === 'patient' || a.type === 'hstaff' || a.type === 'vil') {
       // v1.100.14: 필드 캐릭터가 프리뷰보다 가로로 좁아 보인다는 피드백 - 가로로 12% 더 넓게
       // v1.100.49: "사람들 크기가 다 다르다" 피드백 - 직원(staff/hstaff)은 human.js의 STAFF_HEAD_SIZE/
@@ -2424,10 +2449,19 @@ return true;
         c.fillStyle = '#ffe033';
         c.fillText(ltxt, sx, ly);
         c.restore();
-        if (a.talk || a.m.tt > 0) bubble(sx + 4, sy - 92, () => { const R0 = hospStaffRole(a.m.role) || cafeStaffRole(a.m.role) || farmStaffRole(a.m.role) || salonStaffRole(a.m.role); c.font = '15px sans-serif'; c.textAlign = 'center'; c.fillText(Math.floor(T * 1.7) % 2 ? '💬' : (a.m.role === 'recept' ? '📋' : a.m.role === 'groomer' ? '✂️' : farmStaffRole(a.m.role) ? ({ harvest: '\u{1F9FA}', water: '\u{1F4A7}', plant: '\u{1F331}', feed: '\u{1F963}', eggs: '\u{1F95A}' }[a.m.act] || farmStaffRole(a.m.role).icon) : '🩺'), 0, 0); c.textAlign = 'start'; });
+        if (a.talk || a.m.tt > 0 || a.grooming || (a.m.role === 'groomer' && a.busy)) bubble(sx + 4, sy - 92, () => {
+          if (a.grooming || (a.m.role === 'groomer' && a.busy)) {
+            c.font = '17px sans-serif'; c.textAlign = 'center';
+            c.fillText('✂️', 0, Math.sin(T * 8) * 1.5); c.textAlign = 'start';
+          } else {
+            const R0 = hospStaffRole(a.m.role) || cafeStaffRole(a.m.role) || farmStaffRole(a.m.role) || salonStaffRole(a.m.role);
+            c.font = '15px sans-serif'; c.textAlign = 'center';
+            c.fillText(Math.floor(T * 1.7) % 2 ? '💬' : (a.m.role === 'recept' ? '📋' : farmStaffRole(a.m.role) ? ({ harvest: '\u{1F9FA}', water: '\u{1F4A7}', plant: '\u{1F331}', feed: '\u{1F963}', eggs: '\u{1F95A}' }[a.m.act] || farmStaffRole(a.m.role).icon) : '🩺'), 0, 0); c.textAlign = 'start';
+          }
+        });
       }
       if (a.salon) { // v9.99: salon guests -- waiting (tap to groom), then paying with the amount, holding a pet with a bow
-        if (a.salonWait) { bubble(sx, sy - 66, () => { c.font = '17px sans-serif'; c.textAlign = 'center'; c.fillText(Math.floor(T * 1.5) % 2 ? '🛁' : '✂️', 0, 0); c.textAlign = 'start'; }); }
+        if (a.salonWait) { bubble(sx, sy - 66, () => { c.font = '16px sans-serif'; c.textAlign = 'center'; c.fillText('⏳', 0, 0); c.textAlign = 'start'; }); }
         if (a.hold && a.happyT > 0) { c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillText('🎀', sx + 6, sy - 44); c.textAlign = 'start'; }
         if (a.salonPaid) { const msg = '+\u{1FA99}' + fmt(a.salonPaid); c.save(); c.font = 'bold 12px sans-serif'; const tw = c.measureText(msg).width + 14, by = sy - 100; ART.rrect(c, sx - tw / 2, by - 12, tw, 22, 10); c.fillStyle = '#fff6d6'; c.fill(); c.lineWidth = 1.6; c.strokeStyle = '#e0a820'; c.stroke(); c.fillStyle = '#9a6a10'; c.textAlign = 'center'; c.fillText(msg, sx, by + 3); c.restore(); }
       }

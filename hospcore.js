@@ -561,6 +561,16 @@ const HOSP = (() => {
     if (!hp.skins) hp.skins = { 0: 1 }; if (hp.skin == null) hp.skin = 0;
     if (hp.built) {
       if (!hp.items) { hp.items = []; hp.iseq = 1; hp.iv = 1; }
+      // 기본 필수 인력 보장: 접수 직원 1명, 의사 1명, 레벨 2 이상 시 간호사 1명 자동 보장
+      if (!hp.staff.some(m => m.role === 'recept')) {
+        hp.staff.push({ id: hp.sseq++, role: 'recept', lv: 1, seed: 101, name: pickName(s) || '민지', t: 0.1, done: 0 });
+      }
+      if (!hp.staff.some(m => m.role === 'doctor')) {
+        hp.staff.push({ id: hp.sseq++, role: 'doctor', lv: 1, seed: 202, name: pickName(s) || '준호', t: 0.2, done: 0 });
+      }
+      if (hp.lv >= 2 && !hp.staff.some(m => m.role === 'nurse')) {
+        hp.staff.push({ id: hp.sseq++, role: 'nurse', lv: 1, seed: 303, name: pickName(s) || '서연', t: 0.2, done: 0 });
+      }
       // v1.115: 타운 배치(fitShop)가 병원 건물을 다른 자리로 밀 때 기준점 동기화
       { const R0 = hospRect(0, 0, lvNow(hp), s);
         if (hp.ax != null && (hp.ax !== R0.x1 || hp.ay !== R0.y)) {
@@ -737,7 +747,7 @@ const HOSP = (() => {
     let tot = 0; opts.forEach(a => tot += a.w); let r = Math.random() * tot, ail = opts[0] || HOSP_AIL[0];
     for (const a of opts) { r -= a.w; if (r <= 0) { ail = a; break; } }
     const plan = opts.length ? ail.plan.slice() : ['exam'];
-    return { id: hp.seq++, seed: 1 + Math.floor(Math.random() * 1e6), sp, ail: ail.id, plan, k: -1, ph: 'walkin', tm: 1.2, stn: null, bill: 0, q: 1, qt: 0, rv: .5 + Math.random() * .8, pv: .5 + Math.random() * .7, dv: plan.map(() => .6 + Math.random() * .9) };
+    return { id: hp.seq++, seed: 1 + Math.floor(Math.random() * 1e6), sp, ail: ail.id, plan, k: -1, ph: 'walkin', tm: 25, stn: null, bill: 0, q: 1, qt: 0, rv: .5 + Math.random() * .8, pv: .5 + Math.random() * .7, dv: plan.map(() => .6 + Math.random() * .9) };
   }
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   // which station (by key) a patient at `from` should use for this kind: a free one (nobody reserved it)
@@ -746,9 +756,10 @@ const HOSP = (() => {
   function nextStep(s, hp, p, L, from, atDesk) {
     if (atDesk) {
       // 방금 접수(reg) 완료:
-      // 진료실(exam)이 비어있으면 즉시 진료실로 입장, 이미 다른 손님이 진료 중이면 의자(소파)에 앉아서 대기!
+      // 이미 의자에 앉아 기다리는 환자가 있거나 진료실(exam)이 차있으면 의자(소파)에 앉아서 앞사람 진료가 끝나기를 대기!
       const tx = hospTx(hospStage(p));
-      const free = (tx && tx.stn) ? freeStation(hp, tx.stn) : null;
+      const hasBenchWaiting = hp.patients.some(q => q !== p && q.ph === 'bench' && hospStage(q) === hospStage(p));
+      const free = (!hasBenchWaiting && tx && tx.stn) ? freeStation(hp, tx.stn) : null;
       if (free) {
         p.stn = free.key;
         p.ph = 'toStn';
@@ -787,7 +798,8 @@ const HOSP = (() => {
       // 접수직원이 의사의 진료 결과(병명)를 듣고 다음 치료실/수술실/X-RAY실로 안내
       p.routing = false;
       const nextTx = hospTx(hospStage(p));
-      const free = (nextTx && nextTx.stn) ? freeStation(hp, nextTx.stn) : null;
+      const hasBenchWaiting = hp.patients.some(q => q !== p && q.ph === 'bench' && hospStage(q) === hospStage(p));
+      const free = (!hasBenchWaiting && nextTx && nextTx.stn) ? freeStation(hp, nextTx.stn) : null;
       if (free) {
         // 해당 치료실/장비가 비어있으면 즉시 이동
         p.stn = free.key;
@@ -818,28 +830,29 @@ const HOSP = (() => {
       if (p.stn && !keys.has(p.stn)) { p.stn = null; if (p.ph === 'toStn' || p.ph === 'atStn' || p.ph === 'treat') nextStep(s, hp, p, L, null); }
       p.tm = (p.tm || 0) - dt;
       switch (p.ph) {
-        case 'walkin': if (p.tm <= 0) p.ph = 'deskwait'; break; // 접수대 도착 -> 접수 대기
+        case 'walkin': if (p.arr || p.tm <= 0) p.ph = 'deskwait'; break; // 접수대 도착 -> 접수 대기
         case 'deskserve': if (p.tm <= 0) finishStage(s, hp, p, L); break;
-        case 'toDesk': if (p.tm <= 0) p.ph = 'deskwait'; break;
-        case 'toStn': if (p.tm <= 0) p.ph = 'atStn'; break;
+        case 'toDesk': if (p.arr || p.tm <= 0) p.ph = 'deskwait'; break;
+        case 'toStn': if (p.arr || p.tm <= 0) p.ph = 'atStn'; break;
         case 'treat': if (p.tm <= 0) finishStage(s, hp, p, L); break;
         case 'leaving': if (p.tm <= 0 || p.gone) p.gone = 1; break;
       }
     }
     hp.patients = hp.patients.filter(p => !p.gone);
-    // 대기 의자에 앉아있는 환자: 원하는 진료실/치료실이 비면 앉은 순서대로 호출되어 입장
+    // 대기 의자에 앉아있는 환자: 앞사람 진료/치료가 끝나서 원하는 방이 비면 앉은 순서대로 정확히 호출되어 입장
     for (const p of hp.patients.filter(x => x.ph === 'bench').sort((a, b) => a.qt - b.qt)) {
       const tx = hospTx(hospStage(p)); if (!tx || !tx.stn) continue;
       const free = freeStation(hp, tx.stn);
       if (free) {
         p.stn = free.key;
         p.ph = 'toStn';
+        p.arr = false;
         const from = L.seats[0] || L.wait[0] || { x: L.reception.x, y: L.reception.y }, to = { x: free.it.sx, y: free.it.sy };
         p.tm = 1.2 + dist(from, to) / 2.2;
       }
     }
     staffWork(s, hp, dt);
-    // 신규 환자 유입: 병원은 기다리는 것이 당연하므로 임의로 쫓아내지 않고 자연스럽게 수용
+    // 신규 환자 유입: 병원은 원래 오래 기다리는 것이 상식이므로 임의로 쫓아내지 않고 자연스럽게 수용
     const inside = hp.patients.filter(q => q.ph !== 'leaving');
     const seatsN = L.seats.length;
     if (!G.isOpen(s)) return;
@@ -873,7 +886,7 @@ const HOSP = (() => {
 
       if (m.role === 'recept') {
         // 접수 직원은 쉬지 않고 계속 업무를 처리:
-        // 1순위: 치료가 끝난 환자 수납(pay) - 우선 정산
+        // 1순위: 치료가 끝난 환자 수납(pay) - 중간에 치료 끝난 사람 돈 먼저 수납
         // 2순위: 의사 진료 후 다음 방 안내(route) - 병명 듣고 치료실/수술실/X-RAY실로 배정
         // 3순위: 새로 온 환자 접수(reg) - 어디가 아픈지 묻고 진료실로 안내
         const readyPatients = hp.patients.filter(x => x.ph === 'deskwait');
@@ -886,16 +899,16 @@ const HOSP = (() => {
           m.pid = p.id;
           m.tt = p.tdur;
           m.done = (m.done | 0) + 1;
-          m.t = 0.25; // 다음 대기 환자 즉시 응대
+          m.t = 0.1; // 다음 대기 환자 즉시 응대 (놀지 않고 연속 처리)
         } else {
-          m.t = 0.5;
+          m.t = 0.25;
         }
       } else {
-        // 의사(doctor: 진료, 수술, X-RAY) 및 간호사(nurse: 치료실 처치, 입원실 케어)
-        const ready = x => (x.ph === 'deskwait' || x.ph === 'atStn') && role.does.includes(hospStage(x));
+        // 의사(doctor: 진료, 수술, X-RAY) 및 간호사(nurse: 치료실 처치, 입원실 케어)는 처치대/진료실(atStn) 환자만 전담
+        const ready = x => x.ph === 'atStn' && role.does.includes(hospStage(x));
         const pickLongest = arr => arr.reduce((a, b) => (!a || (b.wt || 0) > (a.wt || 0)) ? b : a, null);
         const own = hp.patients.filter(x => ready(x) && sp.does.includes(hospStage(x)));
-        const any = hp.patients.filter(x => ready(x) && (x.wt || 0) >= 3);
+        const any = hp.patients.filter(x => ready(x) && (x.wt || 0) >= 2);
         const p = pickLongest(own) || pickLongest(any);
         if (p) {
           serve(s, hp, p, 'm' + m.id, 1);
@@ -929,10 +942,11 @@ const HOSP = (() => {
     }
     if (!hp.built) return { err: 'gone' };
     if (a.t === 'hospdemolish') { // v1.114: "철거" - 완전히 허물고 1단계부터 다시 지을 수 있게 리셋 (절반 환불)
-      if (!hp.built) return { err: 'gone' };
+      if (s.lay) delete s.lay.hosp;
       let refund = HOSP_BUILD_COST; for (let i = 2; i <= hp.lv; i++) refund += (HOSP_LV[i] && HOSP_LV[i].cost) || 0;
       s.coins += Math.round(refund * .5);
       s.hosp = { built: false, lv: 1, bldSeq: 0, patients: [], seq: 1, spawnT: 0, treated: 0 };
+      if (typeof TOWN !== 'undefined' && TOWN.fitShop) TOWN.fitShop(s);
       return { ok: 1, fx: 'coin', msg: 'hospDemolished' };
     }
     if (a.t === 'hospup') {
@@ -941,7 +955,10 @@ const HOSP = (() => {
       if (s.coins < nx.cost) return { err: 'notEnough' };
       s.coins -= nx.cost; hp.lv++; H.addXp(s, 40);
       s.bldSeq = (s.bldSeq || 0) + 1; hp.bldSeq = s.bldSeq;
-      relocateAll(s, hp); hp.patients = [];
+      relocateAll(s, hp);
+      for (const p of hp.patients) {
+        if (p.stn) { p.stn = null; p.ph = 'bench'; p.qt = hp.clock; }
+      }
       if (typeof TOWN !== 'undefined' && TOWN.fitShop) TOWN.fitShop(s);
       return { ok: 1, fx: 'coin', msg: 'hospUpOk', p: { n: hp.lv } };
     }

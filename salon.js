@@ -12,8 +12,19 @@ const SALON_STAGES = [{ k: 'bath', icon: '🛁', t: 4 }, { k: 'dry', icon: '💨
 const SALON_SPECIES = ['pomeranian', 'maltese', 'maltese_cream', 'maltese_brown', 'poodle', 'bichon', 'shiba', 'shiba_black', 'shiba_red', 'corgi', 'persian', 'ragdoll', 'samoyed', 'yorkie', 'shihtzu', 'hollandlop', 'kitten', 'golden', 'husky', 'munchkin'];
 const SALON = (() => {
   // lot-local layout: two grooming tables along the back wall, a waiting bench on the west wall, the counter by the east entrance
-  const TABLES = [{ u: 2, v: 1 }, { u: 5.5, v: 1 }], SEATS = [{ u: .55, v: 3.9 }, { u: .55, v: 4.8 }, { u: .55, v: 5.7 }], COUNTER = { u: 7.4, v: 4.6 };
-  const ensure = s => { const sl = s.salon = s.salon || {}; if (!sl.q) sl.q = []; if (!sl.staff) sl.staff = []; if (!sl.seq) sl.seq = 1; if (sl.spawnT == null) sl.spawnT = 8; if (sl.built && sl.bldSeq == null) sl.bldSeq = 1; return sl; };
+  const TABLES = [{ u: 2, v: 1 }, { u: 5.5, v: 1 }], SEATS = [{ u: .55, v: 3.85 }, { u: .55, v: 4.95 }, { u: .55, v: 6.05 }], COUNTER = { u: 7.4, v: 4.6 };
+  const ensure = s => {
+    const sl = s.salon = s.salon || {};
+    if (!sl.q) sl.q = [];
+    if (!sl.staff) sl.staff = [];
+    if (!sl.seq) sl.seq = 1;
+    if (sl.spawnT == null) sl.spawnT = 8;
+    if (sl.built && sl.bldSeq == null) sl.bldSeq = 1;
+    if (sl.built && sl.staff.length === 0) {
+      sl.staff.push({ id: sl.seq++, role: 'groomer', lv: 1, seed: 101, name: '하나', done: 0 });
+    }
+    return sl;
+  };
   const built = () => !!(typeof S !== 'undefined' && S && S.salon && S.salon.built);
   const payOf = sp => 200 + Math.round(((SPECIES[sp] && SPECIES[sp].sell) || 600) * .3);
   // ---------------- core ----------------
@@ -24,8 +35,20 @@ const SALON = (() => {
     for (const c of sl.q.slice()) {
       if (c.ph === 'in' && (c.arr || c.age > 30)) { c.ph = 'wait'; c.wt = 0; }
       else if (c.ph === 'wait') { c.wt += dt; /* 손님은 소파에서 차례를 기다림 */ }
-      else if (c.ph === 'groom') { const m = c.by !== 'me' ? sl.staff.find(x => 'm' + x.id === c.by) : null, k = m ? 1 + .35 * (m.lv - 1) : 2.0; c.t -= dt * k;
-        if (c.t <= 0) { c.stg++; if (c.stg >= SALON_STAGES.length) { c.ph = 'pay'; c.t = 0; if (m) { m.cid = null; m.done = (m.done | 0) + 1; } } else c.t = SALON_STAGES[c.stg].t; } }
+      else if (c.ph === 'groom') {
+        if (c.st == null || c.st < 0 || c.st >= TABLES.length) c.st = 0;
+        const m = c.by !== 'me' ? sl.staff.find(x => 'm' + x.id === c.by) : null, k = m ? 1 + .35 * (m.lv - 1) : 2.0;
+        c.t -= dt * k;
+        if (c.t <= 0) {
+          c.stg++;
+          if (c.stg >= SALON_STAGES.length) {
+            c.ph = 'pay'; c.t = 0;
+            if (m) { m.cid = null; m.done = (m.done | 0) + 1; }
+          } else {
+            c.t = SALON_STAGES[c.stg].t;
+          }
+        }
+      }
       else if (c.ph === 'pay') { c.t += dt; if (c.t > 4 && !c.paid) { const pay = Math.round(payOf(c.sp) * (1 + .06 * sl.staff.reduce((a, m) => a + m.lv, 0))); s.coins += pay; c.paid = pay; sl.served = (sl.served | 0) + 1; if (s.today) s.today.earned = (s.today.earned || 0) + pay; } if (c.t > 7) { c.ph = 'out'; c.t = 0; } }
       else if (c.ph === 'out' || c.ph === 'angry') { c.t += dt; if (c.t > 120 || c.gone) sl.q = sl.q.filter(x => x !== c); }
     }
@@ -45,7 +68,14 @@ const SALON = (() => {
     }
   }
   const freeTable = sl => { for (let i = 0; i < TABLES.length; i++) if (!sl.q.some(c => c.ph === 'groom' && c.st === i)) return i; return -1; };
-  function start(sl, c, st, by) { c.ph = 'groom'; c.st = st; c.by = by; c.stg = 0; c.t = SALON_STAGES[0].t; }
+  function start(sl, c, st, by) {
+    c.ph = 'groom';
+    c.st = (st != null && st >= 0) ? st : freeTable(sl);
+    if (c.st < 0) c.st = 0;
+    c.by = by;
+    c.stg = 0;
+    c.t = SALON_STAGES[0].t;
+  }
   const wagesOf = sl => ((sl && sl.staff) || []).reduce((a, m) => a + salonStaffWage(m.lv), 0);
   function apply(s, a) {
     const sl = ensure(s);
@@ -97,34 +127,62 @@ const SALON = (() => {
     poly(c, [Q(x0 + 7.6, y0 + 6.2), Q(x0 + 9.6, y0 + 6.2), Q(x0 + 9.6, y0 + 7.6), Q(x0 + 7.6, y0 + 7.6)], '#ffd6e2', 'rgba(200,120,150,.5)');
     c.restore();
   }
+  const overlapsHospTile = (x, y) => {
+    const hospBuilt = typeof S !== 'undefined' && S && S.hosp && S.hosp.built;
+    if (!hospBuilt || typeof HOSP_POS !== 'function') return false;
+    const hp = HOSP_POS();
+    if (!hp) return false;
+    return x >= hp.x - 0.25 && x <= hp.x + hp.w + 0.25 && y >= hp.y - 0.25 && y <= hp.y + hp.d + 0.25;
+  };
   function wallNorth(c, T) {
     if (!built()) return;
-    const p = SALON_POS(), x0 = p.x, y0 = p.y, x1 = x0 + p.w;
+    const p = SALON_POS(), x0 = p.x, y0 = p.y, w = p.w;
     c.save();
     const WH = 70;
-    // North wall face & baseboard
-    poly(c, [Q(x0, y0, WH), Q(x1, y0, WH), Q(x1, y0), Q(x0, y0)], '#fff5f8', ART.OUT, 1.2);
-    poly(c, [Q(x0, y0, 22), Q(x1, y0, 22), Q(x1, y0), Q(x0, y0)], '#f7b9cc');
+    for (let u = 0; u < w; u++) {
+      const xA = x0 + u, xB = x0 + u + 1;
+      if (overlapsHospTile(xA + 0.5, y0)) continue;
+      // North wall face & baseboard
+      poly(c, [Q(xA, y0, WH), Q(xB, y0, WH), Q(xB, y0), Q(xA, y0)], '#fff5f8', ART.OUT, 1.2);
+      poly(c, [Q(xA, y0, 22), Q(xB, y0, 22), Q(xB, y0), Q(xA, y0)], '#f7b9cc');
+      // North roof edge (clamped to lot boundary so it never penetrates adjacent lots)
+      poly(c, [Q(xA, y0, WH), Q(xB, y0, WH), Q(xB, y0 + .2, WH + 6), Q(xA, y0 + .2, WH + 6)], '#e0607e', ART.OUT, 1);
+    }
     // North wall windows
-    for (const u of [1, 7.6]) poly(c, [Q(x0 + u, y0, 58), Q(x0 + u + 1.2, y0, 58), Q(x0 + u + 1.2, y0, 32), Q(x0 + u, y0, 32)], '#cfe9f8', '#b98552', 2);
+    for (const u of [1, 7.6]) {
+      if (!overlapsHospTile(x0 + u + 0.5, y0)) {
+        poly(c, [Q(x0 + u, y0, 58), Q(x0 + u + 1.2, y0, 58), Q(x0 + u + 1.2, y0, 32), Q(x0 + u, y0, 32)], '#cfe9f8', '#b98552', 2);
+      }
+    }
     // North wall signboard
-    { const a = Q(x0 + 3.2, y0, 66), b = Q(x0 + 7.2, y0, 66); poly(c, [a, b, Q(x0 + 7.2, y0, 48), Q(x0 + 3.2, y0, 48)], '#ff8fb1', ART.OUT, 1.2); const m = Q(x0 + 5.2, y0, 57); c.save(); c.translate(m[0], m[1]); c.transform(1, .5, 0, 1, 0, 0); c.font = 'bold 11px sans-serif'; c.textAlign = 'center'; c.fillStyle = '#fff'; c.fillText('✂️ ' + t('salonName'), 0, 4); c.restore(); }
-    // North roof edge (clamped to lot boundary so it never penetrates adjacent lots)
-    poly(c, [Q(x0, y0, WH), Q(x1, y0, WH), Q(x1, y0 + .2, WH + 6), Q(x0, y0 + .2, WH + 6)], '#e0607e', ART.OUT, 1);
+    if (!overlapsHospTile(x0 + 5.2, y0)) {
+      const a = Q(x0 + 3.2, y0, 66), b = Q(x0 + 7.2, y0, 66);
+      poly(c, [a, b, Q(x0 + 7.2, y0, 48), Q(x0 + 3.2, y0, 48)], '#ff8fb1', ART.OUT, 1.2);
+      const m = Q(x0 + 5.2, y0, 57);
+      c.save(); c.translate(m[0], m[1]); c.transform(1, .5, 0, 1, 0, 0); c.font = 'bold 11px sans-serif'; c.textAlign = 'center'; c.fillStyle = '#fff'; c.fillText('✂️ ' + t('salonName'), 0, 4); c.restore();
+    }
     c.restore();
   }
   function wallWest(c, T) {
     if (!built()) return;
-    const p = SALON_POS(), x0 = p.x, y0 = p.y, y1 = y0 + p.d;
+    const p = SALON_POS(), x0 = p.x, y0 = p.y, d = p.d;
     c.save();
     const WH = 70;
-    // West wall face & baseboard
-    poly(c, [Q(x0, y0, WH), Q(x0, y1, WH), Q(x0, y1), Q(x0, y0)], '#fbeef3', ART.OUT, 1.2);
-    poly(c, [Q(x0, y0, 22), Q(x0, y1, 22), Q(x0, y1), Q(x0, y0)], '#f2a9bf');
+    for (let v = 0; v < d; v++) {
+      const yA = y0 + v, yB = y0 + v + 1;
+      if (overlapsHospTile(x0, yA + 0.5)) continue;
+      // West wall face & baseboard
+      poly(c, [Q(x0, yA, WH), Q(x0, yB, WH), Q(x0, yB), Q(x0, yA)], '#fbeef3', ART.OUT, 1.2);
+      poly(c, [Q(x0, yA, 22), Q(x0, yB, 22), Q(x0, yB), Q(x0, yA)], '#f2a9bf');
+      // West roof edge (clamped to lot boundary)
+      poly(c, [Q(x0, yA, WH), Q(x0, yB, WH), Q(x0 + .2, yB, WH + 6), Q(x0 + .2, yA, WH + 6)], '#d9506f', ART.OUT, 1);
+    }
     // West wall windows
-    for (const v of [2.5, 5.5]) poly(c, [Q(x0, y0 + v, 58), Q(x0, y0 + v + 1.2, 58), Q(x0, y0 + v + 1.2, 32), Q(x0, y0 + v, 32)], '#cfe9f8', '#b98552', 2);
-    // West roof edge (clamped to lot boundary)
-    poly(c, [Q(x0, y0, WH), Q(x0, y1, WH), Q(x0 + .2, y1, WH + 6), Q(x0 + .2, y0, WH + 6)], '#d9506f', ART.OUT, 1);
+    for (const v of [2.5, 5.5]) {
+      if (!overlapsHospTile(x0, y0 + v + 0.5)) {
+        poly(c, [Q(x0, y0 + v, 58), Q(x0, y0 + v + 1.2, 58), Q(x0, y0 + v + 1.2, 32), Q(x0, y0 + v, 32)], '#cfe9f8', '#b98552', 2);
+      }
+    }
     c.restore();
   }
   function walls(c, T) {
@@ -206,22 +264,19 @@ const SALON = (() => {
     const out = [];
     if (!built()) { const s = SALON_SIGN(); out.push({ depth: s.x + s.y + 1, fn: () => { at(c, s.x + .5, s.y + .5, () => sign(c, T)); const sx = ISO.wx(s.x + .5, s.y + .5), sy = ISO.wy(s.x + .5, s.y + .5); addHit({ kind: 'salonsign', x0: sx - 56, x1: sx + 56, y0: sy - 110, y1: sy + 6 }); } }); return out; }
     const p = SALON_POS(), sl = (typeof S !== 'undefined' && S && S.salon) || {};
-    out.push({ depth: p.x + p.y + 0.05 + (((sl.bldSeq || 1)) * 0.0001), fn: () => walls(c, T) });
     TABLES.forEach((tb, i) => { const cu = (sl.q || []).find(q => q.ph === 'groom' && q.st === i); out.push({ depth: p.x + tb.u + 2 + p.y + tb.v + 1 - 1.02, fn: () => at(c, p.x + tb.u, p.y + tb.v, () => table(c, T, i, cu)) }); });
     out.push({ depth: p.x + COUNTER.u + 2 + p.y + COUNTER.v + 1 - 1.02, fn: () => at(c, p.x + COUNTER.u, p.y + COUNTER.v, () => counter(c)) });
     out.push({ depth: p.x + 1.0 + p.y + 6.7, fn: () => at(c, p.x + .15, p.y + 3.3, () => bench(c)) });
     out.push({ depth: p.x + 4.5 + p.y + 1.5, fn: () => at(c, p.x + 4, p.y + 1, () => { const box = FURN.box, P = FURN.P; box(c, .35, .35, .3, .3, 50, '#c0c8d0'); const [x, y] = P(.5, .5, 56); ART.ell(c, x, y, 10, 6, '#ff9ec0', ART.OUT, 1); }) }); // dryer stand
     out.push({ depth: p.x + 9 + p.y + 1, fn: () => at(c, p.x + 8.5, p.y + .5, () => { const box = FURN.box; box(c, .1, .1, .8, .8, 16, '#f3e3c7'); const P = FURN.P, [x, y] = P(.5, .5, 16); for (let i = 0; i < 6; i++) ART.ell(c, x - 8 + i * 3 + Math.sin(i) * 2, y - 12 - (i % 3) * 5, 7, 8, i % 2 ? '#5ab86a' : '#3f9a5a'); }) });
     out.push({ depth: p.x + 1 + p.y + 1, fn: () => at(c, p.x + .5, p.y + .5, () => { const box = FURN.box, P = FURN.P; box(c, .05, .05, .9, .9, 44, '#f3e3c7'); for (let r = 0; r < 3; r++) for (let i = 0; i < 3; i++) { const [x, y] = P(.9, .2 + i * .28, 10 + r * 13); c.font = '9px sans-serif'; c.textAlign = 'center'; c.fillText(['🧴', '🧼', '🪮'][(r + i) % 3], x, y); } c.textAlign = 'start'; }) });
-    // 전면 유리벽 (남쪽 & 동쪽): 타일 단위로 분할 렌더링 + 나중에 지어진 인접 건물(병원 등)의 벽/부지를 침범하지 않도록 안전 검사
+    // 전면 유리벽 (남쪽 & 동쪽): 타일 단위로 분할 렌더링 + 인접 병원 건물 침범 완벽 방지
     const x0 = p.x, y0 = p.y, w = p.w, d = p.d;
     const hospBuilt = typeof S !== 'undefined' && S && S.hosp && S.hosp.built;
-    const hospSeq = (hospBuilt && (S.hosp.bldSeq || S.hosp.lv || 1)) || 1;
-    const salonSeq = (sl.bldSeq || 1);
     const hp = hospBuilt && typeof HOSP_POS === 'function' ? HOSP_POS() : null;
     const overlapsHosp = (x, y) => {
-      if (!hp || hospSeq <= salonSeq) return false;
-      return x >= hp.x - 0.05 && x <= hp.x + hp.w + 0.05 && y >= hp.y - 0.05 && y <= hp.y + hp.d + 0.05;
+      if (!hp) return false;
+      return x >= hp.x - 0.25 && x <= hp.x + hp.w + 0.25 && y >= hp.y - 0.25 && y <= hp.y + hp.d + 0.25;
     };
     for (let u = 0; u < w; u++) {
       const xA = x0 + u, xB = x0 + u + 1, yWall = y0 + d;
@@ -241,52 +296,89 @@ const SALON = (() => {
   // guests + groomers as real walking actors (called from world.js sync)
   function sync(dt, W) {
     if (!built()) return;
-    const sl = S.salon, p = SALON_POS(), door = { x: p.x + p.w + .5, y: p.y + p.d + 0.5 }, host = !(typeof Net !== 'undefined' && Net.mode === 'guest'); // v2026-10-17: 입구를 남쪽 입구에 맞춰 남으로 2칸 이동
+    const sl = S.salon, p = SALON_POS(), door = { x: p.x + p.w + .5, y: p.y + p.d + 0.5 }, host = !(typeof Net !== 'undefined' && Net.mode === 'guest');
     const edgePoint = (seed, nearY) => (typeof villageEdgePoint === 'function') ? villageEdgePoint(seed, nearY) : { x: ((typeof S !== 'undefined' && S && S.room && S.room.w) || 8) + 1.5, y: -34 };
-    const waiting = sl.q.filter(c => c.ph === 'in' || c.ph === 'wait');
+    // 미용 중인 손님도 펫이 미용받는 동안 소파에 그대로 앉아서 대기
+    const waiting = sl.q.filter(c => c.ph === 'in' || c.ph === 'wait' || c.ph === 'groom');
     for (const c of sl.q) {
       const id = 'sc' + c.id; W.alive.add(id);
       let a = W.actors.get(id);
       if (!a) { const sp = edgePoint(c.seed || c.id); a = W.mkActor(id, 'patient', sp.x, sp.y, { look: ART.randomHuman(c.seed), speed: 3.2 }); a.salon = true; }
+      // 미용 중일 때는 펫이 테이블 위에 올려져 있으므로 손님의 품에는 안겨있지 않음
       a.hold = (c.ph === 'groom') ? null : { sp: c.sp, coat: c.coat, grow: 1 };
       let tx, ty, fx = null, fy = null;
-      if (c.ph === 'in' || c.ph === 'wait') {
+      if (c.ph === 'in' || c.ph === 'wait' || c.ph === 'groom') {
         const i = Math.min(SEATS.length - 1, Math.max(0, waiting.indexOf(c))), s0 = SEATS[i];
-        tx = p.x + s0.u; ty = p.y + s0.v; fx = tx + 1; fy = ty;
-        a.sit = a.arrived || Math.hypot(a.x - tx, a.y - ty) < 0.45;
-        // v2026-10-17: bench의 'dep'(그려지는 깊이)를 좌석에 달아줘야 앉은 손님이 벤치보다 앞에 그려짐(안 그러면 뒷줄 손님이 벤치에 가려 서있는 것처럼 보임)
-        if (a.sit) a.seatAt = { x: tx, y: ty, dep: p.x + 1.0 + p.y + 6.7 + .01 };
+        const walkX = p.x + 1.25, walkY = p.y + s0.v;
+        const seatX = p.x + 0.78, seatY = p.y + s0.v;
+        const nearSeat = Math.hypot(a.x - walkX, a.y - walkY) < 0.85 || Math.hypot(a.x - seatX, a.y - seatY) < 0.85;
+        if (a.arrived || nearSeat) {
+          a.arrived = true;
+          a.x = seatX; a.y = seatY;
+          a.sit = true;
+          a.face = 0; a.faceBack = false; a.diag = false; a.dir = 1;
+          // 방석 위에 앉은 손님 깊이를 벤치보다 확연히 앞서게 지정하여 의자에 절대 가려지지 않음
+          a.seatAt = { x: seatX, y: seatY, dep: p.x + 1.0 + p.y + 6.7 + 0.8 };
+          tx = seatX; ty = seatY;
+        } else {
+          a.sit = false; a.seatAt = null;
+          tx = walkX; ty = walkY;
+        }
+        fx = seatX + 2; fy = seatY;
+      } else if (c.ph === 'pay') {
+        a.sit = false; a.seatAt = null;
+        tx = p.x + COUNTER.u + 1.0; ty = p.y + COUNTER.v + 1.6; fx = tx; fy = ty - 2;
       } else {
         a.sit = false; a.seatAt = null;
-        // v2026-10-17: 미용 중인 손님(주인)은 원래 앉아있던 긴의자 좌석이 아니라, 실제 미용 테이블 앞으로 와야 함
-        // (예전엔 SEATS[c.st]를 썼는데 c.st는 '테이블' 번호라서 엉뚱한 벤치 좌석으로 가버렸음 -> 제자리에서 미용받는 것처럼 보이던 버그)
-        if (c.ph === 'groom') { const tb = TABLES[c.st] || TABLES[0]; tx = p.x + tb.u + .3; ty = p.y + tb.v + 2.1; fx = p.x + tb.u + 1; fy = p.y + tb.v; }
-        else if (c.ph === 'pay') { tx = p.x + COUNTER.u + 1; ty = p.y + COUNTER.v + 1.6; fx = tx; fy = ty - 2; }
-        else { const ex = edgePoint(c.seed || c.id, a.y); tx = ex.x; ty = ex.y; }
+        const ex = edgePoint(c.seed || c.id, a.y); tx = ex.x; ty = ex.y;
       }
       const key = Math.floor(tx) + ',' + Math.floor(ty);
-      if (a.tkey !== key) { a.tkey = key; a.arrived = false; const via = (c.ph === 'in') && Math.hypot(a.x - door.x, a.y - door.y) > 3; const go = () => W.goTo(a, tx, ty, () => { a.arrived = true; if (c.ph === 'out' || c.ph === 'angry') { c.gone = true; W.actors.delete(id); sl.q = sl.q.filter(x => x !== c); return; } if (fx != null) W.faceTo(a, fx, fy); if (c.ph === 'in' && host) c.arr = true; }); if (via) W.goTo(a, door.x, door.y, go); else go(); }
+      if (a.tkey !== key) {
+        a.tkey = key; a.arrived = false;
+        const via = (c.ph === 'in') && Math.hypot(a.x - door.x, a.y - door.y) > 3;
+        const go = () => W.goTo(a, tx, ty, () => {
+          a.arrived = true;
+          if (c.ph === 'out' || c.ph === 'angry') {
+            c.gone = true; W.actors.delete(id); sl.q = sl.q.filter(x => x !== c); return;
+          }
+          if (fx != null) W.faceTo(a, fx, fy);
+          if (c.ph === 'in' && host) c.arr = true;
+        });
+        if (via) W.goTo(a, door.x, door.y, go); else go();
+      }
       a.angry = c.ph === 'angry'; a.happyT = c.ph === 'pay' || c.ph === 'out' ? 1 : 0;
-      a.salonPaid = c.ph === 'pay' && c.paid ? c.paid : 0; a.salonWait = c.ph === 'wait' && a.arrived; a.cid = c.id;
+      a.salonPaid = c.ph === 'pay' && c.paid ? c.paid : 0; a.salonWait = (c.ph === 'wait' || c.ph === 'in') && a.arrived; a.cid = c.id;
     }
     sl.staff.forEach((m, i) => {
       const id = 'ss' + m.id; W.alive.add(id);
-      const busy = sl.q.find(c => c.ph === 'groom' && c.by === 'm' + m.id), tb = TABLES[busy ? busy.st : i % TABLES.length], tx = p.x + tb.u + 1.2, ty = p.y + tb.v + 1.6;
-      let a = W.actors.get(id); if (!a) { const lk = ART.randomHuman(m.seed); lk.top = 'jacket'; lk.jacket = '#ff9ec0'; lk.hat = null; applyStaffArt(lk, m.seed, false, 'hairstylist'); a = W.mkActor(id, 'hstaff', tx, ty, { look: lk, speed: 2.4 }); a.idleT = 2 + Math.random() * 4; }
-      a.m = m; a.talk = !!busy; // talk=true일 때만 가위 말풍선이 뜨고, world.js의 'hstaff는 가만히 있으면 무조건 정면' 처리를 건너뜀
+      const busy = sl.q.find(c => c.ph === 'groom' && c.by === 'm' + m.id), tb = TABLES[busy ? busy.st : i % TABLES.length];
+      const tx = p.x + tb.u + 1.0, ty = p.y + tb.v + 1.6;
+      let a = W.actors.get(id);
+      if (!a) {
+        const lk = ART.randomHuman(m.seed); lk.top = 'jacket'; lk.jacket = '#ff9ec0'; lk.hat = null;
+        applyStaffArt(lk, m.seed, false, 'hairstylist');
+        a = W.mkActor(id, 'hstaff', tx, ty, { look: lk, speed: 2.4 }); a.idleT = 2 + Math.random() * 4;
+      }
+      a.m = m; a.talk = !!busy;
+      a.busy = !!busy;
+      a.grooming = !!busy;
       if (busy) {
-        a.idleT = null; // v2026-10-17: 손님 미용 중엔 배회 멈추고 해당 테이블에 붙어있음
+        a.idleT = null;
         const key = Math.floor(tx) + ',' + Math.floor(ty);
-        if (a.tkey !== key) { a.tkey = key; W.goTo(a, tx, ty, () => { a.face = 1; a.faceBack = true; a.diag = false; a.dir = 1; }); } // 테이블(북쪽)을 보고 서서 -> 손님(카메라)에게는 뒷모습이 보임
-        else if (a.arrived) { a.face = 1; a.faceBack = true; a.diag = false; } // 도착한 뒤에도 계속 뒷모습 유지
+        if (a.tkey !== key) {
+          a.tkey = key;
+          W.goTo(a, tx, ty, () => { a.face = 1; a.faceBack = true; a.diag = false; a.dir = 1; });
+        } else {
+          // 테이블(북쪽)을 향해 완전히 등을 돌려서 미용 (화면에는 항상 뒷모습이 보임)
+          a.face = 1; a.faceBack = true; a.diag = false; a.dir = 1;
+        }
       } else {
-        // v2026-10-17: 손님이 없을 때 제자리에 가만히 서있지 않고, 자기 테이블 주변을 천천히 오가며 대기
         if (a.idleT == null) a.idleT = 4 + Math.random() * 5;
         a.idleT -= dt;
         if (a.idleT <= 0) {
           a.idleT = 6 + Math.random() * 7;
-          const ix = tx + (Math.random() * 2.2 - 1.1), iy = Math.max(p.y + .4, ty + (Math.random() * 1.4 - .4));
-          a.tkey = null; // 같은 반올림 좌표라도 다시 걷기 시작하도록 강제
+          const ix = tx + (Math.random() * 1.8 - 0.9), iy = Math.max(p.y + .4, ty + (Math.random() * 1.2 - .4));
+          a.tkey = null;
           W.goTo(a, ix, iy, () => W.faceTo(a, p.x + tb.u + 1, p.y + tb.v));
         }
       }
