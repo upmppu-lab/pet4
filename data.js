@@ -408,9 +408,19 @@ DECOR.push(
   { id: 'x_gacha', cost: 1200, pts: 4, lv: 4, icon: '🎰' },
   { id: 'x_agility', cost: 1500, pts: 5, lv: 5, icon: '🐕' },
   { id: 'x_vending', cost: 1800, pts: 5, lv: 6, icon: '🥤' },
+  { id: 'x_diffuser', cost: 280, pts: 1, lv: 1, icon: '💐' },
+  { id: 'x_marbletable', cost: 480, pts: 2, lv: 2, icon: '☕' },
+  { id: 'x_neoncat', cost: 650, pts: 3, lv: 2, icon: '💖' },
+  { id: 'x_hammock', cost: 850, pts: 3, lv: 3, icon: '🐱' },
+  { id: 'x_greenhouse', cost: 950, pts: 4, lv: 3, icon: '🌿' },
+  { id: 'x_clock', cost: 1100, pts: 4, lv: 4, icon: '🕰️' },
+  { id: 'x_closet', cost: 1350, pts: 5, lv: 5, icon: '👗' },
+  { id: 'x_turntable', cost: 1600, pts: 5, lv: 5, icon: '📻' },
+  { id: 'x_showcase', cost: 2100, pts: 6, lv: 6, icon: '🧁' },
+  { id: 'x_velvetsofa', cost: 2600, pts: 7, lv: 7, icon: '🛋️' },
 );
 // category for the shop list; homeOnly items are sold only for "our home"
-const DECOR_CAT = { petbed_deluxe: 'pet', cozy_fireplace: 'furn', catcastle: 'pet', music_jukebox: 'deco', crystal_fountain: 'deco', plant: 'deco', coatrack: 'furn', lamp: 'light', playpen: 'pet', playpen_adventure: 'pet', playpen_castle: 'pet', playpen_waterpark: 'pet', table: 'furn', armchair: 'furn', rug: 'deco', toyshelf: 'pet', supshelf: 'pet', radio: 'deco', bookcase: 'furn', bench: 'furn', fridge: 'furn', tv: 'furn', aquarium: 'deco', clothrack: 'pet', groomtable: 'pet', desk: 'furn', cafe: 'furn', cattower: 'pet', hotel: 'pet', fountain: 'deco', chandelier: 'deco', garden: 'deco', x_pcdesk: 'furn', x_board: 'deco', x_balloon: 'deco', x_scale: 'pet', x_monstera: 'deco', x_beanbag: 'furn', x_rocking: 'furn', x_photozone: 'deco', x_gacha: 'deco', x_agility: 'pet', x_vending: 'furn', washer: 'home', bathtub: 'home' };
+const DECOR_CAT = { petbed_deluxe: 'pet', cozy_fireplace: 'furn', catcastle: 'pet', music_jukebox: 'deco', crystal_fountain: 'deco', plant: 'deco', coatrack: 'furn', lamp: 'light', playpen: 'pet', playpen_adventure: 'pet', playpen_castle: 'pet', playpen_waterpark: 'pet', table: 'furn', armchair: 'furn', rug: 'deco', toyshelf: 'pet', supshelf: 'pet', radio: 'deco', bookcase: 'furn', bench: 'furn', fridge: 'furn', tv: 'furn', aquarium: 'deco', clothrack: 'pet', groomtable: 'pet', desk: 'furn', cafe: 'furn', cattower: 'pet', hotel: 'pet', fountain: 'deco', chandelier: 'deco', garden: 'deco', x_pcdesk: 'furn', x_board: 'deco', x_balloon: 'deco', x_scale: 'pet', x_monstera: 'deco', x_beanbag: 'furn', x_rocking: 'furn', x_photozone: 'deco', x_gacha: 'deco', x_agility: 'pet', x_vending: 'furn', x_diffuser: 'deco', x_marbletable: 'furn', x_neoncat: 'light', x_hammock: 'pet', x_greenhouse: 'deco', x_clock: 'furn', x_closet: 'pet', x_turntable: 'deco', x_showcase: 'furn', x_velvetsofa: 'furn', washer: 'home', bathtub: 'home' };
 DECOR.forEach(d => { d.cat = d.id.startsWith('l_') ? 'light' : DECOR_CAT[d.id] || 'deco'; if (d.cat === 'home') d.homeOnly = 1; });
 DECOR.sort((a, b) => a.lv - b.lv);
 

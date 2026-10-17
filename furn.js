@@ -811,10 +811,37 @@ const FURN = (() => {
     const flame = (x, y, s) => { const f = 1 + Math.sin(t * 12 + x) * .15; c.beginPath(); c.moveTo(x, y - 9 * s * f); c.quadraticCurveTo(x + 4 * s, y - 3 * s, x, y); c.quadraticCurveTo(x - 4 * s, y - 3 * s, x, y - 9 * s * f); c.fillStyle = '#ffb347'; c.fill(); ell(c, x, y - 3 * s, 1.6 * s, 2.4 * s, '#fff3b0'); };
     switch (kind) {
       case 'l_lantern': {
-        const [x, y] = P(.5, .5, 0); ell(c, x, y, 12, 5, 'rgba(0,0,0,.15)');
-        rrect(c, x - 9, y - 30, 18, 28, 3); c.fillStyle = 'rgba(255,236,190,.85)'; c.fill(); c.lineWidth = 2; c.strokeStyle = '#3d4450'; c.stroke();
-        line(c, [x, y - 30], [x, y - 2], '#3d4450', 1.5); flame(x, y - 8, 1.1); glowAt(x, y - 14, 22);
-        c.beginPath(); c.moveTo(x - 11, y - 30); c.lineTo(x, y - 38); c.lineTo(x + 11, y - 30); c.closePath(); c.fillStyle = '#3d4450'; c.fill(); c.beginPath(); c.arc(x, y - 41, 4, Math.PI, 0); c.strokeStyle = '#3d4450'; c.lineWidth = 1.5; c.stroke();
+        const [x, y] = P(.5, .5, 0);
+        // Soft contact shadow
+        ell(c, x, y + 1, 14, 7, 'rgba(25,12,6,.24)');
+        // Brass/iron pedestal base
+        ell(c, x, y - 1, 11, 5.5, '#b48228', OUT, 1.1);
+        ell(c, x, y - 3, 9, 4.5, '#d4a23d');
+        // Glass chamber with corner brass pillars
+        rrect(c, x - 10, y - 32, 20, 28, 2);
+        c.fillStyle = 'rgba(255,242,200,.75)'; c.fill();
+        c.lineWidth = 1.6; c.strokeStyle = '#5a3d16'; c.stroke();
+        // Inner candle
+        rrect(c, x - 3.5, y - 18, 7, 14, 1.5);
+        c.fillStyle = '#fffdf5'; c.fill();
+        c.strokeStyle = 'rgba(180,140,80,.4)'; c.lineWidth = .7; c.stroke();
+        flame(x, y - 19, 1.1);
+        glowAt(x, y - 18, 28, '255,210,110', .65);
+        // Glass reflection streaks
+        c.beginPath(); c.moveTo(x - 7, y - 30); c.lineTo(x - 2, y - 6);
+        c.moveTo(x - 3, y - 30); c.lineTo(x + 1, y - 14);
+        c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 1.2; c.stroke();
+        // Corner metal columns & crossbars
+        line(c, [x - 9, y - 32], [x - 9, y - 4], '#784e1b', 2);
+        line(c, [x + 9, y - 32], [x + 9, y - 4], '#784e1b', 2);
+        line(c, [x, y - 32], [x, y - 4], '#9e6d2b', 1.4);
+        // Tiered metal roof & smoke vent
+        c.beginPath(); c.moveTo(x - 12, y - 32); c.lineTo(x - 5, y - 42); c.lineTo(x + 5, y - 42); c.lineTo(x + 12, y - 32); c.closePath();
+        c.fillStyle = '#9e6d2b'; c.fill(); c.strokeStyle = OUT; c.lineWidth = 1.1; c.stroke();
+        rrect(c, x - 3, y - 46, 6, 5, 1.5); c.fillStyle = '#d4a23d'; c.fill(); c.stroke();
+        // Hanging brass ring
+        c.beginPath(); c.arc(x, y - 49, 4.5, 0, Math.PI * 2);
+        c.strokeStyle = '#d4a23d'; c.lineWidth = 2; c.stroke();
         break;
       }
       case 'l_tablelamp': {
@@ -841,9 +868,43 @@ const FURN = (() => {
         break;
       }
       case 'l_candles': {
-        const [x, y] = P(.5, .5, 0); ell(c, x, y - 2, 18, 8, '#c8963f', OUT, 1); ell(c, x, y - 4, 15, 6, '#e2b98a');
-        for (const [dx, dy, h] of [[-8, -2, 14], [6, -4, 20], [0, 3, 10]]) { rrect(c, x + dx - 3.5, y + dy - 4 - h, 7, h, 2); c.fillStyle = '#fff6e8'; c.fill(); c.strokeStyle = 'rgba(60,38,25,.4)'; c.lineWidth = .8; c.stroke(); flame(x + dx, y + dy - 5 - h, .8); }
-        glowAt(x, y - 20, 26);
+        const [x, y] = P(.5, .5, 0);
+        // Contact shadow
+        ell(c, x, y + 1, 22, 10, 'rgba(25,12,6,.24)');
+        // Hammered antique brass tray
+        ell(c, x, y - 2, 20, 9, '#b8860b', OUT, 1.2);
+        ell(c, x, y - 3, 17, 7.5, '#e4b849');
+        ell(c, x, y - 4, 15, 6.5, '#f5d47a');
+        // Decorative rose petals on tray
+        for (const [pdx, pdy, col] of [[-12, 1, '#f472b6'], [-10, 3, '#ec4899'], [11, 2, '#fb7185'], [8, -3, '#f43f5e']]) {
+          ell(c, x + pdx, y + pdy, 2.5, 1.5, col);
+        }
+        // 3 Pillar candles with melted wax drip ridges
+        const candles = [
+          { dx: -7, dy: -2, h: 22, w: 8, col: '#fff8eb' },
+          { dx: 4, dy: -5, h: 28, w: 9, col: '#fffaed' },
+          { dx: 1, dy: 3, h: 14, w: 7, col: '#fff3db' }
+        ];
+        for (const cd of candles) {
+          const cx = x + cd.dx, cy = y + cd.dy;
+          // Pillar body
+          rrect(c, cx - cd.w / 2, cy - 4 - cd.h, cd.w, cd.h, 2.5);
+          c.fillStyle = cd.col; c.fill();
+          c.strokeStyle = 'rgba(150,110,60,.45)'; c.lineWidth = .9; c.stroke();
+          // Wax top basin
+          ell(c, cx, cy - 4 - cd.h, cd.w / 2, cd.w / 4, '#fde68a');
+          // Wax drips on side
+          c.beginPath();
+          c.moveTo(cx - cd.w / 2 + 1, cy - cd.h);
+          c.lineTo(cx - cd.w / 2 + 1, cy - cd.h + 8);
+          c.moveTo(cx + cd.w / 2 - 1, cy - cd.h);
+          c.lineTo(cx + cd.w / 2 - 1, cy - cd.h + 5);
+          c.strokeStyle = 'rgba(240,225,190,.9)'; c.lineWidth = 1.5; c.lineCap = 'round'; c.stroke();
+          // Black wick
+          line(c, [cx, cy - 4 - cd.h], [cx, cy - 7 - cd.h], '#451a03', 1.2);
+          flame(cx, cy - 7 - cd.h, .9);
+        }
+        glowAt(x, y - 22, 34, '255,215,130', .55);
         break;
       }
       case 'l_street': {
@@ -1286,32 +1347,77 @@ const FURN = (() => {
         break;
       }
       case 'table': {
-        // High-fidelity Scandinavian dining / display table with polished oak top & tapered legs
-        for (const [lx, ly] of [[.22, .22], [.78, .22], [.22, .78], [.78, .78]]) {
-          box(c, lx - .04, ly - .04, .08, .08, 19, '#7a4e28');
+        // High-fidelity Scandinavian 2x1 dining / display table with polished oak top & table runner
+        // 4 Turned legs with brass tips
+        for (const [lx, ly] of [[.2, .2], [1.8, .2], [.2, .8], [1.8, .8]]) {
+          box(c, lx - .04, ly - .04, .08, .08, 20, '#603813');
+          const [bx, by] = P(lx, ly, 0);
+          ell(c, bx, by + 1, 3, 1.5, 'rgba(25,12,6,.22)');
         }
-        box(c, .1, .1, .8, .8, 3, '#c99a6a', 19, { top: '#e6ccb2', left: '#b08252', right: '#9c6f42' });
-        // Decorative centerpiece small vase with blooming flower
-        const [vx, vy] = P(.5, .5, 22);
-        ART.ell(c, vx, vy, 4, 2, 'rgba(0,0,0,.15)');
-        ART.rrect(c, vx - 3, vy - 10, 6, 10, 2); c.fillStyle = '#ffffff'; c.fill(); c.strokeStyle = OUT; c.lineWidth = .7; c.stroke();
-        ART.ell(c, vx, vy - 14, 4.5, 4.5, '#f472b6', OUT, .7);
-        ART.ell(c, vx, vy - 14, 2, 2, '#fde047');
+        // Lower cross stretcher bar
+        box(c, .24, .46, 1.52, .08, 3, '#784419', 4);
+        // Beveled thick solid oak tabletop
+        box(c, .06, .08, 1.88, .84, 4, '#c99a6a', 20, { top: '#f2dec6', left: '#b88652', right: '#9e6d3c' });
+        // Tabletop shine edge line
+        line2(c, P(.06, .08, 24), P(1.94, .08, 24), 'rgba(255,255,255,.6)', 1.2);
+        line2(c, P(.06, .92, 24), P(1.94, .92, 24), 'rgba(255,255,255,.4)', 1.0);
+        // Fabric table runner down the center
+        poly(c, [P(.75, .07, 24.2), P(1.25, .07, 24.2), P(1.25, .93, 24.2), P(.75, .93, 24.2)], '#fffbf0', 'rgba(180,150,110,.35)', .8);
+        // Table centerpiece: ceramic vase with fresh tulip
+        const [vx, vy] = P(1, .5, 24.5);
+        ell(c, vx, vy, 5, 2.5, 'rgba(0,0,0,.15)');
+        rrect(c, vx - 3.5, vy - 12, 7, 12, 3); c.fillStyle = '#ffffff'; c.fill(); c.strokeStyle = OUT; c.lineWidth = .8; c.stroke();
+        line(c, [vx, vy - 12], [vx - 2, vy - 19], '#22c55e', 1.4);
+        ell(c, vx - 3, vy - 21, 4.5, 4.5, '#f43f5e', OUT, .7);
+        ell(c, vx - 3, vy - 21, 2, 2, '#fde047');
+        // Fine porcelain teacup & saucer (right side)
+        const [tx, ty] = P(1.5, .5, 24.5);
+        ell(c, tx, ty, 6, 3, '#ffffff', 'rgba(180,140,80,.4)', .8);
+        ell(c, tx, ty - 2, 4, 2, '#eed9b3');
+        ell(c, tx, ty - 2.5, 3, 1.5, '#78350f'); // tea
+        // Steam swirl
+        c.beginPath(); c.moveTo(tx, ty - 5); c.quadraticCurveTo(tx - 2, ty - 10, tx + 1, ty - 14);
+        c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 1; c.stroke();
         break;
       }
       case 'armchair': {
-        // Tufted Scandinavian armchair with soft warm fabric & oak legs
-        for (const [lx, ly] of [[.18, .18], [.82, .18], [.18, .82], [.82, .82]]) {
-          box(c, lx - .03, ly - .03, .06, .06, 8, '#7a4e28');
+        // High-fidelity Scandinavian button-tufted 1-seater armchair with cozy throw blanket
+        const [cx, cy] = P(.5, .5, 0);
+        ell(c, cx, cy + 2, 24, 12, 'rgba(25,12,6,.22)');
+        // 4 Turned walnut legs with brass ferrules
+        for (const [lx, ly] of [[.2, .2], [.8, .2], [.2, .8], [.8, .8]]) {
+          box(c, lx - .03, ly - .03, .06, .06, 9, '#5c3818');
+          const [fx, fy] = P(lx, ly, 0);
+          ell(c, fx, fy - 1, 2.5, 1.5, '#eab308');
         }
-        box(c, .12, .15, .76, .7, 12, '#3b82f6', 8, { top: '#93c5fd', left: '#2563eb', right: '#1d4ed8' });
-        box(c, .12, .15, .76, .18, 26, '#2563eb', 14, { top: '#60a5fa' });
-        box(c, .12, .15, .15, .7, 16, '#2563eb', 14, { top: '#60a5fa' });
-        box(c, .73, .15, .15, .7, 16, '#2563eb', 14, { top: '#60a5fa' });
+        // Main seat cushion block
+        box(c, .12, .14, .76, .72, 12, '#3b82f6', 9, { top: '#93c5fd', left: '#2563eb', right: '#1d4ed8' });
+        // Thick plush top cushion
+        box(c, .14, .16, .72, .68, 6, '#60a5fa', 21, { top: '#bfdbfe', left: '#3b82f6', right: '#2563eb' });
+        // High curved button-tufted backrest
+        box(c, .12, .14, .76, .18, 28, '#2563eb', 15, { top: '#60a5fa', left: '#1d4ed8', right: '#1e40af' });
+        // Left & right rounded armrests
+        box(c, .10, .14, .14, .72, 18, '#2563eb', 15, { top: '#60a5fa', left: '#1d4ed8', right: '#1e40af' });
+        box(c, .76, .14, .14, .72, 18, '#2563eb', 15, { top: '#60a5fa', left: '#1d4ed8', right: '#1e40af' });
+        // Diamond button tufting on backrest
+        for (let i = 0; i < 3; i++) {
+          const bp = P(.28 + i * .22, .22, 33);
+          ell(c, bp[0], bp[1], 2, 2, '#1e3a8a', '#ffffff', .6);
+        }
         for (let i = 0; i < 2; i++) {
-          const bp = P(.35 + i * .3, .22, 28);
-          ART.ell(c, bp[0], bp[1], 2, 2, '#1e40af', '#ffffff', .5);
+          const bp = P(.39 + i * .22, .22, 26);
+          ell(c, bp[0], bp[1], 2, 2, '#1e3a8a', '#ffffff', .6);
         }
+        // Cozy plaid throw blanket draped over the left armrest
+        const [bx, by] = P(.14, .45, 33);
+        rrect(c, bx - 5, by - 6, 12, 22, 3);
+        c.fillStyle = '#fde68a'; c.fill();
+        c.strokeStyle = '#b45309'; c.lineWidth = .9; c.stroke();
+        // Plaid stripes on blanket
+        c.beginPath(); c.moveTo(bx - 3, by - 4); c.lineTo(bx - 3, by + 14);
+        c.moveTo(bx + 3, by - 4); c.lineTo(bx + 3, by + 14);
+        c.moveTo(bx - 5, by + 4); c.lineTo(bx + 7, by + 4);
+        c.strokeStyle = '#f59e0b'; c.lineWidth = 1; c.stroke();
         break;
       }
       case 'bookcase': {
@@ -1403,16 +1509,52 @@ const FURN = (() => {
         break;
       }
       case 'coatrack': {
-        // Elegant standing oak coat tree
+        // High-fidelity standing walnut & brass coat rack with trench coat, hat, and umbrella
         const [x, y] = P(.5, .5, 0);
-        ART.ell(c, x, y, 9, 4.5, '#5c3818', OUT, 1.2);
-        rrect(c, x - 2, y - 56, 4, 56, 1.5); c.fillStyle = '#854d0e'; c.fill(); c.strokeStyle = OUT; c.lineWidth = 1; c.stroke();
-        for (const s of [-1, 1]) {
-          c.beginPath(); c.moveTo(x, y - 46); c.lineTo(x + s * 10, y - 52); c.lineWidth = 2.4; c.strokeStyle = '#a16207'; c.stroke();
-          ART.ell(c, x + s * 10, y - 52, 2.5, 2.5, '#ca8a04');
+        // Floor cast shadow
+        ell(c, x, y + 2, 14, 7, 'rgba(25,12,6,.24)');
+        // Stepped walnut & brass base
+        ell(c, x, y, 11, 5.5, '#45260c', OUT, 1.2);
+        ell(c, x, y - 2, 8, 4, '#b8860b', OUT, .9);
+        // Lathe-turned center column
+        rrect(c, x - 2, y - 60, 4, 58, 1.5);
+        c.fillStyle = '#6b3c14'; c.fill();
+        c.strokeStyle = OUT; c.lineWidth = 1; c.stroke();
+        // Lower umbrella brass hoop
+        c.beginPath(); c.ellipse(x, y - 18, 9, 4, 0, 0, Math.PI * 2);
+        c.strokeStyle = '#d4a23d'; c.lineWidth = 1.6; c.stroke();
+        // Resting classic umbrella
+        line(c, [x + 5, y - 28], [x + 2, y - 2], '#1e293b', 2.4);
+        c.beginPath(); c.arc(x + 5, y - 31, 3.5, 0, Math.PI, true);
+        c.strokeStyle = '#b8860b'; c.lineWidth = 1.8; c.stroke();
+        // Brass double hooks at top
+        for (const [hx, hy, ang] of [[x - 10, y - 54, -.2], [x + 10, y - 54, .2], [x - 6, y - 48, -.1], [x + 6, y - 48, .1]]) {
+          c.beginPath(); c.moveTo(x, hy + 3); c.quadraticCurveTo(hx, hy + 2, hx, hy - 4);
+          c.strokeStyle = '#d4a23d'; c.lineWidth = 2.2; c.stroke();
+          ell(c, hx, hy - 4, 2, 2, '#fde047');
         }
-        c.beginPath(); c.moveTo(x - 5, y - 40); c.quadraticCurveTo(x, y - 36, x + 5, y - 40); c.lineTo(x + 6, y - 24); c.lineTo(x + 2, y - 24); c.closePath();
-        c.fillStyle = '#f43f5e'; c.fill(); c.strokeStyle = OUT; c.lineWidth = .8; c.stroke();
+        // Elegant wool trench coat hanging
+        c.beginPath();
+        c.moveTo(x - 8, y - 48);
+        c.quadraticCurveTo(x, y - 44, x + 6, y - 48);
+        c.lineTo(x + 9, y - 20);
+        c.lineTo(x + 1, y - 18);
+        c.lineTo(x - 8, y - 20);
+        c.closePath();
+        c.fillStyle = '#d4a373'; c.fill();
+        c.strokeStyle = '#854d0e'; c.lineWidth = 1; c.stroke();
+        // Coat lapel & brass buttons
+        c.beginPath(); c.moveTo(x - 2, y - 45); c.lineTo(x - 1, y - 22);
+        c.strokeStyle = '#9a632a'; c.lineWidth = 1.2; c.stroke();
+        for (let b = 0; b < 3; b++) {
+          ell(c, x, y - 40 + b * 7, 1.2, 1.2, '#f59e0b');
+        }
+        // Fedora hat resting on top finial
+        const [tx, ty] = [x - 2, y - 61];
+        ell(c, tx, ty, 9, 4, '#5c3818', OUT, .8);
+        rrect(c, tx - 5, ty - 8, 10, 8, 2);
+        c.fillStyle = '#78350f'; c.fill(); c.strokeStyle = OUT; c.lineWidth = .8; c.stroke();
+        rrect(c, tx - 5, ty - 3, 10, 2.5, 0); c.fillStyle = '#1e293b'; c.fill(); // hat ribbon
         break;
       }
       case 'radio': {
