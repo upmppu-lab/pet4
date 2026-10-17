@@ -735,7 +735,20 @@ function farmHotbarHTML() {
 }
 PANELS.farmstall = () => {
   const hh = FARM.ensure(S);
-  let b = `<div class="m">${t('seedShopDesc')}</div><div class="t">🌱 ${t('buySeeds')}</div>`;
+  const staffLook = ART.randomHuman(4242);
+  staffLook.kid = false; staffLook.old = false;
+  delete staffLook.townChar;
+  if (typeof applyStaffArt === 'function') applyStaffArt(staffLook, 4242, true);
+  else { staffLook.staffHead = 1; staffLook.staffOutfit = 30; }
+  let b = `<div class="card" style="background:linear-gradient(180deg,#f3faf0,#e7f5e1);border:1.5px solid #a3d995;margin-bottom:10px;padding:8px 10px">
+    <div class="row" style="align-items:center;gap:10px">
+      <div class="ic" style="width:48px;height:48px;border-radius:10px;background:#fff;border:1.5px solid #b8e2ac;display:flex;align-items:center;justify-content:center;overflow:hidden"><img src="${PIC.head(staffLook, 'happy')}" style="width:48px;height:48px"></div>
+      <div class="grow">
+        <div class="t" style="color:#2d5a27;font-weight:bold">🌱 ${t('seedShop')} · 상점 직원</div>
+        <div class="m" style="color:#4a7c43">${t('seedShopDesc')}</div>
+      </div>
+    </div>
+  </div><div class="t">🌱 ${t('buySeeds')}</div>`;
   const seedRow = cr => { const lock = cr.ulv > S.level; return `<div class="li"><div class="ic">${cr.icon}</div><div class="grow"><div class="t">${t('crop_' + cr.id)} ${lock ? '🔒 Lv' + cr.ulv : ''}</div>${cr.tree ? `<div class="m">🌳 ${t('treeInfo', { a: cr.growDays, b: cr.regrow, n: cr.yield })}</div>` : ''}<div class="m">🪙${cr.seedCost}/${t('seedUnit')} · ${t('haveSeed', { n: hh.seeds[cr.id] || 0 })}</div></div>${lock ? '' : `<button class="btn o sm ${S.coins < cr.seedCost ? 'dis' : ''}" data-a="fbuyseed" data-v="${cr.id}" data-w="1">+1</button><button class="btn g sm ${S.coins < cr.seedCost * 5 ? 'dis' : ''}" data-a="fbuyseed" data-v="${cr.id}" data-w="5">+5</button>`}</div>`; };
   b += CROPS.filter(cr => !cr.tree).map(seedRow).join('') + `<div class="t" style="margin-top:10px">🌳 ${t('treeSeeds')}</div><div class="m">${t('treeSeedsDesc')}</div>` + CROPS.filter(cr => cr.tree).map(seedRow).join('');
   b += `<div class="t" style="margin-top:10px">🧰 ${t('toolShop')}</div><div class="m">${t('toolShopDesc')}</div>` + FARM_TOOLS.map(tl => { const owned = hh.tools[tl.id]; return `<div class="li"><div class="ic">${tl.icon}</div><div class="grow"><div class="t">${t('tool_' + tl.id)}</div><div class="m">${owned ? t('toolOwned') : '🪙' + fmt(tl.cost)}</div></div>${owned ? '<span class="m">✅</span>' : `<button class="btn o sm ${S.coins < tl.cost ? 'dis' : ''}" data-a="fbuytool" data-v="${tl.id}">${t('buyBtn')}</button>`}</div>`; }).join('');

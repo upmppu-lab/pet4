@@ -2179,10 +2179,17 @@ const FURN = (() => {
     crate(x + .1, y0 + 1.0, ['#ff9e3b', '#ffb65c']); // carrots / oranges
     crate(x + w - .9, y0 + 1.0, ['#72cb52', '#91dd68']); // cabbages / apples
 
-    // Friendly Seller Actor behind the counter
+    // Friendly Seed Shop Staff Actor behind the counter (Official Staff Uniform)
     {
       const s = P(x + w / 2, y0 + 1.2, 0), look = ART.randomHuman(4242);
-      look.apron = '#6aa85b'; look.hat = null; look.top = 'tee';
+      look.kid = false; look.old = false;
+      delete look.townChar;
+      if (typeof applyStaffArt === 'function') {
+        applyStaffArt(look, 4242, true); // 공식 매니저/직원 유니폼 (머리 1번 + 몸 30번 검정 앞치마)
+      } else {
+        look.staffHead = 1;
+        look.staffOutfit = 30;
+      }
       c.save(); c.translate(s[0], s[1]); c.scale(.95, .95); ART.human(c, look, 0, 0, false); c.restore();
     }
 
