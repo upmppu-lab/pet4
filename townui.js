@@ -168,9 +168,22 @@ const TOWNUI = (() => {
     const m = (S.clock && S.clock.m) || 720, day = (S.clock && S.clock.day) || 1;
     const sky = skyState();
     const whitePeopleIcon = `<svg width="15" height="15" viewBox="0 0 24 24" fill="#ffffff" style="display:inline-block;vertical-align:-2.5px;margin-right:2px;filter:drop-shadow(0 1px 1px rgba(0,0,0,.7))"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>`;
+    const isRu = (typeof CFG !== 'undefined' && CFG.lang === 'ru');
+    const paperTitle = isRu ? 'Журнал доходов и гостей магазинов' : '각 상점 일일 손님수·수익 장부';
     return `<div class="town-hud-wrap">
-      <div class="sky-weather-box" data-a="open" data-v="town" title="${sky.name} (${sky.weatherName} ${sky.weatherIcon})">
-        ${skyLandscapeSvg(m, day)}
+      <div class="sky-weather-col">
+        <div class="sky-weather-box" data-a="open" data-v="town" title="${sky.name} (${sky.weatherName} ${sky.weatherIcon})">
+          ${skyLandscapeSvg(m, day)}
+        </div>
+        <button class="sky-sub-paper-btn" data-a="open" data-v="storerecord" title="${paperTitle}">
+          <svg width="22" height="26" viewBox="0 0 24 28" fill="none" style="filter:drop-shadow(0 2px 4px rgba(0,0,0,0.45));">
+            <path d="M4 2h10l6 6v18a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="#ffffff" stroke="#5c3818" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M14 2v6h6" fill="#fde68a" stroke="#5c3818" stroke-width="2" stroke-linejoin="round"/>
+            <line x1="6" y1="13" x2="16" y2="13" stroke="#8c6239" stroke-width="2" stroke-linecap="round"/>
+            <line x1="6" y1="17" x2="16" y2="17" stroke="#8c6239" stroke-width="2" stroke-linecap="round"/>
+            <line x1="6" y1="21" x2="12" y2="21" stroke="#8c6239" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </button>
       </div>
       <div class="pillw town" data-a="open" data-v="town"><span>${whitePeopleIcon}<b>${st.pop}</b><i>/${st.cap}</i></span><span class="hface" style="background:${f[2]}">${f[1]}<small>${st.hap}</small></span></div>
     </div>`;

@@ -49,7 +49,7 @@ const SALON = (() => {
           }
         }
       }
-      else if (c.ph === 'pay') { c.t += dt; if (c.t > 4 && !c.paid) { const pay = Math.round(payOf(c.sp) * (1 + .06 * sl.staff.reduce((a, m) => a + m.lv, 0))); s.coins += pay; c.paid = pay; sl.served = (sl.served | 0) + 1; if (s.today) s.today.earned = (s.today.earned || 0) + pay; } if (c.t > 7) { c.ph = 'out'; c.t = 0; } }
+      else if (c.ph === 'pay') { c.t += dt; if (c.t > 4 && !c.paid) { const pay = Math.round(payOf(c.sp) * (1 + .06 * sl.staff.reduce((a, m) => a + m.lv, 0))); s.coins += pay; c.paid = pay; sl.served = (sl.served | 0) + 1; if (s.today) s.today.earned = (s.today.earned || 0) + pay; if (typeof STORE_STATS !== 'undefined') STORE_STATS.record(s, 'salon', pay, 1, '펫 미용 및 스타일링'); } if (c.t > 7) { c.ph = 'out'; c.t = 0; } }
       else if (c.ph === 'out' || c.ph === 'angry') { c.t += dt; if (c.t > 120 || c.gone) sl.q = sl.q.filter(x => x !== c); }
     }
     // free groomers take the next waiting guest's pet to a free grooming table

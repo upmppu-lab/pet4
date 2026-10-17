@@ -361,10 +361,14 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
 .road-double-btn.g{background:rgba(34,197,94,.32)!important;border-color:#22c55e!important;color:#ffffff!important;box-shadow:0 0 0 1px #22c55e}
 
 /* Sky & Weather mini window + Population Banner horizontal layout */
-.town-hud-wrap{display:flex;flex-direction:row;align-items:center;gap:6px}
+.town-hud-wrap{display:flex;flex-direction:row;align-items:flex-start;gap:6px}
+.sky-weather-col{display:inline-flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0}
 .sky-weather-box{margin:0;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;height:28px;border-radius:9px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,.25);border:2px solid #ecd6b2;transition:transform .15s;flex-shrink:0}
 .sky-weather-box:active{transform:scale(.95)}
 .sky-pixel-frame{display:block;width:38px;height:28px;border-radius:7px}
+.sky-sub-paper-btn{width:38px;height:28px;margin:2px 0 0;padding:0;background:transparent;border:none;border-radius:0;box-shadow:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .12s}
+.sky-sub-paper-btn:hover{background:transparent;border:none;box-shadow:none;transform:scale(1.12)}
+.sky-sub-paper-btn:active{background:transparent;border:none;box-shadow:none;transform:scale(0.92)}
 
 /* ---- 내그림(pngchar) 탭: 흰 배경 + 보라 포인트 ---- */
 .cstick{background:#fff!important}
@@ -676,3 +680,48 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
 .bskillbtn .bsname{flex:1;font-weight:800}
 .bskillbtn .bsmeta{font-size:11px;font-weight:700;color:#8a5e30;margin-top:1px}
 .bskillbtn .bstag{font-size:11px;font-weight:700;color:#a0602a;white-space:nowrap}
+
+/* Store Daily Record Ledger Modal Styling */
+.store-report-header{background:linear-gradient(180deg,#fffdf9 0%,#fef6eb 100%);border:1.5px solid #ecd8b8;border-radius:14px;padding:12px;margin-bottom:12px;box-shadow:0 3px 8px rgba(0,0,0,.06)}
+.store-report-title-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.store-report-day-badge{font-size:13px;font-weight:900;color:#78350f;background:#fef3c7;border:1px solid #fde68a;padding:3px 9px;border-radius:12px}
+.store-report-time-sub{font-size:12px;font-weight:700;color:#92400e}
+.store-report-tabs{display:flex;gap:6px;margin:8px 0 10px}
+.store-tab-btn{flex:1;padding:7px 0;font-size:12px;font-weight:800;border:1.5px solid #e5d5be;background:#fff;color:#78350f;border-radius:10px;cursor:pointer;transition:background .12s,transform .1s}
+.store-tab-btn.on{background:#f59e0b;color:#fff;border-color:#d97706;box-shadow:0 2px 6px rgba(245,158,11,.35)}
+.store-tab-btn:active{transform:scale(.97)}
+.store-report-kpi-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.store-kpi-card{background:#fff;border:1px solid #ebd9bf;border-radius:10px;padding:8px 6px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.04);display:flex;flex-direction:column;align-items:center;justify-content:center}
+.store-kpi-card.highlight{background:#fffbeb;border-color:#fde68a}
+.store-kpi-card .kpi-icon{font-size:16px;margin-bottom:2px}
+.store-kpi-card .kpi-val{font-size:14px;font-weight:900;color:#1e293b;line-height:1.2}
+.store-kpi-card .kpi-val small{font-size:10px;font-weight:700;color:#64748b;margin-left:1px}
+.store-kpi-card.highlight .kpi-val{color:#b45309}
+.store-kpi-card .kpi-lbl{font-size:9.5px;font-weight:800;color:#64748b;margin-top:2px}
+.store-top-crown-card{display:flex;align-items:center;gap:6px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;padding:6px 10px;font-size:11.5px;color:#92400e}
+.store-top-crown-card .crown-icon{font-size:14px}
+.store-top-crown-card .crown-label{font-weight:700}
+.store-top-crown-card .crown-amount{font-weight:800;color:#b45309;margin-left:auto}
+.store-list-container{display:flex;flex-direction:column;gap:8px}
+.store-list-sec-title{display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:900;color:#451a03;padding:0 4px}
+.store-list-sec-title small{font-size:10px;font-weight:700;color:#92400e}
+.store-item-card{background:#fff;border:1.5px solid #ecd6b2;border-radius:12px;padding:10px 12px;box-shadow:0 2px 6px rgba(0,0,0,.05);display:flex;flex-direction:column;gap:6px}
+.store-item-card.unbuilt{opacity:.65;background:#fcfbf9;border-style:dashed}
+.store-item-top{display:flex;align-items:center;gap:10px}
+.store-item-icon-box{width:36px;height:36px;border-radius:10px;background:#fef3c7;border:1px solid #fde68a;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.store-item-info{flex:1;min-width:0}
+.store-item-name-row{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.store-item-info .store-name{font-size:13.5px;font-weight:900;color:#1e293b}
+.store-status-badge{font-size:10px;font-weight:800;padding:2px 6px;border-radius:6px;white-space:nowrap}
+.store-status-badge.open{background:#dcfce7;color:#15803d}
+.store-status-badge.closed{background:#f1f5f9;color:#64748b}
+.store-item-desc{font-size:10.5px;color:#64748b;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.store-item-metrics{display:flex;gap:12px;background:#fbf8f2;border-radius:8px;padding:6px 10px;margin-top:2px}
+.metric-cell{flex:1;display:flex;flex-direction:column}
+.metric-cell .m-label{font-size:10px;font-weight:700;color:#78350f}
+.metric-cell .m-val{font-size:13.5px;font-weight:900;color:#334155;margin-top:1px}
+.metric-cell .m-val.active{color:#047857}
+.metric-cell .m-val.gold.active{color:#b45309}
+.store-item-note{font-size:11px;font-weight:700;color:#6b573f;background:#fff8ea;border-radius:6px;padding:4px 8px;display:flex;align-items:center;gap:5px}
+.store-unbuilt-hint{display:flex;justify-content:space-between;align-items:center;font-size:10.5px;color:#94a3b8;font-weight:700;margin-top:2px;gap:6px}
+

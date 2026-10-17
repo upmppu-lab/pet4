@@ -432,6 +432,7 @@ const CAFE = (() => {
     cf.dishes[o.dish]--; cf.orders = cf.orders.filter(x => x.id !== o.id); cf.served++; if (typeof TOWN !== 'undefined') TOWN.mood(s, .4);
     let bonus = 0; for (const m of cf.staff) if (m.role === 'cashier') { bonus += .04 + .012 * m.lv; m.tt = 1.6; m.done = (m.done | 0) + 1; } // a cashier at the desk brings a little extra per bill
     const pay = Math.round(o.pay * (1 + Math.min(100, cf.joy || 0) / 200) * (1 + bonus)); s.coins += pay; H.addXp(s, 4); o.paid = pay; (cf.done = cf.done || []).push({ id: o.id, pay, t: 0 }); // v9.91: partners' screens learn "served + how much" from this list // v9.84: the guest shows this amount in a bubble when paying at the desk
+    if (typeof STORE_STATS !== 'undefined') STORE_STATS.record(s, 'cafe', pay, 1, '주문 메뉴 서빙');
     // after the meal some guests head for a slot machine and spend more ("먹고 놀아서 돈을 쓴다")
     { const sl = cafeBuildLayout(cf, Wv, lv).slots, used = new Set(cf.players.map(x => x.slot)), free = sl.filter(x => !used.has(x.i));
       const kd = CAFE_GUEST_KINDS.find(k => k.id === o.kind) || CAFE_GUEST_KINDS[0];

@@ -512,6 +512,7 @@ if (s.book) {
     tip += c.trickTip || 0;
     s.coins += amount + tip; s.stats.earned += amount + tip; s.today.earned += amount + tip; s.today.tips += tip;
     s.stats.served++; s.today.served++; qp(s, 'serve'); qp(s, 'earn', amount + tip);
+    if (typeof STORE_STATS !== 'undefined') STORE_STATS.record(s, 'shop', amount + tip, 1, c.pd ? ('분양: ' + c.pd.name) : '카운터 결제');
     if (!auto) EXTRA.onPay(s, c, amount);
     s.customers = s.customers.filter(x => x.id !== c.id);
     if (c.kind === 'hotel') {

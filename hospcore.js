@@ -791,6 +791,7 @@ const HOSP = (() => {
       p.paidT = 3.0; // 3초간만 결제 말풍선 표시
       p.stn = null;
       hp.treated++;
+      if (typeof STORE_STATS !== 'undefined') STORE_STATS.record(s, 'hosp', c, 1, '환자 진료 완치');
       if (typeof TOWN !== 'undefined') TOWN.mood(s, .6);
       if (H.addRep) H.addRep(s, 1);
       return;

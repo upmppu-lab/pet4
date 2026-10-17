@@ -323,6 +323,7 @@ const FARM = (() => {
         const c = CROPS.find(x => x.id === a.id); if (!c) return { err: 'gone' };
         const n = Math.min(Math.max(1, a.n | 0), f.produce[c.id] || 0); if (!n) return { err: 'gone' };
         f.produce[c.id] -= n; s.coins += c.sellPrice * n;
+        if (typeof STORE_STATS !== 'undefined') STORE_STATS.record(s, 'farm', c.sellPrice * n, 1, '농작물 판매 (' + n + '개)');
         return { ok: 1, fx: 'coin' };
       }
       case 'fbuytool': {

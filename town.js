@@ -1460,6 +1460,7 @@ const roadTileOk = (s, x, y) => {
     if (!T.residentsInit || !T.residentPetsBalancedV20261017_Final) { syncResidents(s); T.residentsInit = 1; } // first load on an existing save: backfill residents once, immediately (don't wait for the next day)
     // the shop grew over a house? move that house to the nearest free spot (host only: guests never tick)
     fitShop(s);
+    if (typeof STORE_STATS !== 'undefined' && STORE_STATS.updateTownShops) STORE_STATS.updateTownShops(s);
   }
   // the shop or big building grew: roads and trees/flowers under the expanded building naturally disappear (자연스럽게 삭제), houses/big lots move to nearest free spot
   function clearBuildingOverlaps(s) {

@@ -1062,6 +1062,15 @@ PANELS.report = m => { const r = m.e.rep || {}; return frameHTML('🌙 ' + t('re
     .map(([k, v]) => `<div class="card center"><div class="t">${v}</div><div class="m">${t(k)}</div></div>`).join('')}</div>
   ${r.best ? `<div class="card row"><div class="portrait" style="width:60px;height:60px"><img src="${PIC.pet(r.best.sp, false, r.best.coat || (r.best.id && ART.hashStr(r.best.id)), 'happy')}"></div><div class="grow"><div class="m">🏆 ${t('rep_best')}</div><div class="t">${esc(r.best.name)} · 🪙${fmt(r.best.c)}</div></div></div>` : ''}
   <button class="btn block" data-a="close">🔨 ${t('decorate')} / ${t('ok')}</button><button class="btn b block" data-a="nextday">${t('nextDay')}</button>`); };
+PANELS.storerecord = m => {
+  const tab = (m && m.tab) || 'today';
+  const isRu = (typeof CFG !== 'undefined' && CFG.lang === 'ru');
+  const title = '📑 ' + (isRu ? 'Журнал доходов магазинов' : '각 상점 일일 손님·매출 장부');
+  const body = (typeof STORE_STATS !== 'undefined' && STORE_STATS.renderPanelHTML)
+    ? STORE_STATS.renderPanelHTML(tab)
+    : '<div class="m">로딩 중...</div>';
+  return frameHTML(title, body);
+};
 // staff management is split per business: pet shop / pet café / pet hospital
 function staffCatTabs(cur) {
   const ok = { shop: true, farm: true, cafe: !!(S.cafe && S.cafe.built), hosp: !!(S.hosp && S.hosp.built), ranch: !!S.ranch };
@@ -2230,6 +2239,7 @@ function handle(a, v, w) {
     case 'cafedemolish': { if (!confirm(t('cafeDemolishConfirm'))) break; const r = actR({ t: 'cafedemolish' }); if (r && r.ok) closePanel(); renderPanel(true); render(); break; }
     case 'mcat': if (panel && panel.cat !== v) openPanel(Object.assign({}, panel, { cat: v })); break;
     case 'stab': if (panel && panel.tab !== v) openPanel(Object.assign({}, panel, { tab: v })); break;
+    case 'storereporttab': openPanel({ type: 'storerecord', tab: v }); break;
     case 'heart': if (Net.mode !== 'solo') { act({ t: 'heart' }); fxAt(innerWidth / 2, innerHeight / 2, '💕'); SND.love(); } else openPanel({ type: 'coop' }); break;
     case 'quickgo': if (v === 'train') { if (World.focusTrain) World.focusTrain(); openPanel({ type: 'train' }); break; }
       if (v === 'ranch' && LAY('ranch')) { const L0 = LAY('ranch'); World.cam.follow = false; World.cam.x = ISO.wx(L0.x + 6, L0.y + 5); World.cam.y = ISO.wy(L0.x + 6, L0.y + 5); openPanel({ type: 'ranch' }); break; }
