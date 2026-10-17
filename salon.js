@@ -8,7 +8,7 @@ const SALON_SIGN = () => { const p = SALON_POS(); return { x: p.x + p.w + 1, y: 
 const SALON_STAFF = { id: 'groomer', icon: '✂️', hire: 900, wage: 60 };
 const salonStaffRole = id => id === 'groomer' ? SALON_STAFF : null;
 const salonStaffWage = lv => Math.round(SALON_STAFF.wage * (1 + .25 * ((lv || 1) - 1)) * (typeof BAL !== 'undefined' ? BAL.WAGE_K : 1));
-const SALON_STAGES = [{ k: 'bath', icon: '🛁', t: 4 }, { k: 'dry', icon: '💨', t: 3 }, { k: 'cut', icon: '✂️', t: 4 }, { k: 'bow', icon: '🎀', t: 2 }];
+const SALON_STAGES = [{ k: 'bath', icon: '🛁', t: 8 }, { k: 'dry', icon: '💨', t: 7 }, { k: 'cut', icon: '✂️', t: 9 }, { k: 'bow', icon: '🎀', t: 4 }];
 const SALON_SPECIES = ['pomeranian', 'maltese', 'maltese_cream', 'maltese_brown', 'poodle', 'bichon', 'shiba', 'shiba_black', 'shiba_red', 'corgi', 'persian', 'ragdoll', 'samoyed', 'yorkie', 'shihtzu', 'hollandlop', 'kitten', 'golden', 'husky', 'munchkin'];
 const SALON = (() => {
   // lot-local layout: two grooming tables along the back wall, a waiting bench on the west wall, the counter by the east entrance
@@ -37,7 +37,7 @@ const SALON = (() => {
       else if (c.ph === 'wait') { c.wt += dt; /* 손님은 소파에서 차례를 기다림 */ }
       else if (c.ph === 'groom') {
         if (c.st == null || c.st < 0 || c.st >= TABLES.length) c.st = 0;
-        const m = c.by !== 'me' ? sl.staff.find(x => 'm' + x.id === c.by) : null, k = m ? 1 + .35 * (m.lv - 1) : 2.0;
+        const m = c.by !== 'me' ? sl.staff.find(x => 'm' + x.id === c.by) : null, k = m ? 1 + .08 * (m.lv - 1) : 1.25;
         c.t -= dt * k;
         if (c.t <= 0) {
           c.stg++;

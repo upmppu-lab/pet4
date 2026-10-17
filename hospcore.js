@@ -41,24 +41,24 @@ const VILLAGE_S_MAX = () => { const r = hospRoom(); return Math.max(r.h + 36, r.
 
 // ---- treatments. stn = the kind of station a step needs; mini = has a mini-game; dur = seconds the procedure takes
 const HOSP_TX = [
-  { id: 'reg', icon: '🛎️', stn: null, fee: 40, dur: 3.5 },
-  { id: 'exam', icon: '🩺', stn: 'exam', fee: 100, dur: 5 },
-  { id: 'drip', icon: '💧', stn: 'tbed', fee: 160, dur: 6 },
-  { id: 'vaccine', icon: '💉', stn: 'tbed', fee: 200, dur: 4 },
-  { id: 'bandage', icon: '🩹', stn: 'tbed', fee: 260, dur: 5 },
-  { id: 'xray', icon: '🩻', stn: 'xray', fee: 520, mini: 1, dur: 6 },
-  { id: 'ct', icon: '🧲', stn: 'ct', fee: 900, mini: 1, dur: 7 },
-  { id: 'surgery', icon: '🏥', stn: 'surgery', fee: 1800, mini: 1, dur: 9 },
-  { id: 'medbath', icon: '🛁', stn: 'medbath', fee: 900, dur: 7 },
-  { id: 'incubate', icon: '🌡️', stn: 'incubator', fee: 700, dur: 8 },
-  { id: 'rest', icon: '🛏️', stn: 'bed', fee: 300, dur: 8 },
-  { id: 'route', icon: '🗒️', stn: null, fee: 0, dur: 2 }, // v2026-10-17: 진료/치료 한 단계가 끝난 뒤 접수대에서 다음 안내를 받는 가짜 단계
-  { id: 'pay', icon: '🧾', stn: null, fee: 0, dur: 3 },
+  { id: 'reg', icon: '🛎️', stn: null, fee: 40, dur: 4.5 },
+  { id: 'exam', icon: '🩺', stn: 'exam', fee: 100, dur: 10 },
+  { id: 'drip', icon: '💧', stn: 'tbed', fee: 160, dur: 12 },
+  { id: 'vaccine', icon: '💉', stn: 'tbed', fee: 200, dur: 8 },
+  { id: 'bandage', icon: '🩹', stn: 'tbed', fee: 260, dur: 10 },
+  { id: 'xray', icon: '🩻', stn: 'xray', fee: 520, mini: 1, dur: 14 },
+  { id: 'ct', icon: '🧲', stn: 'ct', fee: 900, mini: 1, dur: 18 },
+  { id: 'surgery', icon: '🏥', stn: 'surgery', fee: 1800, mini: 1, dur: 24 },
+  { id: 'medbath', icon: '🛁', stn: 'medbath', fee: 900, dur: 15 },
+  { id: 'incubate', icon: '🌡️', stn: 'incubator', fee: 700, dur: 18 },
+  { id: 'rest', icon: '🛏️', stn: 'bed', fee: 300, dur: 18 },
+  { id: 'route', icon: '🗒️', stn: null, fee: 0, dur: 3 }, // v2026-10-17: 진료/치료 한 단계가 끝난 뒤 접수대에서 다음 안내를 받는 단계
+  { id: 'pay', icon: '🧾', stn: null, fee: 0, dur: 3.5 },
 ];
 const hospTx = id => HOSP_TX.find(x => x.id === id);
-// how long a step really takes for THIS patient: the illness sets how serious it is (a cold is quick, a tumour is not), and every patient adds a random spread (paperwork, a nervous pet, a tricky case)
-const HOSP_SEV = { checkup: .5, cold: .7, stomach: .85, wound: 1, skin: 1.1, fracture: 1.5, chill: 1, swallow: 1.9, tumor: 2.2, beak: 1.3 };
-const hospDurK = (p, st) => st === 'reg' || st === 'route' ? (p.rv || 1) : st === 'pay' ? (p.pv || 1) : (HOSP_SEV[p.ail] || 1) * ((p.dv || [])[p.k] || 1) * (st === 'exam' ? .9 : 1);
+// how long a step really takes for THIS patient: the illness sets how serious it is (a cold is quick, a tumour is not)
+const HOSP_SEV = { checkup: .7, cold: .8, stomach: 1.1, wound: 1.2, skin: 1.25, beak: 1.4, chill: 1.5, fracture: 2.0, swallow: 2.4, tumor: 2.6 };
+const hospDurK = (p, st) => st === 'reg' || st === 'route' ? (p.rv || 1) : st === 'pay' ? (p.pv || 1) : (HOSP_SEV[p.ail] || 1) * ((p.dv || [])[p.k] || 1);
 const HOSP_CAPPED = ['bench', 'tbed', 'exam', 'xray', 'ct', 'surgery', 'bed', 'incubator', 'medbath'];
 const HOSP_STN = ['exam', 'tbed', 'xray', 'ct', 'surgery', 'bed', 'incubator', 'medbath'];
 // the step a patient is at: 'reg' before anything, then plan[k], then 'pay'
@@ -747,7 +747,7 @@ const HOSP = (() => {
     let tot = 0; opts.forEach(a => tot += a.w); let r = Math.random() * tot, ail = opts[0] || HOSP_AIL[0];
     for (const a of opts) { r -= a.w; if (r <= 0) { ail = a; break; } }
     const plan = opts.length ? ail.plan.slice() : ['exam'];
-    return { id: hp.seq++, seed: 1 + Math.floor(Math.random() * 1e6), sp, ail: ail.id, plan, k: -1, ph: 'walkin', tm: 25, stn: null, bill: 0, q: 1, qt: 0, rv: .5 + Math.random() * .8, pv: .5 + Math.random() * .7, dv: plan.map(() => .6 + Math.random() * .9) };
+    return { id: hp.seq++, seed: 1 + Math.floor(Math.random() * 1e6), sp, ail: ail.id, plan, k: -1, ph: 'walkin', tm: 25, stn: null, bill: 0, q: 1, qt: 0, rv: .85 + Math.random() * .3, pv: .85 + Math.random() * .3, dv: plan.map(() => .85 + Math.random() * .3) };
   }
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   // which station (by key) a patient at `from` should use for this kind: a free one (nobody reserved it)

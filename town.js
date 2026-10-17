@@ -1327,7 +1327,10 @@ const roadTileOk = (s, x, y) => {
     }
     syncFacilityGateRoads(s);
     fitShop(s);
-    if (!s.town.residentPetsBalancedV3) syncResidents(s);
+    if (!s.town.residentPetsBalancedV3) {
+      s.town.residentPetsBalancedV3 = 1;
+      syncResidents(s);
+    }
     return s.town;
   }
   // building levels (v1.3): shops/public buildings go Lv1 -> Lv3. 집(house)은 더 이상 이 lv를 안 쓰고
@@ -1861,7 +1864,7 @@ const roadTileOk = (s, x, y) => {
   // fresh random face every single time someone steps out the door.
   const rpick = arr => arr[Math.floor(Math.random() * arr.length)];
   function syncResidents(s) { // keeps T.residents in step with who actually lives where (called every tick; cheap)
-    const T = ensure(s), hs = houses_(s), liveHomes = new Set(hs.map(o => o.id));
+    const T = (s && s.town) ? s.town : ensure(s), hs = houses_(s), liveHomes = new Set(hs.map(o => o.id));
     if (!T.residents) T.residents = [];
     if (T.residents.some(r => !liveHomes.has(r.home))) T.residents = T.residents.filter(r => liveHomes.has(r.home));
     const lang = (typeof CFG !== 'undefined' && CFG.lang) || (s && s.lang) || 'ko';
