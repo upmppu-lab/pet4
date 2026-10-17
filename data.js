@@ -309,7 +309,7 @@ const UPGRADES = [
   {id:'sign', cost:900, lv:4, icon:'🪧'},
   {id:'vipdesk', cost:3000, lv:10, icon:'🎩'},
 ];
-const APP_VER = '1.700'; // build_nosdk.py rewrites this to the version being built
+const APP_VER = '1.807'; // build_nosdk.py rewrites this to the version being built
 // v9.85 economy balance (girlfriend earned too easily with a full staff): one place to tune it
 const BAL = { WAGE_K: 3, FARM_WAGE_K: 1.5, EXPAND_K: 2.5, BUILD_K: 3, SALE_K: .8, TOP_K: .65, BUY_K: 1.35, DECOR_CAP: .25, TIP: .06, COMBO_STEP: .06, COMBO_CAP: .3 }; // v9.98: pet shop margin trimmed (buy cost, decor bonus, tips, rush combos)
 const balCost = c => Math.round(c * BAL.EXPAND_K / 100) * 100;

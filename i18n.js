@@ -67,7 +67,7 @@ ko:{
  offlineTitle:'다녀오셨어요?', offlineText:'{m}분 동안 아이들이 기다리고 있었어요. 돌봐 주세요!',
  min:'분', sec:'초', ready:'준비 완료', hungry:'배고파요', dirty:'지저분해요', bored:'심심해요',
  exitConfirm:'게임을 종료할까요?', yes:'예', no:'아니요',
- pet:'아이', allPets:'우리 아이들', condition:'컨디션',
+ pet:'아이', allPets:'펫', condition:'컨디션',
  sortCond:'컨디션순', sortHappy:'행복순', sortPrice:'가격순', sortAge:'나이순', sortSpecies:'종류순',
  buyOnFloor:'가구를 놓을 층을 선택하세요',
  wearSec:'액세서리', wearNone:'없음', wearCollar:'목걸이', wearHat:'모자·리본', wearDesc:'액세서리를 사서 아이에게 입혀 보세요',

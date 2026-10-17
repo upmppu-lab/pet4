@@ -9,7 +9,7 @@ const VILLAGE = (() => {
   const LAKE = () => { const L = LAY('lake'); return L ? { x: L.x, y: L.y, w: 18, d: 16 } : { x: LAY_FAR, y: LAY_FAR, w: 18, d: 16 }; }; // PET TOWN: wherever the player built them
   const MONU = () => { const L = LAY('monu'); return L ? { x: L.x, y: L.y, w: 7, d: 7 } : { x: LAY_FAR, y: LAY_FAR, w: 7, d: 7 }; };
   const BOARD = () => ({ x: Wd(), y: Hd() + 3 }); // PET TOWN: right by the sidewalk, just south of the shop
-  const STORAGEBOX = () => ({ x: Wd(), y: Hd() + 5 }); // v2026-10-17(3차): 게시판에 너무 붙어있어서 남쪽으로 1칸 더
+  const STORAGEBOX = () => ({ x: Wd(), y: Hd() + 8 }); // v2026-10-17(4차): 보관상자가 길을 막아 통행을 방해해서 남쪽으로 3칸 더 이동
   const SIGN = { avenue: () => ({ x: Wd() + 8, y: 2 }), lake: () => { const p = LAKE(); return { x: p.x + 1, y: p.y + Math.floor(p.d / 2) }; }, monu: () => { const p = MONU(); return { x: p.x + p.w - 1, y: p.y + Math.floor(p.d / 2) }; } };
   const season = day => Math.floor((((day || 1) - 1) % 28 + 28) % 28 / 7); // 0 spring, 1 summer, 2 autumn, 3 winter (a week each)
   const Q = (x, y, z) => [ISO.wx(x, y), ISO.wy(x, y) - (z || 0)];

@@ -95,12 +95,7 @@ const World = (() => {
     const baseSz = SZ_BY_SP[sp] || 84;
 const SZ = isWalk ? baseSz * 1.3 : baseSz;  // walk를 30% 크게
 
-// v2026-10-10c: 기니피그/햄스터는 걷기 프레임이 없고(위 가드) 원본 그림 자체가 옆모습(측면 뷰)이라,
-// 다른 종들의 "idle은 정면이라 반전 없음"과 달리 이동 방향에 따라 좌우 반전을 줘야 함
-// (기본=왼쪽을 보는 그림, 오른쪽 이동 시 반전해서 오른쪽을 보게).
-// v2026-10-10d: 저빌/페럿도 같은 배치로 받은 옆모습 그림이라 동일 처리. 베타(물고기)는 아래 별도 분기.
-// v2026-10-12: 사랑앵무/왕관앵무도 옆모습 단일 그림이라 동일 처리 (단, 바닥 여백은 정상 범위라 groundAdj는 안 줌).
-const sideProfile = sp.startsWith('guineapig_') || sp.startsWith('hamster_') || sp.startsWith('gerbil_') || sp.startsWith('ferrets_') || sp.startsWith('budgerigar_') || sp.startsWith('cockatiel_');
+// v2026-10-17(5): 모든 PNG 동물 그림이 예외 없이 왼쪽을 보도록 동일하게 그려져 있어서, 종별로 반전 규칙을 다르게 줄 필요가 없음
 const isFish = sp.startsWith('betta_');
 
 // v2026-10-10d: 베타는 어항 속을 "떠다니는" 물고기라, 다른 종들처럼 바닥 그림자 + 발이 바닥에 닿는
@@ -118,19 +113,8 @@ if (isFish) {
 }
 
 c.save();
-// walk/sideProfile/이동 방향에 따른 좌우 반전
-// 원본 walk PNG가 오른쪽을 보는 종 (치와와, 허스키, 시바견): 오른쪽 이동 시 반전 없이(+1), 왼쪽 이동 시 반전(-1)
-// 원본 walk PNG가 왼쪽을 보는 종 (말티즈, 달마시안, 푸들, 리트리버 등): 오른쪽 이동 시 반전(-1), 왼쪽 이동 시 원본(+1)
-const walkFacesRight = sp.startsWith('chihuahua_') || sp.startsWith('husky_') || sp.startsWith('shiba_sinu_');
-const idleFacesRight = sp.startsWith('chihuahua_') || sp.startsWith('husky_') || sp.startsWith('shiba_sinu_') || sp.startsWith('rat_');
-let hScale = -(st.dir || 1);
-if (isWalk) {
-  hScale = walkFacesRight ? (st.dir || 1) : -(st.dir || 1);
-} else if (sideProfile || st.moving) {
-  hScale = -(st.dir || 1);
-} else if (st.dir != null) {
-  hScale = idleFacesRight ? (st.dir || 1) : -(st.dir || 1);
-}
+// v2026-10-17(5): 위와 같은 이유로 걷기/옆모습/idle 구분 없이 dir 부호 하나로만 반전 처리
+const hScale = -(st.dir || 1);
 c.scale(hScale, 1);
 // v2026-10-10c: 기니피그/햄스터/저빌/페럿 원본 PNG는 다른 종들보다 그림 아래쪽 여백(투명 영역)이
 // 훨씬 커서(측정 결과 캔버스 높이의 약 25~28% vs 기존 종들의 13~19%), 고정 yOffset=6을 그대로 쓰면

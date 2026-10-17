@@ -150,8 +150,8 @@ Object.keys(PNG_PETS).forEach(sp => {
 const PIC = (() => {
   const cache = new Map();
   let scratch = null;
-  function fitPet(key, draw) {
-    if (cache.has(key)) return cache.get(key);
+  function fitPet(key, draw, skipCache) {
+    if (!skipCache && cache.has(key)) return cache.get(key);
     const S0 = 360, K = 3.5, AX = 180, AY = 300;
     if (!scratch) { scratch = document.createElement('canvas'); scratch.width = scratch.height = S0; }
     const g = scratch.getContext('2d', { willReadFrequently: true }); g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, S0, S0);
@@ -164,6 +164,7 @@ const PIC = (() => {
     c.imageSmoothingQuality = 'high';
     c.drawImage(scratch, x0, y0, bw, bh, (OUTS - bw * sc) / 2, (OUTS - bh * sc) / 2, bw * sc, bh * sc);
     const url = cv.toDataURL();
+    if (skipCache) return url; // v2026-10-17: PNG가 아직 로딩 중일 때의 임시 벡터 그림은 캐시하지 않음 -- PNG가 로딩되면 다음 호출에서 바로 PNG로 바뀌도록
     if (cache.size > 250) {
       const iter = cache.keys();
       for (let i = 0; i < 50; i++) { const k = iter.next().value; if (k) cache.delete(k); else break; }
@@ -208,8 +209,10 @@ const PIC = (() => {
           const url = cv.toDataURL();
           cache.set(key, url); return url;
         }
-        // 로딩 안 됐으면 기존 벡터로 폴백
+        // 로딩 안 됐으면 기존 벡터로 폴백 (PNG 로딩 전/파일을 새로 바꾼 직후의 임시 모습이라 캐시하지 않음 -- v2026-10-17)
+        return fitPet('p' + sp + (sleep ? 'z' : '') + (seed || '') + (mood || '') + (age == null ? '' : 'a' + age) + (wear ? JSON.stringify(wear) : ''), c => ART.pet(c, sp, { t: 1.2, sleep, seed, mood: mood || 'calm', age, wear }), true);
       }
+      // v2026-10-17(2): PNG 전용 그림이 없는(PNG_PETS에 없는) 일반 동물은 위 if문을 그냥 지나쳐서 아무것도 return 하지 않던 버그 -- img src="undefined"가 되어 분양 게시판 등에서 그림이 깨져 보였음
       return fitPet('p' + sp + (sleep ? 'z' : '') + (seed || '') + (mood || '') + (age == null ? '' : 'a' + age) + (wear ? JSON.stringify(wear) : ''), c => ART.pet(c, sp, { t: 1.2, sleep, seed, mood: mood || 'calm', age, wear }));
     },
     zooPet: (sp, seed, mood) => {
