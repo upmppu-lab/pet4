@@ -156,8 +156,7 @@ const G = (() => {
     // v2026-10-17: 기존 세이브에서 매일 아침 경험치 과지급으로 모든 펫이 Lv.6/Lv.7로 고정되어 있던 문제 즉시 정상화
     // 입양 순서(오래된 대표 펫 vs 최근 입양 펫)와 별점에 따라 자연스러운 레벨 편차(Lv.1~Lv.4, 별점 보너스 시 Lv.5)로 재분배
     if (s.town && Array.isArray(s.town.residents)) {
-      if (!s.town.residentPetsBalancedV3) {
-        s.town.residentPetsBalancedV3 = 1;
+      if (!s.town.residentPetsBalancedV4) {
         const need = lv => 12 + (lv - 1) * 9;
         const hashFn = str => Math.abs(String(str || '').split('').reduce((a, b) => (a * 31 + b.charCodeAt(0)) | 0, 0));
         for (const r of s.town.residents) {
@@ -188,6 +187,7 @@ const G = (() => {
             p.exp = p.bxp;
           });
         }
+        s.town.residentPetsBalancedV4 = 1;
       }
     }
 	// v1.101: 기존 벡터 종 → 새 PNG 종 (A안)

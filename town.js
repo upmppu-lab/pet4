@@ -1327,8 +1327,7 @@ const roadTileOk = (s, x, y) => {
     }
     syncFacilityGateRoads(s);
     fitShop(s);
-    if (!s.town.residentPetsBalancedV3) {
-      s.town.residentPetsBalancedV3 = 1;
+    if (!s.town.residentPetsBalancedV4) {
       syncResidents(s);
     }
     return s.town;
@@ -1901,10 +1900,9 @@ const roadTileOk = (s, x, y) => {
         T.residents = T.residents.filter(r => !drop.has(r.id));
       }
     }
-    // v2026-10-17: 주민 펫 레벨 정상화 및 다양화 (기존 세이브에서 모든 펫이 Lv.7로 고정되던 문제 완벽 해결)
+    // v2026-10-17: 주민 펫 레벨 정상화 및 다양화 (기존 세이브에서 모든 펫이 Lv.6/7/8로 고정되던 문제 완벽 해결)
     // 펫의 기본 레벨은 Lv.1이며, 입양 순서(오래된 펫 vs 최근 펫), 별점, 산책/배틀 활동에 따라 자연스러운 레벨 편차를 갖습니다.
-    if (!T.residentPetsBalancedV3) {
-      T.residentPetsBalancedV3 = 1;
+    if (!T.residentPetsBalancedV4) {
       const need = (typeof BATTLE !== 'undefined' && BATTLE.needXp) ? BATTLE.needXp : (lv => 12 + (lv - 1) * 9);
       const hashFn = (typeof ART !== 'undefined' && ART.hashStr) ? ART.hashStr : (str => Math.abs(String(str || '').split('').reduce((a, b) => (a * 31 + b.charCodeAt(0)) | 0, 0)));
       for (const r of T.residents) {
@@ -1935,6 +1933,7 @@ const roadTileOk = (s, x, y) => {
           p.exp = p.bxp;
         });
       }
+      T.residentPetsBalancedV4 = 1;
     }
 
     // 주민 펫 레벨/경험치 보존 및 기본값 보정 (사갈 때의 레벨 p.blv / p.lv과 경험치 p.bxp / p.exp 유지)
@@ -5531,9 +5530,10 @@ function getFlowerSprite(kind) {
     const sx = ISO.wx(a.x, a.y), sy = ISO.wy(a.x, a.y), p = a.pet, sz = .6 * (p.grow != null && G.ageOf ? .6 + .4 * G.ageOf(p) : 1);
     ART.ell(c, sx, sy, 10, 4, 'rgba(0,0,0,.14)');
     c.save(); c.translate(sx, sy - (a.moving ? Math.abs(Math.sin(T * 10)) * 1.5 : 0)); c.scale(sz, sz);
-    const pst = { t: T, mood: 'happy', seed: p.coat || ART.hashStr(p.id || p.name || p.sp), age: p.grow != null ? G.ageOf(p) : 1, moving: a.moving, dir: a.dir || 1, wear: p.wear };
+    const fdir = -(a.dir || 1);
+    const pst = { t: T, mood: 'happy', seed: p.coat || ART.hashStr(p.id || p.name || p.sp), age: p.grow != null ? G.ageOf(p) : 1, moving: a.moving, dir: fdir, wear: p.wear };
     const pngOk = (typeof PNG_PETS !== 'undefined' && PNG_PETS[p.sp]) && (typeof World !== 'undefined' && World.drawPngPet) && World.drawPngPet(c, p.sp, pst);
-    if (!pngOk) ART.pet(c, p.sp, Object.assign({}, pst, { dir: -(a.dir || 1) }));
+    if (!pngOk) ART.pet(c, p.sp, pst);
     c.restore();
     if (!a.moving && Math.sin(T * .7 + (a.pet.coat || 0)) > .97) { c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillText('💕', sx + 6, sy - 30); c.textAlign = 'start'; }
   }
