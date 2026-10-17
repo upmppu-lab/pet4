@@ -6615,7 +6615,7 @@ function getFlowerSprite(kind) {
       return [{ x: hp.x1 - 2, y: hp.y + 3, sit: false }, false];
     }
     if (o.k === 'salon') {
-      const sp = (typeof SALON_POS === 'function') ? SALON_POS() : { x: o.x, y: o.y, w: 10, d: 8 };
+      const sp = (typeof SALON_POS === 'function') ? SALON_POS() : { x: o.x, y: o.y, w: 12, d: 9 };
       const SEATS = [{ u: 1.3, v: 3.8 }, { u: 1.3, v: 4.9 }, { u: 1.3, v: 6 }, { u: 2.6, v: 6.6 }];
       const s0 = SEATS[Math.floor(Math.random() * SEATS.length)];
       return [{ x: sp.x + s0.u, y: sp.y + s0.v, sit: true, fx: sp.x + s0.u + 1, fy: sp.y + s0.v }, false];

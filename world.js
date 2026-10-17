@@ -15,6 +15,24 @@ const World = (() => {
   const joy = { on: false, dx: 0, dy: 0 };
   // ================= PET PNG (시바 시누 등) =================
   // AI 벡터 대신 직접 그린 PNG를 그린다. 통통 튀기 + 좌우 흔들기로 살아있게.
+  // v2026-10-17: 동그란 타원 그림자 대신, 그 PNG 이미지 자체의 실루엣(알파 모양)을 납작하게 눌러서
+  // 그림자로 찍는다. 이미지+크기별로 한 번만 뽑아서 캐싱.
+  const PNG_SIL_CACHE = new Map();
+  function pngSilhouette(img, w) {
+    const key = (img.src || '') + ':' + Math.round(w);
+    let cv = PNG_SIL_CACHE.get(key);
+    if (!cv) {
+      cv = document.createElement('canvas'); cv.width = w; cv.height = w;
+      const g = cv.getContext('2d');
+      g.drawImage(img, 0, 0, w, w);
+      g.globalCompositeOperation = 'source-in';
+      g.fillStyle = '#000';
+      g.fillRect(0, 0, w, w);
+      PNG_SIL_CACHE.set(key, cv);
+      if (PNG_SIL_CACHE.size > 400) PNG_SIL_CACHE.clear();
+    }
+    return cv;
+  }
   function drawPngPet(c, sp, st) {
     const idleImg = PET_PNG.img(sp);
     if (!idleImg || !idleImg.complete || !idleImg.naturalWidth) return false;
@@ -114,9 +132,6 @@ if (isWalk) {
   hScale = idleFacesRight ? (st.dir || 1) : -(st.dir || 1);
 }
 c.scale(hScale, 1);
-ART.shadow(c, 0, 0, 14);
-c.translate(0, -bob);
-c.rotate(tilt);
 // v2026-10-10c: 기니피그/햄스터/저빌/페럿 원본 PNG는 다른 종들보다 그림 아래쪽 여백(투명 영역)이
 // 훨씬 커서(측정 결과 캔버스 높이의 약 25~28% vs 기존 종들의 13~19%), 고정 yOffset=6을 그대로 쓰면
 // 바닥보다 한참 위에 떠 보임. 그 차이만큼 더 아래로 내려서 그림 속 발이 실제 그림자 위치에 오도록 보정.
@@ -124,6 +139,14 @@ c.rotate(tilt);
 const extraPad = sp.startsWith('guineapig_') || sp.startsWith('hamster_') || sp.startsWith('gerbil_') || sp.startsWith('ferrets_');
 const groundAdj = extraPad ? SZ * .28 : 0;
 const yOffset = (isWalk ? 6 + SZ * .15 : 6) + groundAdj;  // walk는 더 아래 (발이 바닥에 닿게)
+{ // v2026-10-17(3): 좌우반전(hScale)과 무관하게 화면 기준 고정된 남서쪽 방향 그림자가 나오도록
+  // 현재 변환행렬에서 위치/크기만 가져오고 반전 부호는 무시한 채 새로 구성
+  const m = c.getTransform(); const sx = Math.hypot(m.a, m.b) || 1, sy = Math.hypot(m.c, m.d) || 1;
+  c.save(); c.setTransform(sx, 0, .42 * sy, -.32 * sy, m.e, m.f); c.globalAlpha = .26;
+  const scv = pngSilhouette(img, SZ); c.drawImage(scv, -SZ / 2, -SZ + yOffset, SZ, SZ); c.restore();
+} // v2026-10-17(3): 남서쪽으로 고정된 방향의 그림자
+c.translate(0, -bob);
+c.rotate(tilt);
 c.drawImage(img, -SZ / 2, -SZ + yOffset, SZ, SZ);
 c.restore();
 return true;
@@ -1002,7 +1025,8 @@ return true;
         else if (p.ph === 'bench') {
           const i = benchQ.indexOf(p);
           if (L.seats.length) {
-            const taken = new Set(); for (const [, o] of actors) if (o !== a && o.type === 'patient' && o.seatIdx != null) taken.add(o.seatIdx);
+            // v2026-10-17: 벤치를 떠난 환자의 좌석 인덱스가 아직 안 지워진 틈에 끼어 자리가 '찬 것처럼' 보이던 문제 방지 -> ph==='bench'인 환자만 자리 차지로 인정
+            const taken = new Set(); for (const [, o] of actors) if (o !== a && o.type === 'patient' && o.seatIdx != null && o.pat && o.pat.ph === 'bench') taken.add(o.seatIdx);
             if (a.seatIdx == null || a.seatIdx >= L.seats.length || taken.has(a.seatIdx)) { let k = 0; while (k < L.seats.length && taken.has(k)) k++; a.seatIdx = k % L.seats.length; }
             seat = L.seats[a.seatIdx];
             tx = seat.ox; ty = seat.oy;
@@ -1093,7 +1117,7 @@ return true;
         const id = 'fs' + m.id; alive.add(id);
         const work = m.tt > 0 && m.px != null, tx = work ? m.px + .5 : fp.x + 1.5 + idx * 2, ty = work ? m.py + .5 : fp.y + fp.d + .5;
         let a = actors.get(id);
-        if (!a) { const lk = ART.randomHuman(m.seed); lk.hat = '#e8c66a'; lk.top = 'tee'; lk.shirt = ['#8bc34a', '#4fc3f7', '#ffb74d', '#f48fb1'][(m.id - 1) % 4 | 0] || '#8bc34a'; applyStaffArt(lk, m.seed, false); a = mkActor(id, 'hstaff', tx, ty, { look: lk, speed: 2.6 }); }
+        if (!a) { const lk = ART.randomHuman(m.seed); lk.hat = '#e8c66a'; lk.top = 'tee'; lk.shirt = ['#8bc34a', '#4fc3f7', '#ffb74d', '#f48fb1'][(m.id - 1) % 4 | 0] || '#8bc34a'; applyStaffArt(lk, m.seed, true); a = mkActor(id, 'hstaff', tx, ty, { look: lk, speed: 2.6 }); } // v2026-10-17: 씨앗가게 직원도 펫샵 매니저와 같은 고정룩(머리1+검정앞치마)으로
         a.m = m; a.talk = !!work;
         const key = Math.floor(tx) + ',' + Math.floor(ty);
         if (a.tkey !== key) { a.tkey = key; goTo(a, tx, ty); }
@@ -2397,7 +2421,7 @@ return true;
         c.fillStyle = '#ffe033';
         c.fillText(ltxt, sx, ly);
         c.restore();
-        if (a.talk || a.m.tt > 0) bubble(sx + 4, sy - 92, () => { const R0 = hospStaffRole(a.m.role) || cafeStaffRole(a.m.role) || farmStaffRole(a.m.role) || salonStaffRole(a.m.role); c.font = '15px sans-serif'; c.textAlign = 'center'; c.fillText(Math.floor(T * 1.7) % 2 ? '💬' : (a.m.role === 'recept' ? '📋' : farmStaffRole(a.m.role) ? ({ harvest: '\u{1F9FA}', water: '\u{1F4A7}', plant: '\u{1F331}', feed: '\u{1F963}', eggs: '\u{1F95A}' }[a.m.act] || farmStaffRole(a.m.role).icon) : '🩺'), 0, 0); c.textAlign = 'start'; });
+        if (a.talk || a.m.tt > 0) bubble(sx + 4, sy - 92, () => { const R0 = hospStaffRole(a.m.role) || cafeStaffRole(a.m.role) || farmStaffRole(a.m.role) || salonStaffRole(a.m.role); c.font = '15px sans-serif'; c.textAlign = 'center'; c.fillText(Math.floor(T * 1.7) % 2 ? '💬' : (a.m.role === 'recept' ? '📋' : a.m.role === 'groomer' ? '✂️' : farmStaffRole(a.m.role) ? ({ harvest: '\u{1F9FA}', water: '\u{1F4A7}', plant: '\u{1F331}', feed: '\u{1F963}', eggs: '\u{1F95A}' }[a.m.act] || farmStaffRole(a.m.role).icon) : '🩺'), 0, 0); c.textAlign = 'start'; });
       }
       if (a.salon) { // v9.99: salon guests -- waiting (tap to groom), then paying with the amount, holding a pet with a bow
         if (a.salonWait) { bubble(sx, sy - 66, () => { c.font = '17px sans-serif'; c.textAlign = 'center'; c.fillText(Math.floor(T * 1.5) % 2 ? '🛁' : '✂️', 0, 0); c.textAlign = 'start'; }); }
@@ -2418,7 +2442,7 @@ return true;
         ART.rrect(c, sx - tw / 2, sy - 96, tw, 26, 10); c.fillStyle = '#fff'; c.fill(); c.lineWidth = 1.6; c.strokeStyle = 'rgba(60,38,25,.7)'; c.stroke();
         c.beginPath(); c.moveTo(sx - 5, sy - 71); c.lineTo(sx, sy - 64); c.lineTo(sx + 5, sy - 71); c.fillStyle = '#fff'; c.fill();
         c.fillStyle = '#5a3a2a'; c.textAlign = 'center'; c.fillText(msg, sx, sy - 78); c.restore();
-      } else if (a.type === 'patient' && a.pat && !a.leaving) { const pp = a.pat, st0 = hospStage(pp), tx = hospTx(st0), ail = HOSP_AIL.find(x => x.id === pp.ail), ic = pp.ph === 'deskserve' ? (Math.floor(T * 1.7) % 2 ? '💬' : '🙂') : pp.ph === 'leaving' ? (pp.turned ? '😓' : '💗') : pp.ph === 'bench' ? '⏳' : pp.ph === 'treat' ? (Math.floor(T * 1.4) % 2 ? tx.icon : '😖') : pp.ph === 'atStn' ? '🙏' : (pp.ph === 'toStn' && tx ? tx.icon : (st0 === 'pay' ? '🧾' : '🛎️')); bubble(sx, sy - 66, () => { c.font = '18px sans-serif'; c.textAlign = 'center'; c.fillText(ic, 0, 0); c.textAlign = 'start'; }); if (ail) { c.save(); c.font = '13px sans-serif'; c.textAlign = 'center'; c.fillText(ail.icon, sx + 20, sy - 74); c.restore(); } }
+      } else if (a.type === 'patient' && a.pat && !a.leaving) { const pp = a.pat, st0 = hospStage(pp), tx = hospTx(st0), ail = HOSP_AIL.find(x => x.id === pp.ail), ic = pp.ph === 'deskserve' ? (Math.floor(T * 1.7) % 2 ? '💬' : '🙂') : pp.ph === 'leaving' ? (pp.turned ? '😓' : '💗') : pp.ph === 'bench' ? '⏳' : pp.ph === 'treat' ? (Math.floor(T * 1.4) % 2 ? tx.icon : '😖') : pp.ph === 'atStn' ? '🙏' : (pp.ph === 'toStn' && tx ? tx.icon : (st0 === 'pay' ? '🧾' : st0 === 'route' ? '🗒️' : '🛎️')); bubble(sx, sy - 66, () => { c.font = '18px sans-serif'; c.textAlign = 'center'; c.fillText(ic, 0, 0); c.textAlign = 'start'; }); if (ail) { c.save(); c.font = '13px sans-serif'; c.textAlign = 'center'; c.fillText(ail.icon, sx + 20, sy - 74); c.restore(); } }
       if (a.type === 'cafeguest' && a.order && !a.leaving && !a.served && a.order.kind) { const kd = CAFE_GUEST_KINDS.find(k => k.id === a.order.kind); if (kd) { c.save(); c.font = '13px sans-serif'; c.textAlign = 'center'; c.fillText(kd.icon, sx + 20, sy - 74); c.restore(); } }
       if (a.type === 'cafeguest' && a.eating > 0) { // v9.91: eating -- plate on the table, the dish getting smaller bite by bite, fork to the mouth, chewing
         const tp = a.tbl ? [ISO.wx(a.tbl.x, a.tbl.y), ISO.wy(a.tbl.x, a.tbl.y)] : null, prog = Math.min(1, 1 - a.eating / (a.eatDur || 14)), cyc = (T * 1.1) % 1, up = cyc < .5 ? Math.sin(cyc * 2 * Math.PI) : 0;
@@ -3615,19 +3639,22 @@ return true;
     const p = [ISO.wx(fb.x + .5, fb.y + .5), ISO.wy(fb.x + .5, fb.y + .5)];
     ART.ell(c, p[0], p[1] + 2, 24, 11, 'rgba(0,0,0,.22)');
 
-    // Heavy oak chest base with beveled edges
-    cafeBox(fb.x, fb.y, .08, .10, .84, .76, 13, '#854d0e', 0, { top: '#a16207' });
-    // Arched domed trunk lid
-    cafeBox(fb.x, fb.y, .05, .08, .90, .80, 5, '#a16207', 13, { top: '#ca8a04' });
-    // Dark wrought-iron reinforcing bands across lid
-    cafeBox(fb.x, fb.y, .22, .07, .12, .82, 5.5, '#292524', 13, { top: '#44403c' });
-    cafeBox(fb.x, fb.y, .66, .07, .12, .82, 5.5, '#292524', 13, { top: '#44403c' });
-
-    // Ornate central brass hasp latch and padlock
-    const lockX = p[0], lockY = p[1] - 8;
-    c.fillStyle = '#eab308'; c.strokeStyle = '#713f12'; c.lineWidth = 1;
-    c.beginPath(); c.rect(lockX - 4, lockY - 5, 8, 10); c.fill(); c.stroke();
-    ART.ell(c, lockX, lockY, 1.2, 1.6, '#451a03'); // Keyhole
+    // v2026-10-17: 사용자 제공 보물상자 그림 (마을게시판/목장 보관상자와 동일한 그림, 기존 상자와 비슷한 크기)
+    const chestImg = (typeof CHEST_IMG !== 'undefined') ? CHEST_IMG : null;
+    if (chestImg && chestImg.complete && chestImg.naturalWidth) {
+      const w = 72, h = w * chestImg.naturalHeight / chestImg.naturalWidth;
+      c.drawImage(chestImg, p[0] - w / 2, p[1] - h + 14, w, h); // v2026-10-17(3차): 바닥에 떠 보여서 아래로 내림
+    } else {
+      // 그림 로딩 전 임시 대체(예전 벡터 궤짝) -- 비어 보이지 않게
+      cafeBox(fb.x, fb.y, .08, .10, .84, .76, 13, '#854d0e', 0, { top: '#a16207' });
+      cafeBox(fb.x, fb.y, .05, .08, .90, .80, 5, '#a16207', 13, { top: '#ca8a04' });
+      cafeBox(fb.x, fb.y, .22, .07, .12, .82, 5.5, '#292524', 13, { top: '#44403c' });
+      cafeBox(fb.x, fb.y, .66, .07, .12, .82, 5.5, '#292524', 13, { top: '#44403c' });
+      const lockX = p[0], lockY = p[1] - 8;
+      c.fillStyle = '#eab308'; c.strokeStyle = '#713f12'; c.lineWidth = 1;
+      c.beginPath(); c.rect(lockX - 4, lockY - 5, 8, 10); c.fill(); c.stroke();
+      ART.ell(c, lockX, lockY, 1.2, 1.6, '#451a03');
+    }
 
     // Produce icons hovering playfully above the chest
     c.font = '14px sans-serif'; c.textAlign = 'center';

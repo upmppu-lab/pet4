@@ -1672,7 +1672,7 @@ PANELS.battle = () => {
   } else {
     h += `<div class="card" style="text-align:center">
       <div class="t" style="font-size:18px">${t(b.win ? 'battleWinTitle' : 'battleLoseTitle')}</div>
-      ${b.win ? `${b.choice === 'xp' ? `<div class="m">${t('battleChoiceXpGain', { n: b.xpGain || 0 })}</div>` : ''}${b.lvup ? `<div class="m"><b>${t('battleLvUp', { n: b.blvAfter })}</b></div>${(b.learned || []).map(sk => `<div class="m">🎓 ${t('battleSkillLearned', { p: esc(p.name), s: sk.icon + ' ' + esc(sk.name) })}</div>`).join('')}` : ''}${b.stolen ? `<div class="m">${t('battleStolenMsg', { o: esc(b.foe.ownerName), n: esc(b.stolen) })}</div>` : ''}${b.choiceFail ? `<div class="m">${t('battleChoicePetFail')}</div>` : ''}${b.coinGain ? `<div class="m">${t('battleChoiceCoinGain', { o: esc(b.foe.ownerName), n: b.coinGain })}</div>` : ''}`
+      ${b.win ? `${b.choice === 'xp' ? `<div class="m">${t('battleChoiceXpGain', { n: b.xpGain || 0 })}</div>` : ''}${b.lvup ? `<div class="m"><b>${t('battleLvUp', { n: b.blvAfter })}</b></div>${(b.learned || []).map(sk => `<div class="m">🎓 ${t('battleSkillLearned', { p: esc(p.name), s: sk.icon + ' ' + esc(sk.name) })}</div>`).join('')}` : ''}${b.stolen ? `<div class="m">${t('battleStolenMsg')}</div>` : ''}${b.choiceFail ? `<div class="m">${t('battleChoicePetFail')}</div>` : ''}${b.coinGain ? `<div class="m">${t('battleChoiceCoinGain', { o: esc(b.foe.ownerName), n: b.coinGain })}</div>` : ''}${b.bonusItem ? `<div class="m">${t(b.bonusItem.kind === 'ticket' ? 'battleBonusTicketMsg' : 'battleBonusItemMsg', { n: esc(b.bonusItem.name) })}</div>` : ''}`
         : `<div class="m">${t('battleTiredMsg')}</div>${b.lost ? `<div class="m">${t('battleLostMsg', { n: esc(b.lost), o: esc(b.foe.ownerName) })}</div>` : ''}`}
       <button class="btn block" data-a="battleclose" style="margin-top:8px">${t('battleCloseBtn')}</button>
     </div>`;
@@ -1753,7 +1753,7 @@ Object.assign(XACT, {
         return;
       }
       const r = actR({ t: 'battleStart' });
-      if (r && r.ok) { clearTimeout(_bPlay.timer); _bPlay = { step: 0, timer: null }; App.battleSkillOpen = false; App.battleAutoPlay = false; }
+      if (r && r.ok) { clearTimeout(_bPlay.timer); _bPlay = { step: 0, timer: null }; App.battleSkillOpen = false; App.battleAutoPlay = false; if (typeof SFX !== 'undefined') SFX.battleBgm(true); }
       openPanel({ type: 'battle' });
     };
     const watchTick = () => {
@@ -1820,8 +1820,8 @@ Object.assign(XACT, {
     const r = actR({ t: 'battleChoice', choice: v }); if (!r || !r.ok) return;
     renderPanel(true);
   },
-  battleignore: () => { clearTimeout(_bPlay.timer); App.battleSkillOpen = false; App.battleAutoPlay = false; actR({ t: 'battleClose' }); closePanel(); },
-  battleclose: () => { clearTimeout(_bPlay.timer); App.battleSkillOpen = false; App.battleAutoPlay = false; actR({ t: 'battleClose' }); closePanel(); },
+  battleignore: () => { clearTimeout(_bPlay.timer); App.battleSkillOpen = false; App.battleAutoPlay = false; actR({ t: 'battleClose' }); if (typeof SFX !== 'undefined') SFX.battleBgm(false); closePanel(); },
+  battleclose: () => { clearTimeout(_bPlay.timer); App.battleSkillOpen = false; App.battleAutoPlay = false; actR({ t: 'battleClose' }); if (typeof SFX !== 'undefined') SFX.battleBgm(false); closePanel(); },
 });
 Object.assign(I18N.ko, { battleFoeTag: '⚔️ 야생 대결' });
 Object.assign(I18N.ru, { battleFoeTag: '⚔️ Дикая битва' });

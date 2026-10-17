@@ -8,6 +8,47 @@ const ART = (() => {
     return '#' + [r, g, b].map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
   };
   const OUT = 'rgba(60,38,25,.85)';
+  // v2026-10-17: 실루엣 모양 그림자 -- 동그란 타원 대신, 실제로 그려질 모양(사람/동물 몸통)을 납작하게
+  // 눌러서 찍는 그림자. 포즈/외형이 같으면 캔버스에 한 번만 그려서 재사용(캐시)하기 때문에 매 프레임
+  // 다시 그리는 비용은 없다. shadow()가 호출되는 기존 지점들은 SHADOW_SILENCED가 켜져 있으면 조용히
+  // 아무것도 안 그리고 넘어간다(= 바깥에서 castShadow로 이미 그림자를 그렸다는 뜻).
+  let SHADOW_SILENCED = false;
+  const SIL_CACHE = new Map();
+  function castShadow(c, key, w, h, ox, oy, drawFn, opts) {
+    opts = opts || {};
+    let ent = SIL_CACHE.get(key);
+    if (!ent) {
+      try {
+        const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        const g = cv.getContext('2d');
+        g.translate(ox, oy);
+        drawFn(g);
+        g.setTransform(1, 0, 0, 1, 0, 0); // v2026-10-17 버그수정: source-in을 전체 캔버스에 걸어야 하므로 translate를 리셋
+        g.globalCompositeOperation = 'source-in';
+        g.fillStyle = '#000';
+        g.fillRect(0, 0, w, h);
+        g.globalCompositeOperation = 'source-over';
+        ent = { cv, ox, oy };
+        SIL_CACHE.set(key, ent);
+        if (SIL_CACHE.size > 150) SIL_CACHE.clear(); // 안전장치: 캔버스가 커서 캐시 캡을 낮춤
+      } catch (e) {
+        // v2026-10-17(3): 특정 포즈(이동 중 등)에서 캡처 중 에러가 나도 그림자 하나 때문에 전체 렌더링이
+        // 깨지면 안 되므로 조용히 포기 -- 이번 프레임은 그림자 없이, 다음 프레임에 다시 시도됨(캐시 안 됨)
+        return;
+      }
+    }
+    // v2026-10-17(3): 캐릭터가 왼쪽/오른쪽 중 어느 쪽을 보든(= 바깥에서 이미 좌우반전 transform이
+    // 걸려 있어도) 그림자 방향은 항상 화면 기준 고정(남서쪽)이어야 하므로, 현재 변환행렬에서
+    // "위치"와 "크기(절대값)"만 가져오고 반전 부호는 무시한 채 새로 구성한다.
+    const m = c.getTransform();
+    const sx = Math.hypot(m.a, m.b) || 1, sy = Math.hypot(m.c, m.d) || 1;
+    const sq = opts.squash != null ? opts.squash : .32;
+    c.save();
+    c.setTransform(sx, 0, .42 * sy, -sq * sy, m.e, m.f);
+    c.globalAlpha = opts.alpha != null ? opts.alpha : .28;
+    c.drawImage(ent.cv, -ent.ox, -ent.oy);
+    c.restore();
+  }
   function ell(c, x, y, rx, ry, fill, stroke, lw) {
     c.beginPath(); c.ellipse(x, y, Math.abs(rx), Math.abs(ry), 0, 0, TAU);
     if (fill) { c.fillStyle = fill; c.fill(); }
@@ -20,6 +61,7 @@ const ART = (() => {
     return g;
   }
   function shadow(c, x, y, rx, ry) {
+    if (SHADOW_SILENCED) return; // 실루엣 그림자가 대신 그려짐
     const rY = ry || rx * .4;
     ell(c, x + .8, y + .8, rx * 1.25, rY * 1.25, 'rgba(30,18,8,.20)');
     ell(c, x + .4, y + .4, rx, rY, 'rgba(35,20,10,.36)');
@@ -63,12 +105,23 @@ const ART = (() => {
   const PANTS = ['#3d405b', '#5e503f', '#264653', '#6d597a', '#343a40', '#8d6e63', '#1d3557'];
   const SKIN = ['#ffe0c7', '#f9d3b4', '#f1c19d', '#e2aa82', '#c68b64'];
   let SIT = 0; const setSit = k => { SIT = k || 0; }; // 0 = standing .. 1 = seated (thighs forward, lower legs hanging): set by the caller just before human()
-  function human(c, o, dir, t, moving) {
+  let HUMAN_SIL_DEPTH = 0;
+  function human(c, o, dir, t, moving, mood, mood2, mood3, shadowYOff) {
     // o: {skin,hair,hs(style),shirt,pants,apron,skirt}
     // dir: 0 = front (facing viewer), 1 = back
     const bob = moving ? Math.abs(Math.sin(t * 10)) * 2 : Math.sin(t * 2) * .6;
     const leg = moving ? Math.sin(t * 10) * 3.2 : 0;
-    shadow(c, 0, 0, 14, 5.8);
+    const topLevel = HUMAN_SIL_DEPTH === 0;
+    // v2026-10-17: 동그란 타원 대신 이 캐릭터의 실제 실루엣(옷/머리/포즈별로 캐싱)을 납작하게 눌러서 그림자로 찍는다
+    if (topLevel && !shadowYOff) {
+      const key = 'ahum:' + JSON.stringify(o) + ':' + dir + ':' + (moving ? 1 : 0) + ':' + SIT.toFixed(2);
+      castShadow(c, key, 300, 300, 150, 190, g => {
+        HUMAN_SIL_DEPTH++; const prevSilenced = SHADOW_SILENCED; SHADOW_SILENCED = true;
+        try { human(g, o, dir, 0, moving, mood, mood2, mood3, shadowYOff); } finally { HUMAN_SIL_DEPTH--; SHADOW_SILENCED = prevSilenced; }
+      }, { squash: .3, alpha: .26 });
+    } else {
+      shadow(c, 0, 0, 14, 5.8);
+    }
     c.save(); c.translate(0, -bob);
     // legs
     const pants = o.pants;
@@ -526,17 +579,29 @@ const ART = (() => {
     ell(c, x + rx * .45, y + ry * .1, rx * .22, ry * .16, 'rgba(255,150,160,.35)');
   }
   // Main pet drawing. anchor at feet (0,0). state: {t, moving, sleep, happy, dir(1|-1), seed, mood}
+  let PET_SIL_DEPTH = 0;
   function pet(c, sp, st0) {
     const lk = look(sp, st0.seed); const t = st0.t || 0;
     const st = Object.assign({}, st0);
     st.mood = st.sleep ? 'sleep' : st.happy ? 'happy' : (st.mood || 'calm');
     st.blink = !st.sleep && ((t + ((lk.seed || 7) % 97) * .37) % 3.4) < .14;
+    const topLevel = PET_SIL_DEPTH === 0;
+    // v2026-10-17: 동그란 타원 대신 이 펫의 실제 실루엣(종/개체/포즈별로 캐싱)을 납작하게 눌러서 그림자로 찍는다
+    if (topLevel) {
+      const key = 'pet:' + sp + ':' + (lk.seed || 7) + ':' + (st0.moving ? 'm' : '') + (st0.sleep ? 'z' : '') + (st0.happy ? 'h' : '') + ':' + (st0.dir || 1) + ':' + (st0.size || 1);
+      castShadow(c, key, 260, 260, 130, 170, g => {
+        PET_SIL_DEPTH++; const prevSilenced = SHADOW_SILENCED; SHADOW_SILENCED = true;
+        try { pet(g, sp, Object.assign({}, st0, { t: 0 })); } finally { PET_SIL_DEPTH--; SHADOW_SILENCED = prevSilenced; }
+      }, { squash: .32, alpha: .3 });
+    }
     c.save(); c.scale(st.dir || 1, 1);
     const bob = st.moving ? Math.abs(Math.sin(t * 12)) * 2.2 : st.sleep ? Math.sin(t * 1.5) * .8 : st.mood === 'scared' ? Math.sin(t * 40) * .5 : Math.sin(t * 2.5) * .7;
     const sc = (lk.small ? .8 : 1) * (lk.sz || 1);
     c.scale(sc * (st.size || 1), sc * (st.size || 1));
     const B = lk.bld || 1, own = ['dog', 'cat', 'rat', 'rabbit'].includes(lk.t); // those draw their own wider body + belly; everybody gets a little wider / narrower overall
     if (B !== 1) c.scale(1 + (B - 1) * (own ? .3 : lk.t === 'rodent' || lk.t === 'guinea' ? .8 : .55), 1 - (B - 1) * .1);
+    const prevSilenced2 = SHADOW_SILENCED;
+    if (topLevel) SHADOW_SILENCED = true; // 위에서 실루엣 그림자를 이미 그렸으니 각 종 함수 안의 동그란 그림자는 끔
     switch (lk.t) {
       case 'dog': case 'cat': quad(c, lk, t, bob, st); break;
       case 'sitshiba':
@@ -554,6 +619,7 @@ const ART = (() => {
       case 'gecko': gecko(c, lk, t, bob, st); break;
       case 'snake': snake(c, lk, t, bob, st); break;
     }
+    SHADOW_SILENCED = prevSilenced2;
     if (lk.rare) sparkles(c, lk.rare, t);
     c.restore();
   }
@@ -2232,7 +2298,7 @@ function human(c, o, dir, t, moving) {
 }
 */
 
-  return { canCloth, human, setSit, randomHuman, pet, zooPet, look, moodOf, moodEmoji, hashStr, face, roams, habitatKind, shade, ell, rrect, grad, shadow, OUT, fluffEdge, zz, SHIRT, HAIR, SKIN, PANTS, eyes, blush };
+  return { canCloth, human, setSit, randomHuman, pet, zooPet, look, moodOf, moodEmoji, hashStr, face, roams, habitatKind, shade, ell, rrect, grad, shadow, castShadow, OUT, fluffEdge, zz, SHIRT, HAIR, SKIN, PANTS, eyes, blush };
 })();
 
 

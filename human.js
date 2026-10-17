@@ -1693,27 +1693,48 @@ const P2 = {
               cap1: { dx: -2, dy: -8 }, cap2: { dx: -2, dy: -8 },
               cap3: { dx: 0, dy: -6 }, cap4: { dx: -1, dy: -6 },
               cap5: { dx: -4, dy: -6 }, ribbon: { dx: -2, dy: -3 },
+              // v1.113: cap6~10 신규 모자 위치 보정(기본값 dx:-1,dy:-3 기준으로 사용자 피드백 반영)
+              cap6: { dx: 5, dy: -8 }, cap7: { dx: 5, dy: -15 }, cap8: { dx: 5, dy: -14 },
+              cap9: { dx: 6, dy: -8, scale: 0.84 }, cap10: { dx: 7, dy: -9, scale: 0.84 },
             };
             const p = HEAD_DIAG[headId] || { dx: -1, dy: -3 };
-            drawSlot(img, p.dx, p.dy, 1.0);
+            drawSlot(img, p.dx, p.dy, p.scale || 1.0);
           } else if (suffix === 'side') {
             // v1.111: 측면 전용 아이템별 최종 위치(절대값)
             const HEAD_SIDE = {
               cap1: { dx: -3, dy: -8 }, cap2: { dx: -3, dy: -8 },
               cap3: { dx: -2, dy: -6 }, cap4: { dx: -3, dy: -6 },
               cap5: { dx: -5, dy: -5 }, ribbon: { dx: -4, dy: -5 },
+              // v1.113: cap6~10 신규 모자 위치 보정(기본값 dx:-2,dy:-5 기준으로 사용자 피드백 반영)
+              cap6: { dx: 3, dy: -9 }, cap7: { dx: 2, dy: -15 }, cap8: { dx: 2, dy: -15 },
+              cap9: { dx: 4, dy: -10, scale: 0.8 }, cap10: { dx: 5, dy: -11, scale: 0.8 },
             };
             const p = HEAD_SIDE[headId] || { dx: -2, dy: -5 };
-            drawSlot(img, p.dx, p.dy, 1.0);
+            drawSlot(img, p.dx, p.dy, p.scale || 1.0);
           } else {
             const headDxBase = !suffix ? -1 : 1; // 정면 -1, 뒷면 +1
             const headDyBase = -2;
-            let headDxAdj = 0, headDyAdj = 0;
+            let headDxAdj = 0, headDyAdj = 0, headScale = 1.0;
             if (!suffix) {
               if (headId === 'cap1' || headId === 'cap4') headDyAdj = 1;
               if (headId === 'ribbon') headDxAdj = -1;
+              // v1.113: 정면 전용 cap6~10 위치/크기 보정(기본값 dx:-1,dy:-2 기준으로 사용자 피드백 반영)
+              const HEAD_FRONT_ADJ = {
+                cap6: { dy: -1 }, cap7: { dy: -10 }, cap8: { dy: -10 },
+                cap9: { dy: -4, scale: 0.8 }, cap10: { dy: -4, scale: 0.8 },
+              };
+              const fa = HEAD_FRONT_ADJ[headId];
+              if (fa) { headDxAdj += fa.dx || 0; headDyAdj += fa.dy || 0; if (fa.scale) headScale = fa.scale; }
+            } else if (suffix === 'back') {
+              // v1.113: 뒷면 전용 cap6~10 위치/크기 보정(기본값 dx:1,dy:-2 기준으로 사용자 피드백 반영)
+              const HEAD_BACK_ADJ = {
+                cap6: { dy: -3 }, cap7: { dx: -2, dy: -10 }, cap8: { dx: -2, dy: -10 },
+                cap9: { dy: -7, scale: 0.8 }, cap10: { dy: -7, scale: 0.8 },
+              };
+              const ba = HEAD_BACK_ADJ[headId];
+              if (ba) { headDxAdj += ba.dx || 0; headDyAdj += ba.dy || 0; if (ba.scale) headScale = ba.scale; }
             }
-            drawSlot(img, headDxBase + headDxAdj, headDyBase + headDyAdj, 1.0);
+            drawSlot(img, headDxBase + headDxAdj, headDyBase + headDyAdj, headScale);
           }
         }
       }
@@ -2069,6 +2090,7 @@ const P2 = {
     return true;
   }
 
+  let DRAW_SIL_DEPTH = 0; // v2026-10-17: 실루엣 그림자 캐싱용 재귀 호출 방지 카운터
   function draw(c, o, dir, t, moving, mood, diag, faceBack, shadowYOff) {
     // v1.100.56: "왜 내캐릭터가 마을 사람들 캐릭터로 바꼈어. 다시 돌려놔."
     // norm(o)이 복사본을 반환하므로 o === CFG.look 참조 비교가 풀려 플레이어가 마을사람으로 덮어씌워졌던 원인 해결!
@@ -2083,9 +2105,15 @@ const P2 = {
     const isSit = (ART.SIT || 0) > 0.05;
 
     // Contact Ground Shadow (shadowYOff: 캐릭터 미리보기 전용 - 발 아래로 그림자를 더 내려서 보여줄 때 씀)
-    // v1.x: 그림자를 3단으로 나눠서 - 넓고 옅은 것 + 중간 + 발 접촉부 진한 것
-    // (기존엔 한 겹이라 캐릭터가 땅에 "붙어있다"기보다 "스티커"처럼 보였음)
-    {
+    // v2026-10-17: 동그란 타원 3겹 대신, 이 캐릭터의 실제 실루엣(옷/머리/포즈별로 캐싱)을 납작하게 눌러서
+    // 그림자로 찍는다. 미리보기 화면(shadowYOff 있음)은 기존 타원 방식을 그대로 유지.
+    if (DRAW_SIL_DEPTH === 0 && !shadowYOff) {
+      const key = 'hum:' + JSON.stringify(o) + ':' + realDir + ':' + (faceBack ? 1 : 0) + ':' + (moving ? 1 : 0) + ':' + mood + ':' + (isSit ? 1 : 0) + ':' + k.toFixed(2) + ':' + bw.toFixed(2);
+      ART.castShadow(c, key, 360, 360, 180, 260, g => {
+        DRAW_SIL_DEPTH++;
+        try { draw(g, o, dir, 0, moving, mood, diag, faceBack, 0); } finally { DRAW_SIL_DEPTH--; }
+      }, { squash: .3, alpha: .26 });
+    } else {
       const sy0 = (shadowYOff || 0);
       ART.ell(c, 0, sy0 + 8, 22 * k * bw, 7.5 * k, 'rgba(15,20,30,.10)');
       ART.ell(c, 0, sy0 + 7.5, 16 * k * bw, 5.5 * k, 'rgba(15,20,30,.20)');

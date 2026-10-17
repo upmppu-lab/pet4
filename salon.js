@@ -3,7 +3,7 @@
 // grooming table -> bath, dry, cut, bow -> the guest pays at the counter and walks home with a prettier pet.
 // The salon can also groom every pet in the pet shop for a small fee (groomed pets sell for +20%).
 const SALON_COST = 400000, SALON_GROOM_ALL = 80, SALON_STAFF_MAX = 2;
-const SALON_POS = () => { const L = LAY('salon'); return L ? { x: L.x, y: L.y, w: 10, d: 8 } : { x: LAY_FAR, y: LAY_FAR, w: 10, d: 8 }; }; // PET TOWN: wherever the player built it
+const SALON_POS = () => { const L = LAY('salon'); return L ? { x: L.x, y: L.y, w: 12, d: 9 } : { x: LAY_FAR, y: LAY_FAR, w: 12, d: 9 }; }; // v2026-10-17: 건설 전 미리보기(건물목록의 w:12,d:9)와 실제 바닥 크기가 안 맞던 것을 맞춤(예전엔 10x8)
 const SALON_SIGN = () => { const p = SALON_POS(); return { x: p.x + p.w + 1, y: p.y + p.d - 1 }; };
 const SALON_STAFF = { id: 'groomer', icon: '✂️', hire: 900, wage: 60 };
 const salonStaffRole = id => id === 'groomer' ? SALON_STAFF : null;
@@ -241,7 +241,7 @@ const SALON = (() => {
   // guests + groomers as real walking actors (called from world.js sync)
   function sync(dt, W) {
     if (!built()) return;
-    const sl = S.salon, p = SALON_POS(), door = { x: p.x + p.w + .5, y: p.y + p.d - 1.5 }, host = !(typeof Net !== 'undefined' && Net.mode === 'guest');
+    const sl = S.salon, p = SALON_POS(), door = { x: p.x + p.w + .5, y: p.y + p.d + 0.5 }, host = !(typeof Net !== 'undefined' && Net.mode === 'guest'); // v2026-10-17: 입구를 남쪽 입구에 맞춰 남으로 2칸 이동
     const edgePoint = (seed, nearY) => (typeof villageEdgePoint === 'function') ? villageEdgePoint(seed, nearY) : { x: ((typeof S !== 'undefined' && S && S.room && S.room.w) || 8) + 1.5, y: -34 };
     const waiting = sl.q.filter(c => c.ph === 'in' || c.ph === 'wait');
     for (const c of sl.q) {
@@ -254,10 +254,13 @@ const SALON = (() => {
         const i = Math.min(SEATS.length - 1, Math.max(0, waiting.indexOf(c))), s0 = SEATS[i];
         tx = p.x + s0.u; ty = p.y + s0.v; fx = tx + 1; fy = ty;
         a.sit = a.arrived || Math.hypot(a.x - tx, a.y - ty) < 0.45;
-        if (a.sit) a.seatAt = { x: tx, y: ty };
+        // v2026-10-17: bench의 'dep'(그려지는 깊이)를 좌석에 달아줘야 앉은 손님이 벤치보다 앞에 그려짐(안 그러면 뒷줄 손님이 벤치에 가려 서있는 것처럼 보임)
+        if (a.sit) a.seatAt = { x: tx, y: ty, dep: p.x + 1.0 + p.y + 6.7 + .01 };
       } else {
         a.sit = false; a.seatAt = null;
-        if (c.ph === 'groom') { const tb = TABLES[c.st] || TABLES[0], s0 = SEATS[c.st] || SEATS[0]; tx = p.x + s0.u; ty = p.y + s0.v; fx = p.x + tb.u + 1; fy = p.y + tb.v; }
+        // v2026-10-17: 미용 중인 손님(주인)은 원래 앉아있던 긴의자 좌석이 아니라, 실제 미용 테이블 앞으로 와야 함
+        // (예전엔 SEATS[c.st]를 썼는데 c.st는 '테이블' 번호라서 엉뚱한 벤치 좌석으로 가버렸음 -> 제자리에서 미용받는 것처럼 보이던 버그)
+        if (c.ph === 'groom') { const tb = TABLES[c.st] || TABLES[0]; tx = p.x + tb.u + .3; ty = p.y + tb.v + 2.1; fx = p.x + tb.u + 1; fy = p.y + tb.v; }
         else if (c.ph === 'pay') { tx = p.x + COUNTER.u + 1; ty = p.y + COUNTER.v + 1.6; fx = tx; fy = ty - 2; }
         else { const ex = edgePoint(c.seed || c.id, a.y); tx = ex.x; ty = ex.y; }
       }
@@ -269,9 +272,24 @@ const SALON = (() => {
     sl.staff.forEach((m, i) => {
       const id = 'ss' + m.id; W.alive.add(id);
       const busy = sl.q.find(c => c.ph === 'groom' && c.by === 'm' + m.id), tb = TABLES[busy ? busy.st : i % TABLES.length], tx = p.x + tb.u + 1.2, ty = p.y + tb.v + 1.6;
-      let a = W.actors.get(id); if (!a) { const lk = ART.randomHuman(m.seed); lk.top = 'jacket'; lk.jacket = '#ff9ec0'; lk.hat = null; applyStaffArt(lk, m.seed, false, 'hairstylist'); a = W.mkActor(id, 'hstaff', tx, ty, { look: lk, speed: 2.4 }); }
-      a.m = m; a.talk = false;
-      const key = Math.floor(tx) + ',' + Math.floor(ty); if (a.tkey !== key) { a.tkey = key; W.goTo(a, tx, ty, () => W.faceTo(a, p.x + tb.u + 1, p.y + tb.v)); }
+      let a = W.actors.get(id); if (!a) { const lk = ART.randomHuman(m.seed); lk.top = 'jacket'; lk.jacket = '#ff9ec0'; lk.hat = null; applyStaffArt(lk, m.seed, false, 'hairstylist'); a = W.mkActor(id, 'hstaff', tx, ty, { look: lk, speed: 2.4 }); a.idleT = 2 + Math.random() * 4; }
+      a.m = m; a.talk = !!busy; // talk=true일 때만 가위 말풍선이 뜨고, world.js의 'hstaff는 가만히 있으면 무조건 정면' 처리를 건너뜀
+      if (busy) {
+        a.idleT = null; // v2026-10-17: 손님 미용 중엔 배회 멈추고 해당 테이블에 붙어있음
+        const key = Math.floor(tx) + ',' + Math.floor(ty);
+        if (a.tkey !== key) { a.tkey = key; W.goTo(a, tx, ty, () => { a.face = 1; a.faceBack = true; a.diag = false; a.dir = 1; }); } // 테이블(북쪽)을 보고 서서 -> 손님(카메라)에게는 뒷모습이 보임
+        else if (a.arrived) { a.face = 1; a.faceBack = true; a.diag = false; } // 도착한 뒤에도 계속 뒷모습 유지
+      } else {
+        // v2026-10-17: 손님이 없을 때 제자리에 가만히 서있지 않고, 자기 테이블 주변을 천천히 오가며 대기
+        if (a.idleT == null) a.idleT = 4 + Math.random() * 5;
+        a.idleT -= dt;
+        if (a.idleT <= 0) {
+          a.idleT = 6 + Math.random() * 7;
+          const ix = tx + (Math.random() * 2.2 - 1.1), iy = Math.max(p.y + .4, ty + (Math.random() * 1.4 - .4));
+          a.tkey = null; // 같은 반올림 좌표라도 다시 걷기 시작하도록 강제
+          W.goTo(a, ix, iy, () => W.faceTo(a, p.x + tb.u + 1, p.y + tb.v));
+        }
+      }
     });
   }
   return { tick, apply, ground, floor, walls, collect, solid, sync, wagesOf, built, ensure };

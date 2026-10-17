@@ -13,12 +13,17 @@ const ACC_SLOTS = ['head', 'face', 'neck', 'ear', 'scarf'];
 // v1.103: 원화가님이 직접 그린 소품 PNG(assets/spr/acc/front, /side)로 교체.
 // 뒷면은 정면 그림을, 대각선은 옆면 그림을 그대로 재사용한다(인게임에서 자동 처리).
 const COSM_DEF = {
-  // === 모자 (head) - 6종 ===
+  // === 모자 (head) - 11종 ===
   cap1:   { slot: 'head', front: 'head_cap1',  side: 'head_side_cap1',   name: '모자 1' },
   cap2:   { slot: 'head', front: 'head_cap2',  side: 'head__side_cap2',  name: '모자 2' },
   cap3:   { slot: 'head', front: 'head_cap3',  side: 'head__side_cap3',  name: '모자 3' },
   cap4:   { slot: 'head', front: 'head_cap4',  side: 'head__side_cap4',  name: '모자 4' },
   cap5:   { slot: 'head', front: 'head_cap5',  side: 'head__side_cap5',  name: '모자 5' },
+  cap6:   { slot: 'head', front: 'head_cap6',  side: 'head_side_cap6',   name: '모자 6' },
+  cap7:   { slot: 'head', front: 'head_cap7',  side: 'head_side_cap7',   name: '모자 7' },
+  cap8:   { slot: 'head', front: 'head_cap8',  side: 'head_side_cap8',   name: '모자 8' },
+  cap9:   { slot: 'head', front: 'head_cap9',  side: 'head_side_cap9',   name: '모자 9' },
+  cap10:  { slot: 'head', front: 'head_cap10', side: 'head_side_cap10',  name: '모자 10' },
   ribbon: { slot: 'head', front: 'head_ribon', side: 'head_side_ribon',  name: '리본 머리띠' },
   // === 안경 (face) - 7종 ===
   glass1: { slot: 'face', front: 'glass_1', side: 'glass_side_1', diag: 'glass_1', name: '안경 1' },

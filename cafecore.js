@@ -505,6 +505,13 @@ const CAFE = (() => {
       s.coins -= F.cost; const it = { id: cf.iseq++, k: F.k, x: F.cat === 'pen' ? p.x : p.x - Wv, y: F.cat === 'pen' ? p.y : p.y - cafeS() }; if (F.rot) it.f = 's'; cf.items.push(it); cf.iv = (cf.iv | 0) + 1;
       return { ok: 1, fx: 'coin', msg: 'cafeBought', cplace: it.id };
     }
+    if (a.t === 'cafebuyFree') { // v2026-10-17: 보관상자에서 전투 보상으로 받은 가구를 코인 없이 배치 (카페 레벨 제한도 생략)
+      if (!cf.built) return { err: 'gone' };
+      const F = cafeFurn(a.k); if (!F) return { err: 'gone' };
+      const p = cafeAutoSpot(cf, Wv, lvOf(), F.k); if (!p) return { err: 'cafeNoRoom' };
+      const it = { id: cf.iseq++, k: F.k, x: F.cat === 'pen' ? p.x : p.x - Wv, y: F.cat === 'pen' ? p.y : p.y - cafeS() }; if (F.rot) it.f = 's'; cf.items.push(it); cf.iv = (cf.iv | 0) + 1;
+      return { ok: 1, fx: 'coin', msg: 'cafeBought', cplace: it.id };
+    }
     if (a.t === 'cafemove') {
       if (!cf.built) return { err: 'gone' };
       const it = cf.items.find(x => x.id === a.iid); if (!it) return { err: 'gone' };

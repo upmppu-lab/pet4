@@ -9,6 +9,7 @@ const VILLAGE = (() => {
   const LAKE = () => { const L = LAY('lake'); return L ? { x: L.x, y: L.y, w: 18, d: 16 } : { x: LAY_FAR, y: LAY_FAR, w: 18, d: 16 }; }; // PET TOWN: wherever the player built them
   const MONU = () => { const L = LAY('monu'); return L ? { x: L.x, y: L.y, w: 7, d: 7 } : { x: LAY_FAR, y: LAY_FAR, w: 7, d: 7 }; };
   const BOARD = () => ({ x: Wd(), y: Hd() + 3 }); // PET TOWN: right by the sidewalk, just south of the shop
+  const STORAGEBOX = () => ({ x: Wd(), y: Hd() + 5 }); // v2026-10-17(3차): 게시판에 너무 붙어있어서 남쪽으로 1칸 더
   const SIGN = { avenue: () => ({ x: Wd() + 8, y: 2 }), lake: () => { const p = LAKE(); return { x: p.x + 1, y: p.y + Math.floor(p.d / 2) }; }, monu: () => { const p = MONU(); return { x: p.x + p.w - 1, y: p.y + Math.floor(p.d / 2) }; } };
   const season = day => Math.floor((((day || 1) - 1) % 28 + 28) % 28 / 7); // 0 spring, 1 summer, 2 autumn, 3 winter (a week each)
   const Q = (x, y, z) => [ISO.wx(x, y), ISO.wy(x, y) - (z || 0)];
@@ -226,6 +227,7 @@ const VILLAGE = (() => {
     const set = new Set(), add = (x, y) => set.add(Math.floor(x) + ',' + Math.floor(y));
     for (const k of []) if (!built(k)) { const s = SIGN[k](); add(s.x, s.y); }
     { const b = BOARD(); add(b.x, b.y); }
+    { const sb = STORAGEBOX(); add(sb.x, sb.y); } // v2026-10-17(2차): 보관상자도 다른 오브젝트처럼 통행 불가 처리
     if (built('lake')) { const p = LAKE(); for (let u = 0; u < p.w; u++) for (let v = 0; v < p.d; v++) { const cu = u + .5, cv = v + .5; if (inWater(cu, cv) && !onBridge(cu, cv)) add(p.x + u, p.y + v); } }
     if (built('monu')) { const p = MONU(); for (const [u, v] of [[3, 2], [3, 3], [2, 3], [4, 3], [3, 5]]) add(p.x + u, p.y + v); }
     return set;
@@ -451,6 +453,23 @@ const VILLAGE = (() => {
     _stat = { key, cv };
     return cv;
   }
+  function storageBox(c, T) { // v2026-10-17: 마을게시판 옆 보관상자 -- 전투에서 얻은 펫/아이템을 담아두는 상자
+    c.save();
+    ART.ell(c, 0, 4, 24, 10, 'rgba(0,0,0,.22)');
+    const img = (typeof CHEST_IMG !== 'undefined') ? CHEST_IMG : null;
+    if (img && img.complete && img.naturalWidth) {
+      const w = 72, h = w * img.naturalHeight / img.naturalWidth; // v2026-10-17: 사용자 제공 보물상자 그림, 기존 상자와 비슷한 크기
+      c.drawImage(img, -w / 2, -h + 14, w, h); // v2026-10-17(3차): 바닥에 떠 보여서 아래로 내림
+    } else { // 그림 로딩 전 임시 대체(예전 나무 상자) -- 비어 보이지 않게
+      const box = FURN.box, P = FURN.P;
+      box(c, -.38, -.32, .76, .64, .5, '#b9823f', 0);
+      box(c, -.42, -.36, .84, .72, .1, '#8a5a33', .5);
+      const top = P(0, 0, 62);
+      c.font = '20px sans-serif'; c.textAlign = 'center'; c.fillText('📦', top[0], top[1] - 4);
+      c.textAlign = 'start';
+    }
+    c.restore();
+  }
   function heartBench(c) {
     const box = FURN.box; for (const [x, y] of [[.1, .25], [1.8, .25], [.1, .75], [1.8, .75]]) box(c, x, y, .08, .08, 12, '#ffffff');
     box(c, .05, .3, 1.9, .5, 3, '#ff9ec0', 12);
@@ -495,6 +514,7 @@ const VILLAGE = (() => {
 
     for (const k of []) if (!built(k)) { const s = SIGN[k](); out.push({ depth: s.x + s.y + 1, fn: () => { at(c, s.x + .5, s.y + .5, () => sign(c, T, k)); hitAt(s.x + .5, s.y + .5, 'vsign', { vk: k }); } }); }
     { const b = BOARD(); const bsx = ISO.wx(b.x + .5, b.y + .5), bsy = ISO.wy(b.x + .5, b.y + .5); if (isVis(bsx, bsy, 80, 100)) { out.push({ depth: b.x + b.y + 1.2, fn: () => { at(c, b.x + .45, b.y, () => board(c, T)); hitAt(b.x + .9, b.y + .5, 'vboard', null, 60, 105); } }); } }
+    { const sb = STORAGEBOX(); const ssx = ISO.wx(sb.x + .5, sb.y + .5), ssy = ISO.wy(sb.x + .5, sb.y + .5); if (isVis(ssx, ssy, 60, 70)) { out.push({ depth: sb.x + sb.y + 1.2, fn: () => { at(c, sb.x + .5, sb.y + .5, () => storageBox(c, T)); hitAt(sb.x + .5, sb.y + .5, 'storagebox', null, 44, 60); } }); } } // v2026-10-17: 보관상자
     if (built('avenue')) {
       const sn = season(S.clock && S.clock.day);
       avenueSpots().forEach((p, i) => {
@@ -631,7 +651,7 @@ const VILLAGE = (() => {
     }
     return undefined;
   }
-  return { ground, collect, solid, apply, tick, reqHave, DAILY, bonusOf, built, season, SIGN, LAKE, MONU, BOARD };
+  return { ground, collect, solid, apply, tick, reqHave, DAILY, bonusOf, built, season, SIGN, LAKE, MONU, BOARD, STORAGEBOX };
 })();
 Object.assign(I18N.ko, {
   vlot_avenue: '가로수길 부지', vlot_lake: '호수 부지', vlot_monu: '기념 광장 부지', vboardName: '마을 게시판',

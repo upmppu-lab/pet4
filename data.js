@@ -81,6 +81,9 @@ var ASSET_CACHE = (function() {
 if (typeof window !== 'undefined') window.ASSET_CACHE = ASSET_CACHE;
 if (typeof globalThis !== 'undefined') globalThis.ASSET_CACHE = ASSET_CACHE;
 
+// v2026-10-17: 보관상자(마을게시판 옆/목장/농장 셋 다 공용) 사용자 제공 그림 -- 한 번만 로드해서 세 곳에서 재사용
+var CHEST_IMG = (typeof ASSET_CACHE !== 'undefined') ? ASSET_CACHE.preload('spr/chest.png') : null;
+
 // Asynchronously preload initial core assets without blocking main thread
 if (typeof setTimeout === 'function') {
   setTimeout(function() {
@@ -90,7 +93,7 @@ if (typeof setTimeout === 'function') {
         'spr/park.png', 'spr/lake/lake.png', 'spr/ranch/ranch.png', 'spr/train.png', 'spr/zoo/zoo.png', 'spr/station_1.png',
         'spr/roads/block.png', 'spr/roads/block_1.png', 'spr/roads/cobble.png', 'spr/roads/brick.png', 'spr/roads/dirt.png', 'spr/roads/yellow.png', 'spr/roads/step.png', 'spr/roads/stone.png', 'spr/roads/tile.png',
         'spr/shelf.png', 'spr/counter.png', 'spr/toyshelf.png', 'spr/plant.png', 'spr/bench.png', 'spr/table.png',
-        'spr/tree_oak.png', 'spr/house/house_1.png', 'spr/house/house_2.png'
+        'spr/tree_oak.png', 'spr/house/house_1.png', 'spr/house/house_2.png', 'spr/chest.png'
       ];
       for (var i = 1; i <= 6; i++) {
         essentials.push('spr/grass/grass' + i + '.png');

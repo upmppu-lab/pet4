@@ -1281,7 +1281,7 @@ function hospPhaseText(p) {
   return '';
 }
 const hospReady = p => p.ph === 'deskwait' || p.ph === 'atStn';
-const hospBtnLabel = st => t(st === 'reg' ? 'hospRegBtn' : st === 'pay' ? 'hospPayBtn' : st === 'exam' ? 'hospExamBtn' : 'hospTreatBtn');
+const hospBtnLabel = st => t(st === 'reg' || st === 'route' ? 'hospRegBtn' : st === 'pay' ? 'hospPayBtn' : st === 'exam' ? 'hospExamBtn' : 'hospTreatBtn'); // v2026-10-17: '안내' 단계도 접수 버튼 문구 재사용(번역 파일 16개 다 건드리지 않기 위함)
 function hospStaffTab(hp) {
   let b = `<div class="m">${t('hospStaffDesc')}</div>`;
   b += HOSP_STAFF.map(r => {
@@ -1868,6 +1868,7 @@ function onWorldTap(h) {
     askPrompt(Object.assign({ title: t('vlot_' + k), text: t('vbuild_' + k, { c: fmt(VILLAGE_COST[k]) }), okText: t('vBuildBtn'), ok: v => go(v) }, k === 'monu' ? { input: (CFG.name || '') + ' ❤ ' + ((pn && pn.name) || ''), max: 22 } : {}));
   }); return; }
   if (h.kind === 'vboard') { const b = VILLAGE.BOARD(); World.walkNear(b.x, b.y + 1, () => openPanel({ type: 'vboard' })); return; }
+  if (h.kind === 'storagebox') { const b = VILLAGE.STORAGEBOX(); World.walkNear(b.x, b.y + 1, () => openPanel({ type: 'storage' })); return; } // v2026-10-17: 보관상자
   if (h.kind === 'vlake_duck') {
     if (typeof SND !== 'undefined' && SND.love) SND.love();
     const k = h.kindId || (h.did === 3 || h.did === 5 || h.did === 6 ? 3 : (h.did === 2 || h.did === 4 || h.did === 9 || h.did === 10 ? 2 : 1));

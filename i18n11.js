@@ -13,7 +13,7 @@ Object.assign(I18N.ko, {
  cosm_catears:'고양이 귀', cosm_bunny:'토끼 귀', cosm_flower:'꽃 화관', cosm_crown:'왕관', cosm_witch:'마녀 모자', cosm_santa:'산타 모자', cosm_sunhat:'여름 밀짚모자', cosm_headphones:'헤드폰', cosm_heart:'커플 하트 머리띠',
  cosm_sunglasses:'선글라스', cosm_glasses:'안경', cosm_roundglass:'둥근 안경', cosm_necklace:'목걸이', cosm_pendant:'펜던트 목걸이', cosm_bell:'방울 목걸이', cosm_earring:'귀걸이', cosm_hoop:'링 귀걸이', cosm_scarf_red:'빨간 목도리', cosm_scarf_blue:'파란 목도리',
  // v1.103: 새 소품 그림(PNG) 전용 ID
- cosm_cap1:'하트참 블랙 베레모', cosm_cap2:'리본 크림 베레모', cosm_cap3:'플라워 밀짚모자', cosm_cap4:'로즈 레이스 모자', cosm_cap5:'리본 레이스 티아라', cosm_ribbon:'레드 레이스 리본',
+ cosm_cap1:'하트참 블랙 베레모', cosm_cap2:'리본 크림 베레모', cosm_cap3:'플라워 밀짚모자', cosm_cap4:'로즈 레이스 모자', cosm_cap5:'리본 레이스 티아라', cosm_cap6:'핑크 리본 데이지 밀짚모자', cosm_cap7:'퍼플 스타 마법사 모자', cosm_cap8:'네이비 스타라이트 마법사 모자', cosm_cap9:'블랙 골드 리본 캡', cosm_cap10:'핑크 골드 리본 캡', cosm_ribbon:'레드 레이스 리본',
  cosm_glass1:'하트포인트 라운드 안경', cosm_glass2:'골드 펄드롭 안경', cosm_glass3:'레드 리본 안경', cosm_glass4:'핑크 하트 선글라스', cosm_glass5:'브라운 리본 선글라스', cosm_glass6:'플라워 펄드롭 안경', cosm_glass7:'옐로우 플라워 선글라스',
  cosm_necklace1:'하트 레이스 초커', cosm_necklace2:'펄 리본 목걸이', cosm_necklace3:'골드 루비 목걸이',
  cosm_earring1:'리본 하트 귀걸이', cosm_earring2:'레드하트 골드 귀걸이', cosm_earring3:'핑크 하트 귀걸이', cosm_earring4:'블랙로즈 귀걸이', cosm_earring5:'플라워 펄 귀걸이', cosm_earring6:'골드리본 스타 귀걸이',
@@ -58,7 +58,7 @@ Object.assign(I18N.ru, {
  cosm_catears:'Кошачьи ушки', cosm_bunny:'Заячьи ушки', cosm_flower:'Венок', cosm_crown:'Корона', cosm_witch:'Шляпа ведьмы', cosm_santa:'Колпак Санты', cosm_sunhat:'Летняя шляпа', cosm_headphones:'Наушники', cosm_heart:'Ободок с сердечками',
  cosm_sunglasses:'Солнцезащитные очки', cosm_glasses:'Очки', cosm_roundglass:'Круглые очки', cosm_necklace:'Ожерелье', cosm_pendant:'Кулон', cosm_bell:'Колокольчик', cosm_earring:'Серьги', cosm_hoop:'Серьги-кольца', cosm_scarf_red:'Красный шарф', cosm_scarf_blue:'Синий шарф',
  // v1.103: новые аксессуары (PNG)
- cosm_cap1:'Чёрный берет с сердцем', cosm_cap2:'Кремовый берет с бантом', cosm_cap3:'Соломенная шляпа с цветком', cosm_cap4:'Шляпа с розами', cosm_cap5:'Кружевная тиара с бантами', cosm_ribbon:'Красный кружевной бант',
+ cosm_cap1:'Чёрный берет с сердцем', cosm_cap2:'Кремовый берет с бантом', cosm_cap3:'Соломенная шляпа с цветком', cosm_cap4:'Шляпа с розами', cosm_cap5:'Кружевная тиара с бантами', cosm_cap6:'Соломенная шляпа с ромашками и бантом', cosm_cap7:'Фиолетовая шляпа волшебника со звёздами', cosm_cap8:'Тёмно-синяя шляпа волшебника со звёздами', cosm_cap9:'Чёрная кепка с золотым бантом', cosm_cap10:'Розовая кепка с золотым бантом', cosm_ribbon:'Красный кружевной бант',
  cosm_glass1:'Круглые очки с сердечками', cosm_glass2:'Золотые очки с жемчугом', cosm_glass3:'Очки с красными бантами', cosm_glass4:'Розовые очки-сердца', cosm_glass5:'Очки с золотыми бантами', cosm_glass6:'Очки с цветком и жемчугом', cosm_glass7:'Жёлтые очки с цветком',
  cosm_necklace1:'Кружевной чокер с сердцем', cosm_necklace2:'Жемчужное ожерелье с бантом', cosm_necklace3:'Золотое ожерелье с рубином',
  cosm_earring1:'Серьги с бантом и сердцем', cosm_earring2:'Золотые серьги с сердцем', cosm_earring3:'Серьги с розовым сердцем', cosm_earring4:'Серьги с чёрной розой', cosm_earring5:'Серьги с цветком и жемчугом', cosm_earring6:'Серьги с бантом и звездой',

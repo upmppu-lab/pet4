@@ -24,6 +24,9 @@ const BATTLE_CAT = { // base stats at battle level 1, by SPECIES[].cat
 const BATTLE_CAT_DEF = { hp: 24, atk: 6, heal: 4 }; // fallback (e.g. fish -- though fish can't follow anyway)
 const BATTLE_STEAL_WIN = .25;  // win: chance to recruit the villager's pet
 const BATTLE_STEAL_LOSE = .15; // lose: chance the villager takes one of your pets instead
+const BATTLE_STEAL_LOWER = .8;  // v2026-10-17: "데려오기" 성공률 -- 상대 전투 레벨이 내 펫보다 낮을 때
+const BATTLE_STEAL_EQUAL = .7;  // ...전투 레벨이 같을 때
+const BATTLE_STEAL_FLOOR = .2;  // 상대가 훨씬 높은 레벨이어도 최소 이 확률은 보장
 const BATTLE_REGEN_MS = 10 * 60 * 1000; // 10 real-world minutes to fully regenerate HP after being knocked down to 1
 // v2026-10-15 (v4): stamina -- without a cost, the strongest unlocked skill was always strictly better
 // than the basic one (same cooldown-free availability, just more damage/healing), so a fight was just
@@ -323,21 +326,28 @@ const BATTLE = (() => {
       return { ok: 1 };
     }
     if (a.t === 'battleChoice') { // v2026-10-15: after a win, the player picks exactly one reward
+      // v2026-10-17: "데려오기"는 더 이상 100% 성공이 아니라 전투 레벨 차이에 따른 확률로 성공/실패가 갈리고,
+      // 어떤 보상을 고르든(데려오기/경험치/돈 공통) 추가로 보너스 아이템을 더 받을 수 있다. 얻은 펫/가구/
+      // 소품은 바로 집어넣지 않고 마을게시판 옆 "보관상자"(STORAGE)에 보관된다.
       const b = s.battle; if (!b || !b.resolved || !b.awaitChoice || !b.win) return { err: 'gone' };
       const p = s.home && (s.home.pets || []).find(q => q.id === b.pid); if (!p) return { err: 'gone' };
       const T = TOWN.ensure(s), resident = (T.residents || []).find(r => r.id === b.foe.rid);
       b.awaitChoice = false; b.choice = a.choice;
       if (a.choice === 'pet') {
-        b.stolen = null;
-        if (resident && resident.pets && resident.pets[b.foe.idx] && resident.pets[b.foe.idx].sp === b.foe.sp && resident.pets[b.foe.idx].name === b.foe.name) {
-          const cap = (typeof HOME_LV !== 'undefined' && HOME_LV[s.home.lv]) ? HOME_LV[s.home.lv].pets : 99;
-          if ((s.home.pets || []).length < cap) {
+        b.stolen = null; b.choiceFail = null;
+        const matches = resident && resident.pets && resident.pets[b.foe.idx] && resident.pets[b.foe.idx].sp === b.foe.sp && resident.pets[b.foe.idx].name === b.foe.name;
+        if (matches) {
+          const myBlv = p.blv || 1, foeBlv = b.foeBlv || 1;
+          const chance = foeBlv < myBlv ? BATTLE_STEAL_LOWER : foeBlv === myBlv ? BATTLE_STEAL_EQUAL : Math.max(BATTLE_STEAL_FLOOR, BATTLE_STEAL_EQUAL - .1 * (foeBlv - myBlv));
+          b.stealChance = chance;
+          if (Math.random() < chance) {
             const taken = resident.pets.splice(b.foe.idx, 1)[0];
             const np = { id: 'p' + Date.now() + Math.floor(Math.random() * 1000), sp: taken.sp, name: taken.name,
               sex: Math.random() < .5 ? 'm' : 'f', coat: taken.coat || 1, gen: 0, grow: 1, hunger: 70, clean: 90, happy: 70, stress: 20, bored: 30,
               trait: (typeof randTrait === 'function') ? randTrait() : undefined, bcd: 0, pat: 0, stars: 0, blv: 1, bxp: 0 };
-            s.home.pets.push(np); b.stolen = np.name;
-          } else b.choiceFail = 'full';
+            if (typeof STORAGE !== 'undefined' && STORAGE.push(s, { type: 'pet', pet: np })) b.stolen = np.name;
+            else b.choiceFail = 'full'; // 보관상자가 가득 차서 데려올 수 없었음
+          } else b.choiceFail = 'luck'; // 확률에서 실패
         } else b.choiceFail = 'gone';
       } else if (a.choice === 'xp') {
         p.blv = p.blv || 1;
@@ -355,6 +365,8 @@ const BATTLE = (() => {
         s.coins = (s.coins || 0) + amt;
         b.coinGain = amt;
       } else return { err: 'gone' };
+      // v2026-10-17: 데려오기/경험치/돈 중 무엇을 골랐든 공통으로 보너스 아이템을 추가로 더 받을 수 있다
+      b.bonusItem = (typeof STORAGE !== 'undefined') ? STORAGE.rollBonusItem(s) : null;
       return { ok: 1 };
     }
     if (a.t === 'battleClose') { s.battle = null; return { ok: 1 }; }
@@ -376,8 +388,10 @@ Object.assign(I18N.ko, {
   battleWinTitle: '🎉 승리했어요!', battleLoseTitle: '😿 패배했어요...',
   battleXpGain: '경험치 +{n}', battleLvUp: '레벨 업! Lv.{n}',
   battleTiredMsg: '전투로 체력이 크게 떨어졌어요. 시간이 지나면 서서히 회복돼요',
-  battleStolenMsg: '🏠✨ {o}님의 {n}을(를) 데려왔어요!',
+  battleStolenMsg: '✅ 데려오기가 성공했습니다. 마을게시판 옆 보관상자에 보관됩니다',
   battleLostMsg: '😱 {n}을(를) {o}님에게 빼앗겼어요!',
+  battleBonusItemMsg: '🎁 {n}을(를) 획득했습니다. 마을게시판 옆 보관상자에 보관됩니다',
+  battleBonusTicketMsg: '🎫 뽑기 추천권을 획득했습니다!',
   battleHpBadge: '💔 체력 회복 중 ({n}%)',
   battleNeedFollow: '펫을 데리고 다녀야 도전할 수 있어요 🐾',
   battleBusy: '이미 다른 전투가 진행 중이에요',
@@ -423,8 +437,10 @@ Object.assign(I18N.ru, {
   battleWinTitle: '🎉 Победа!', battleLoseTitle: '😿 Поражение...',
   battleXpGain: 'Опыт +{n}', battleLvUp: 'Новый уровень! Ур.{n}',
   battleTiredMsg: 'Здоровье питомца сильно упало. Оно постепенно восстановится со временем',
-  battleStolenMsg: '🏠✨ Забрали питомца {o} — {n}!',
+  battleStolenMsg: '✅ Питомца удалось забрать. Он в сундуке рядом с доской объявлений',
   battleLostMsg: '😱 {o} забрал питомца {n}!',
+  battleBonusItemMsg: '🎁 Получено: {n}. Хранится в сундуке рядом с доской объявлений',
+  battleBonusTicketMsg: '🎫 Получен билет на гача-автомат!',
   battleHpBadge: '💔 Восстановление здоровья ({n}%)',
   battleNeedFollow: 'Чтобы бросить вызов, возьмите питомца с собой 🐾',
   battleBusy: 'Бой уже идёт',

@@ -90,7 +90,7 @@ const HOME = (() => {
   const pts = s => { if (!s.home) return 0; const h = s.home; let p = 0; for (const it of h.items) { const F = HOME_FURN.find(z => z.k === it.k); if (F) p += F.pts; } return Math.min(25, Math.floor(p / 4) + (h.lv - 1) * 2); };
   const cap = h => HOME_LV[h.lv].pets;
   function apply(s, a, by) {
-    if (!a.t || a.t[0] !== 'h' || !['hbuy', 'hmove', 'hflip', 'hsell', 'hup', 'hstyle', 'hnap', 'htake', 'hback', 'hpat'].includes(a.t)) return undefined;
+    if (!a.t || a.t[0] !== 'h' || !['hbuy', 'hbuyFree', 'hmove', 'hflip', 'hsell', 'hup', 'hstyle', 'hnap', 'htake', 'hback', 'hpat'].includes(a.t)) return undefined;
     const h = ensure(s);
     switch (a.t) {
       case 'hbuy': {
@@ -100,6 +100,13 @@ const HOME = (() => {
         const fl = Math.min(a.fl | 0, floorsOf(h) - 1);
         const sp = freeSpot(h, F.k, fl); if (!sp) return { err: 'homeFull' };
         s.coins -= F.cost; const it = add(h, F.k, sp.x, sp.y, sp.f, fl); H.addXp(s, 3);
+        return { ok: 1, fx: 'coin', hplace: it.id, msg: 'homeBought' };
+      }
+      case 'hbuyFree': { // v2026-10-17: 보관상자에서 전투 보상으로 받은 가구를 코인 없이 배치 (집 레벨 제한도 생략)
+        const F = HOME_FURN.find(z => z.k === a.k); if (!F) return { err: 'gone' };
+        const fl = Math.min(a.fl | 0, floorsOf(h) - 1);
+        const sp = freeSpot(h, F.k, fl); if (!sp) return { err: 'homeFull' };
+        const it = add(h, F.k, sp.x, sp.y, sp.f, fl);
         return { ok: 1, fx: 'coin', hplace: it.id, msg: 'homeBought' };
       }
       case 'hmove': {

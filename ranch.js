@@ -234,7 +234,7 @@ const RANCH = (() => {
     cow: { x: L0.x + 1.4, y: L0.y + 3.6, w: 4.0, d: 4.8 },
     pig: { x: L0.x + 7.2, y: L0.y + 3.6, w: 3.3, d: 2.8 },
     // v2026-10-11: 보관상자 남 4, 동 6 이동 (기존 3.5, 3.8 -> 9.5, 7.8)
-    box: { x: L0.x + 9.5, y: L0.y + 7.8 },
+    box: { x: L0.x + 10.5, y: L0.y + 7.8 }, // v2026-10-17(3차): 오른쪽으로 1칸(입구를 가리고 있었음)
     hay: { x: L0.x + 10.0, y: L0.y + 2.0 },
     // v2026-10-11: 건초 먹이통 서쪽 4, 남쪽 3 이동 -> 좌측 울타리 원목 여물통 위로 배치
     haybox: { x: L0.x + 0.9, y: L0.y + 5.1 },
@@ -684,23 +684,23 @@ const RANCH = (() => {
       c.save();
       const q = RP(L0, bx.x + .5, bx.y + .5);
       ART.ell(c, q[0], q[1] + 2, 22, 10, 'rgba(0,0,0,.22)');
-      // Heavy oak chest base with beveled edges
-      rBox(c, L0, bx.x + .08, bx.y + .08, .84, .74, 0, 12, '#854d0e', '#a16207');
-      // Arched domed trunk lid
-      rBox(c, L0, bx.x + .05, bx.y + .05, .90, .80, 12, 5, '#a16207', '#ca8a04');
-      // Dark wrought-iron reinforcing bands across lid
-      rBox(c, L0, bx.x + .22, bx.y + .04, .12, .82, 12, 5.5, '#292524', '#44403c');
-      rBox(c, L0, bx.x + .66, bx.y + .04, .12, .82, 12, 5.5, '#292524', '#44403c');
-      // Golden/brass rivet studs
-      for (const rx of [bx.x + .28, bx.x + .72]) {
-        const rp0 = RP(L0, rx, bx.y + .86, 14);
-        ART.ell(c, rp0[0], rp0[1], 1.2, 1.2, '#fde047');
+      // v2026-10-17: 사용자 제공 보물상자 그림 (마을게시판/농장 보관상자와 동일한 그림, 기존 상자와 비슷한 크기)
+      { const chestImg = (typeof CHEST_IMG !== 'undefined') ? CHEST_IMG : null;
+        if (chestImg && chestImg.complete && chestImg.naturalWidth) {
+          const w = 72, h = w * chestImg.naturalHeight / chestImg.naturalWidth;
+          c.drawImage(chestImg, q[0] - w / 2, q[1] - h + 14, w, h); // v2026-10-17(3차): 바닥에 떠 보여서 아래로 내림
+        } else {
+          // 그림 로딩 전 임시 대체(예전 벡터 궤짝) -- 비어 보이지 않게
+          rBox(c, L0, bx.x + .08, bx.y + .08, .84, .74, 0, 12, '#854d0e', '#a16207');
+          rBox(c, L0, bx.x + .05, bx.y + .05, .90, .80, 12, 5, '#a16207', '#ca8a04');
+          rBox(c, L0, bx.x + .22, bx.y + .04, .12, .82, 12, 5.5, '#292524', '#44403c');
+          rBox(c, L0, bx.x + .66, bx.y + .04, .12, .82, 12, 5.5, '#292524', '#44403c');
+          const lockP = RP(L0, bx.x + .5, bx.y + .85, 11);
+          c.fillStyle = '#eab308'; c.strokeStyle = '#713f12'; c.lineWidth = 1;
+          c.beginPath(); c.rect(lockP[0] - 3.5, lockP[1] - 5, 7, 9); c.fill(); c.stroke();
+          ART.ell(c, lockP[0], lockP[1] - 1, 1, 1.5, '#451a03');
+        }
       }
-      // Ornate central brass hasp latch and padlock
-      const lockP = RP(L0, bx.x + .5, bx.y + .85, 11);
-      c.fillStyle = '#eab308'; c.strokeStyle = '#713f12'; c.lineWidth = 1;
-      c.beginPath(); c.rect(lockP[0] - 3.5, lockP[1] - 5, 7, 9); c.fill(); c.stroke();
-      ART.ell(c, lockP[0], lockP[1] - 1, 1, 1.5, '#451a03');
 
       c.font = '11px sans-serif'; c.textAlign = 'center'; c.fillStyle = '#000';
       const pr = prod(S);

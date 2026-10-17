@@ -250,6 +250,89 @@ PANELS.vboard = () => {
   return frameHTML(t('vbTitle'), h + '</div>');
 };
 XACT.vdeliver = v => { actR({ t: 'vdeliver', rid: +v }); renderPanel(true); };
+// v2026-10-17: 보관상자 -- 전투 승리 보상으로 얻은 펫/가구/소품을 담아두는 50슬롯 창고. 마을게시판 바로 옆에 있다.
+// v2026-10-17(2차): 보관된 펫은 발바닥(🐾) 아이콘 대신 실제 펫 그림을 보여줌 (album 사진의 albumPic()과 같은 캔버스->이미지 방식)
+const SPIC = new Map();
+function storagePetPic(p, sz) {
+  const key = 'sp:' + p.sp + ':' + (p.coat || 1) + ':' + sz; if (SPIC.has(key)) return SPIC.get(key);
+  const cv = document.createElement('canvas'); cv.width = sz * 2; cv.height = sz * 2; const c = cv.getContext('2d'); c.scale(2 * sz / 120, 2 * sz / 120);
+  const g = c.createLinearGradient(0, 0, 0, 120); g.addColorStop(0, '#fde3ea'); g.addColorStop(1, '#fbd0dc'); c.fillStyle = g; c.fillRect(0, 0, 120, 120);
+  ART.ell(c, 60, 100, 34, 8, 'rgba(0,0,0,.08)');
+  c.save(); c.translate(60, 96); const k = 2.3 * (.55 + .45 * (p.grow == null ? 1 : p.grow)); c.scale(k, k);
+  const hst = { t: 1.2, seed: p.coat || 1, mood: 'happy' };
+  const pngOk = (typeof PNG_PETS !== 'undefined' && PNG_PETS[p.sp]) && typeof World !== 'undefined' && World.drawPngPet && World.drawPngPet(c, p.sp, hst);
+  if (!pngOk) ART.pet(c, p.sp, hst);
+  c.restore();
+  let url = ''; try { url = cv.toDataURL('image/jpeg', .85); } catch (e) { } SPIC.set(key, url); return url;
+}
+function storageItemView(e) {
+  if (!e) return { icon: '📦', name: '' };
+  if (e.type === 'pet') return { icon: '🐾', img: e.pet ? storagePetPic(e.pet, 80) : '', name: e.pet ? e.pet.name : '' };
+  if (e.type === 'furn') return { icon: STORAGE.furnIcon(e.furnCat, e.furnK), name: STORAGE.furnName(e.furnCat, e.furnK) };
+  if (e.type === 'acc') return { icon: '👕', name: (typeof COSM_DEF !== 'undefined' && COSM_DEF[e.accId] && COSM_DEF[e.accId].name) || e.accId };
+  return { icon: '📦', name: '' };
+}
+function storageDetailHtml(e) {
+  const v = storageItemView(e);
+  let h = `<div class="card" style="text-align:center">${v.img ? `<img src="${v.img}" style="width:64px;height:64px;border-radius:14px;object-fit:cover">` : `<div style="font-size:40px">${v.icon}</div>`}<div class="t">${esc(v.name)}</div>`;
+  if (e.type === 'pet') {
+    const p = e.pet, blv = p.blv || 1;
+    h += `<div class="m">${esc((typeof spName === 'function' ? spName(p.sp) : p.sp) || '')} · ${t(p.sex === 'm' ? 'male' : 'female')} · ⚔️ Lv.${blv}</div>
+    <div class="row" style="gap:8px;margin-top:10px">
+      <button class="btn o sm grow" data-a="storagepettohome" data-v="${e.id}">🏠 ${t('storageSendHome')}</button>
+      <button class="btn o sm grow" data-a="storagepettoshop" data-v="${e.id}">🏪 ${t('storageSendShop')}</button>
+    </div>`;
+  } else if (e.type === 'furn') {
+    h += `<div class="m">${t('storagePlaceQ')}</div>
+    <button class="btn g block" style="margin-top:8px" data-a="storageplacefurn" data-v="${e.id}">${t('storagePlaceBtn')}</button>`;
+  } else if (e.type === 'acc') {
+    h += `<div class="m">${t('storageRegisterQ')}</div>
+    <button class="btn g block" style="margin-top:8px" data-a="storageregisteracc" data-v="${e.id}">${t('storageRegisterBtn')}</button>`;
+  }
+  h += `<button class="btn o block" style="margin-top:8px" data-a="storageback">← ${t('close')}</button></div>`;
+  return h;
+}
+PANELS.storage = () => {
+  const arr = S.storage || [];
+  const sel = App.storageSel ? arr.find(e => e.id === App.storageSel) : null;
+  let h = `<div class="m">${t('storageDesc', { n: arr.length, max: STORAGE_MAX })}</div>`;
+  if (sel) {
+    h += storageDetailHtml(sel);
+  } else {
+    if (!arr.length) h += `<div class="m">${t('storageEmpty')}</div>`;
+    else {
+      h += `<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px">`;
+      for (const e of arr) {
+        const v = storageItemView(e);
+        h += `<button class="tile" data-a="storageopen" data-v="${e.id}" style="padding:6px">${v.img ? `<img src="${v.img}" style="width:32px;height:32px;border-radius:8px;object-fit:cover">` : `<div style="font-size:22px">${v.icon}</div>`}<div class="m" style="font-size:10px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.name)}</div></button>`;
+      }
+      h += `</div>`;
+    }
+  }
+  return frameHTML('📦 ' + t('storageTitle'), h);
+};
+Object.assign(XACT, {
+  storageopen: v => { App.storageSel = v; renderPanel(true); },
+  storageback: () => { App.storageSel = null; renderPanel(true); },
+  storagepettohome: v => { const r = actR({ t: 'storagePetToHome', id: v }); if (r && r.ok) App.storageSel = null; renderPanel(true); },
+  storagepettoshop: v => { const r = actR({ t: 'storagePetToShop', id: v }); if (r && r.ok) App.storageSel = null; renderPanel(true); },
+  storageplacefurn: v => { const r = actR({ t: 'storagePlaceFurn', id: v }); if (r && r.ok) App.storageSel = null; renderPanel(true); },
+  storageregisteracc: v => { const r = actR({ t: 'storageRegisterAcc', id: v }); if (r && r.ok) App.storageSel = null; renderPanel(true); },
+});
+Object.assign(I18N.ko, {
+  storageTitle: '보관상자', storageDesc: '전투에서 얻은 펫과 아이템이 여기 보관돼요 ({n}/{max})', storageEmpty: '아직 보관된 게 없어요',
+  storageSendHome: '집으로 보내기', storageSendShop: '가게로 보내기',
+  storagePlaceQ: '이 가구를 배치하시겠습니까?', storagePlaceBtn: '배치하기',
+  storageRegisterQ: '내 캐릭터 소품으로 등록하시겠습니까?', storageRegisterBtn: '등록하기',
+  storageSentHome: '🏠 집으로 보냈어요', storageSentShop: '🏪 가게로 보냈어요', storageAccOk: '👕 소품으로 등록했어요',
+});
+Object.assign(I18N.ru, {
+  storageTitle: 'Сундук', storageDesc: 'Питомцы и предметы из боёв хранятся здесь ({n}/{max})', storageEmpty: 'Пока здесь пусто',
+  storageSendHome: 'Отправить домой', storageSendShop: 'Отправить в магазин',
+  storagePlaceQ: 'Разместить эту мебель?', storagePlaceBtn: 'Разместить',
+  storageRegisterQ: 'Добавить в аксессуары персонажа?', storageRegisterBtn: 'Добавить',
+  storageSentHome: '🏠 Отправлено домой', storageSentShop: '🏪 Отправлено в магазин', storageAccOk: '👕 Аксессуар добавлен',
+});
 // v9.99: grooming salon panel
 PANELS.salon = () => {
   const sl = SALON.ensure(S), w = sl.q.filter(c => c.ph === 'wait').length, ng = S.pets.filter(p => p && !p.groomed).length;

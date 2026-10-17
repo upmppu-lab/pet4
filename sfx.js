@@ -1,6 +1,26 @@
-// ================= Sound effects (WebAudio synth, no files) =================
+// ================= Sound effects (WebAudio synth) + BGM (audio/bgm.mp3 file) =================
 const SFX = (() => {
-  let ac = null, master = null, noiseBuf = null, bgmOn = true, bgmTimer = null;
+  let ac = null, master = null, noiseBuf = null, bgmOn = true, bgmMode = false, bgmTimer = null, bgmEl = null, battleEl = null;
+  function bgmAudio() {
+    if (!bgmEl) { bgmEl = new Audio('audio/bgm.mp3'); bgmEl.loop = true; bgmEl.volume = .4; bgmEl.preload = 'auto'; }
+    return bgmEl;
+  }
+  function battleAudio() {
+    if (!battleEl) { battleEl = new Audio('audio/battle_bgm.mp3'); battleEl.loop = true; battleEl.volume = .4; battleEl.preload = 'auto'; }
+    return battleEl;
+  }
+  // v1.121: 두 트랙(평소 배경음악 / 전투 배경음악) 중 하나만 재생되도록 함께 관리하는 단일 타이머.
+  // bgmOn: 설정에서 배경음악 자체를 껐는지, bgmMode: 'battle'이면 전투곡, 그 외엔 평소 곡.
+  function bgmTick() {
+    const muted = (window.CFG && CFG.mute) || document.hidden;
+    const nEl = bgmAudio(), bEl = battleAudio();
+    const wantN = bgmOn && bgmMode !== 'battle' && !muted, wantB = bgmOn && bgmMode === 'battle' && !muted;
+    if (wantN && nEl.paused) nEl.play().catch(() => {}); // 브라우저 자동재생 제한 시 unlock()의 다음 제스처에서 재시도됨
+    else if (!wantN && !nEl.paused) nEl.pause();
+    if (wantB && bEl.paused) bEl.play().catch(() => {});
+    else if (!wantB && !bEl.paused) bEl.pause();
+  }
+  function ensureBgmTimer() { if (!bgmTimer) bgmTimer = setInterval(bgmTick, 600); }
   function ctx() {
     if (!ac) {
       try {
@@ -76,18 +96,17 @@ const SFX = (() => {
     tada: () => { [784, 988, 1175, 1568].forEach((f, i) => tone(f, .25, { at: i * .08, type: 'triangle' })); },
     alarm: () => { for (let i = 0; i < 3; i++) tone(880, .12, { type: 'square', vol: .05, at: i * .22 }); },
     bgm(on) {
-      bgmOn = Boolean(on); clearInterval(bgmTimer); bgmTimer = null;
-      if (!on) return;
-      ctx();
-      const notes = [[523, 659, 784], [440, 523, 659], [349, 440, 523], [392, 494, 587]]; let bar = 0, step = 0;
-      bgmTimer = setInterval(() => {
-        if ((window.CFG && CFG.mute) || !bgmOn || document.hidden) return;
-        const c = ctx();
-        if (!c || c.state !== 'running') return;
-        const ch = notes[bar % 4]; tone(ch[step % 3] / 2, .9, { type: 'triangle', vol: .032, att: .05 });
-        if (step % 3 === 0) tone(ch[0] / 4, 1.6, { vol: .038, att: .1 });
-        step++; if (step % 6 === 0) bar++;
-      }, 420);
+      // v1.120: 사용자 제작 mp3(assets/audio/bgm.mp3)를 실제 재생. 더 이상 신스 멜로디 생성 안 함.
+      bgmOn = Boolean(on);
+      if (!on) { bgmAudio().pause(); battleAudio().pause(); return; }
+      ensureBgmTimer();
+      bgmTick();
+    },
+    // v1.121: 전투 화면 진입/종료 시 호출 -- true면 전투곡(audio/battle_bgm.mp3)으로, false면 평소 배경음악으로 전환
+    battleBgm(on) {
+      bgmMode = on ? 'battle' : null;
+      ensureBgmTimer();
+      bgmTick();
     },
   };
 })();

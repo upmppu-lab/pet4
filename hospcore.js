@@ -52,16 +52,17 @@ const HOSP_TX = [
   { id: 'medbath', icon: '🛁', stn: 'medbath', fee: 900, dur: 7 },
   { id: 'incubate', icon: '🌡️', stn: 'incubator', fee: 700, dur: 8 },
   { id: 'rest', icon: '🛏️', stn: 'bed', fee: 300, dur: 8 },
+  { id: 'route', icon: '🗒️', stn: null, fee: 0, dur: 2 }, // v2026-10-17: 진료/치료 한 단계가 끝난 뒤 접수대에서 다음 안내를 받는 가짜 단계
   { id: 'pay', icon: '🧾', stn: null, fee: 0, dur: 3 },
 ];
 const hospTx = id => HOSP_TX.find(x => x.id === id);
 // how long a step really takes for THIS patient: the illness sets how serious it is (a cold is quick, a tumour is not), and every patient adds a random spread (paperwork, a nervous pet, a tricky case)
 const HOSP_SEV = { cold: .7, stomach: .85, wound: 1, skin: 1.1, fracture: 1.5, chill: 1, swallow: 1.9, tumor: 2.2, beak: 1.3 };
-const hospDurK = (p, st) => st === 'reg' ? (p.rv || 1) : st === 'pay' ? (p.pv || 1) : (HOSP_SEV[p.ail] || 1) * ((p.dv || [])[p.k] || 1) * (st === 'exam' ? .9 : 1);
+const hospDurK = (p, st) => st === 'reg' || st === 'route' ? (p.rv || 1) : st === 'pay' ? (p.pv || 1) : (HOSP_SEV[p.ail] || 1) * ((p.dv || [])[p.k] || 1) * (st === 'exam' ? .9 : 1);
 const HOSP_CAPPED = ['bench', 'tbed', 'exam', 'xray', 'ct', 'surgery', 'bed', 'incubator', 'medbath'];
 const HOSP_STN = ['exam', 'tbed', 'xray', 'ct', 'surgery', 'bed', 'incubator', 'medbath'];
 // the step a patient is at: 'reg' before anything, then plan[k], then 'pay'
-const hospStage = p => p.k < 0 ? 'reg' : p.k >= p.plan.length ? 'pay' : p.plan[p.k];
+const hospStage = p => p.k < 0 ? 'reg' : p.k >= p.plan.length ? 'pay' : (p.routing ? 'route' : p.plan[p.k]); // v2026-10-17: 단계 사이에는 접수대로 돌아가 '안내'를 받음
 // patient phases (what the patient is physically doing)
 //   walkin -> deskwait (at the reception, waiting to be served) -> deskserve (talking with the clerk)
 //   bench (sitting in the lobby waiting for a free room) -> toStn (walking there) -> atStn (waiting for the doctor/nurse)
@@ -79,7 +80,7 @@ const HOSP_AIL = [
 ];
 // hospital staff: the reception clerk does the reception + payment, the doctor the exam / X-ray / CT / surgery, the nurse the treatments
 const HOSP_STAFF = [
-  { id: 'recept', icon: '🧾', hire: 600, wage: 50, does: ['reg', 'pay'], col: '#90be6d' },
+  { id: 'recept', icon: '🧾', hire: 600, wage: 50, does: ['reg', 'route', 'pay'], col: '#90be6d' },
   { id: 'doctor', icon: '🩺', hire: 1500, wage: 120, does: ['exam', 'xray', 'ct', 'surgery'], col: '#7ec8e3' },
   { id: 'nurse', icon: '💉', hire: 900, wage: 70, does: ['drip', 'vaccine', 'bandage', 'medbath', 'incubate', 'rest'], col: '#ef8fa8' },
 ];
@@ -95,9 +96,21 @@ function hospSpecOf(hp, m, L) {
   const R = hospStaffRole(m.role); if (!R) return { does: [], k: -1 };
   const same = (hp.staff || []).filter(x => x.role === m.role), k = same.indexOf(m), sp = HOSP_SPEC[m.role];
   if (!sp || same.length < 2 || k < 0) return { does: R.does, k: -1 };
-  const specIdx = k % sp.length;
-  const kinds = new Set(HOSP_TX.filter(x => sp[specIdx].includes(x.id) && x.stn).map(x => x.stn));
-  if (L && !L.stations.some(z => kinds.has(z.k))) return { does: R.does, k: -1 }; // that room isn't there yet
+  // v2026-10-17: 예전엔 반반(k%2)으로만 나눠서 방마다 설비 개수가 다르면 한쪽 방에 인원이 몰렸음(예: 의사 3명 중 2명이 진료실로).
+  // 이제 각 그룹의 실제 설치된 장비(station) 수 대비 배정 인원 비율이 가장 낮은 그룹부터 순서대로 채운다.
+  const capOf = idx => { const kinds0 = new Set(HOSP_TX.filter(x => sp[idx].includes(x.id) && x.stn).map(x => x.stn)); return (L && L.stations) ? L.stations.filter(z => kinds0.has(z.k)).length : 0; };
+  const caps = sp.map((_, i) => capOf(i)), assigned = caps.map(() => 0);
+  let specIdx = 0;
+  for (let i = 0; i <= k; i++) {
+    let best = 0, bestLoad = Infinity;
+    for (let g = 0; g < sp.length; g++) {
+      if (!caps[g]) continue; // 그 방 장비가 아직 없으면 배정하지 않음
+      const load = assigned[g] / caps[g];
+      if (load < bestLoad - 1e-9) { bestLoad = load; best = g; }
+    }
+    specIdx = best; assigned[best]++;
+  }
+  if (!caps[specIdx]) return { does: R.does, k: -1 }; // 어느 그룹도 설비가 없으면 혼자일 때처럼 전부 담당
   return { does: sp[specIdx], k: specIdx };
 }
 const hospStaffHire = (r, n) => Math.round(r.hire * (1 + n * .6) / 10) * 10;
@@ -729,17 +742,21 @@ const HOSP = (() => {
   // which station (by key) a patient at `from` should use for this kind: a free one (nobody reserved it)
   const freeStation = (hp, kind) => hospStations().find(x => x.it.k === kind && x.it.sx != null && !hp.patients.some(q => q.stn === x.key));
   // after a step: register / exam / treatment done -> what next? (walk to the next room, or sit down and wait, or go pay)
-  function nextStep(s, hp, p, L, from) {
-    const st = hospStage(p), desk = L.wait[0] || { x: L.reception.x, y: L.reception.y };
-    if (st === 'pay') { p.ph = 'toDesk'; p.tm = 1 + dist(from || desk, desk) / 2.2; p.stn = null; return; } // walk back to the reception to pay
-    p.ph = 'bench'; p.qt = hp.clock; p.stn = null; // sit on a lobby bench (the loop in tick() hands out free rooms in queue order)
+  // v2026-10-17: 진료/치료 한 단계가 끝날 때마다 먼저 접수대로 돌아가 안내를 받고(route), 그 다음에야 다음 방을 기다린다.
+  // atDesk=true는 '방금 접수(reg)를 마친 직후'뿐 -- 그때는 이미 접수대 앞이라 다시 걸어갈 필요 없이 바로 첫 방 대기열로 보낸다.
+  function nextStep(s, hp, p, L, from, atDesk) {
+    if (atDesk) { p.ph = 'bench'; p.qt = hp.clock; p.stn = null; return; }
+    const desk = L.wait[0] || { x: L.reception.x, y: L.reception.y };
+    p.routing = p.k < p.plan.length; // 더 할 단계가 남아있으면 '안내' 단계, 다 끝났으면 '수납' 단계
+    p.ph = 'toDesk'; p.tm = 1 + dist(from || desk, desk) / 2.2; p.stn = null;
   }
   const stationPos = (L, key) => { const x = L.stations.find(q => String(q.id) === key); return x ? { x: x.sx, y: x.sy } : L.wait[0] || { x: L.reception.x, y: L.reception.y }; };
   function finishStage(s, hp, p, L) {
     const st = hospStage(p), tx = hospTx(st);
     if (st === 'pay') { const c = Math.round(p.bill); s.coins += c; H.addXp(s, 4); p.paid = c; p.ph = 'leaving'; p.tm = 120; p.stn = null; hp.treated++; if (typeof TOWN !== 'undefined') TOWN.mood(s, .6); if (H.addRep) H.addRep(s, 1); return; }
+    if (st === 'route') { p.routing = false; p.ph = 'bench'; p.qt = hp.clock; p.stn = null; return; } // 접수대 안내가 끝남 -> 다음 방 배정 대기열로
     p.bill += st === 'reg' ? hospTxFee(tx, 1) : hospTxFee(tx, tx.mini ? p.q : 1); H.addXp(s, tx.mini ? 8 : 3);
-    const from = p.stn ? stationPos(L, p.stn) : null; p.k++; p.stn = null; nextStep(s, hp, p, L, from);
+    const from = p.stn ? stationPos(L, p.stn) : null; p.k++; p.stn = null; nextStep(s, hp, p, L, from, st === 'reg');
   }
   function tick(s, dt) {
     const hp = ensure(s); if (!hp.built) return;
@@ -786,7 +803,7 @@ const HOSP = (() => {
     if (p.ph !== 'deskwait' && p.ph !== 'atStn') return false;
     const st = hospStage(p), tx = hospTx(st);
     p.by = by; p.q = tx.mini ? Math.max(.7, Math.min(1.5, +q || 1)) : 1;
-    p.ph = st === 'reg' || st === 'pay' ? 'deskserve' : 'treat'; p.tdur = Math.round(tx.dur * hospDurK(p, st) * 10) / 10; p.tm = p.tdur;
+    p.ph = (st === 'reg' || st === 'pay' || st === 'route') ? 'deskserve' : 'treat'; p.tdur = Math.round(tx.dur * hospDurK(p, st) * 10) / 10; p.tm = p.tdur;
     return true;
   }
   const stageReady = p => p.ph === 'deskwait' || p.ph === 'atStn';
@@ -797,7 +814,12 @@ const HOSP = (() => {
       if (m.t > 0) continue;
       const role = hospStaffRole(m.role); if (!role) continue;
       const sp = hospSpecOf(hp, m, L), ready = x => (x.ph === 'deskwait' || x.ph === 'atStn') && role.does.includes(hospStage(x));
-      const p = hp.patients.find(x => ready(x) && sp.does.includes(hospStage(x)) && (x.wt || 0) >= 2) || hp.patients.find(x => ready(x) && (x.wt || 0) >= 7); // own room first; helps the colleague when a patient has waited long
+      // v2026-10-17: 예전엔 배열 순서상 '처음 맞는 사람'을 집었는데, 그게 꼭 가장 오래 기다린 사람은 아니었음(접수 직원이 노는 것처럼 보이던 원인 중 하나).
+      // 이제 자기 담당(own room)이든 돕는 것(any)이든, 그 안에서는 항상 가장 오래 기다린 환자부터 처리한다.
+      const pickLongest = arr => arr.reduce((a, b) => (!a || (b.wt || 0) > (a.wt || 0)) ? b : a, null);
+      const own = hp.patients.filter(x => ready(x) && sp.does.includes(hospStage(x)) && (x.wt || 0) >= 2);
+      const any = hp.patients.filter(x => ready(x) && (x.wt || 0) >= 7); // own room first; helps the colleague when a patient has waited long
+      const p = pickLongest(own) || pickLongest(any);
       if (p) { serve(s, hp, p, 'm' + m.id, 1); m.pid = p.id; m.tt = p.tdur; m.done = (m.done | 0) + 1; m.t = Math.max(0, (HOSP_STAFF_DUR[m.lv] || 6) - p.tdur); }
       else m.t = .8;
     }

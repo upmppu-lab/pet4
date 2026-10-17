@@ -1220,6 +1220,7 @@ if (s.book) {
     { const tr = TOWN.apply(s, a, by); if (tr !== undefined) return tr; } // v9.99: follower pet, fishing // v9.97: avenue, lake, monument, notice board
     { if (typeof BATTLE !== 'undefined' && BATTLE.apply) { const brr = BATTLE.apply(s, a, by); if (brr !== undefined) return brr; } } // v2026-10-15: pet battle actions
     { const xr = EXTRA.apply(s, a, by); if (xr !== undefined) return xr; }
+    { if (typeof STORAGE !== 'undefined' && STORAGE.apply) { const str = STORAGE.apply(s, a, by); if (str !== undefined) return str; } } // v2026-10-17: 보관상자
     if (by !== 'staff' && ['feed', 'clean', 'play', 'pat', 'care', 'checkout', 'sell', 'groom', 'cleanmess', 'trick', 'restock'].includes(a.t)) EXTRA.onCoopAction(s, by);
     switch (a.t) {
       case 'feed': {
@@ -1718,6 +1719,13 @@ if (s.book) {
         if (!freeSpot(s, d.id)) return { err: 'noRoom' };
         s.coins -= dcost; s.decor[d.id] = (+s.decor[d.id] || 0) + 1; addXp(s, s.decor[d.id] > 1 ? 2 : 10);
         if (!a.direct) { s.parcels.push({ id: s.seq++, what: 'decor', did: d.id, left: DELIVERY.secs }); return { ok: 1, fx: 'coin', msg: 'ordered2', p: { t: DELIVERY.secs } }; }
+        const nit = addItem(s, d.id);
+        ev(s, { k: 'upgrade', by, item: 'd_' + d.id }); return { ok: 1, fx: 'coin', place: nit && nit.id };
+      }
+      case 'decorPlaceFree': { // v2026-10-17: 보관상자에서 전투 보상으로 받은 가구를 코인 없이 배치
+        const d = DECOR.find(x => x.id === a.id); if (!d) return { err: 'gone' };
+        if (!freeSpot(s, d.id)) return { err: 'noRoom' };
+        s.decor[d.id] = (+s.decor[d.id] || 0) + 1;
         const nit = addItem(s, d.id);
         ev(s, { k: 'upgrade', by, item: 'd_' + d.id }); return { ok: 1, fx: 'coin', place: nit && nit.id };
       }
