@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -7,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.use(compression());
 const PORT = process.env.PORT || 3000;
 const assetsDir = path.join(__dirname, 'assets');
 const RAW_BASE = 'https://raw.githubusercontent.com/upmppu-lab/pet4-assets/main';
@@ -174,6 +176,13 @@ app.use((req, res, next) => {
   next();
 });
 
+// Serve audio files with caching and range request support
+app.use('/audio', express.static(path.join(__dirname, 'audio'), {
+  maxAge: '7d',
+  immutable: true,
+  acceptRanges: true
+}));
+
 // Prevent client / iframe caching of application scripts and markup
 app.use((req, res, next) => {
   const p = req.path;
@@ -183,10 +192,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// Serve static files from root and assets directory
-app.use(express.static(assetsDir));
-app.use('/assets', express.static(assetsDir));
-app.use(express.static(__dirname));
+// Serve static files from root and assets directory with image caching
+const staticOpts = { maxAge: '1d' };
+app.use(express.static(assetsDir, staticOpts));
+app.use('/assets', express.static(assetsDir, staticOpts));
+app.use(express.static(__dirname, staticOpts));
 
 // Route navigation requests to index.html, 404 for missing static assets
 app.get('*', (req, res) => {
