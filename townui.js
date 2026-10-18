@@ -8,24 +8,35 @@ const TOWNUI = (() => {
     if (!S || !S.clock) return { icon: '☀️', name: '맑음', time: '12:00', weatherIcon: '☀️', weatherName: '쾌청' };
     const m = S.clock.m || 720, day = S.clock.day || 1, hh = Math.floor(m / 60), mm = Math.floor(m % 60);
     const timeStr = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+    const isRu = (typeof CFG !== 'undefined' && CFG.lang === 'ru');
+    const raining = (typeof TOWN !== 'undefined' && TOWN.isRaining) ? TOWN.isRaining(S) : false;
+    if (raining) {
+      return {
+        icon: '🌧️',
+        name: isRu ? 'Дождливый день' : '단비 내리는 마을',
+        time: timeStr,
+        weatherIcon: '🌧️',
+        weatherName: isRu ? 'Дождь' : '비'
+      };
+    }
     // Sky phase by hour: sun, sunset, crescent moon, full moon, stars
     let icon = '☀️', name = '맑음';
     if (m >= 5 * 60 && m < 7 * 60 + 30) {
-      icon = '🌅'; name = (typeof CFG !== 'undefined' && CFG.lang === 'ru') ? 'Рассвет' : '아침 여명';
+      icon = '🌅'; name = isRu ? 'Рассвет' : '아침 여명';
     } else if (m >= 7 * 60 + 30 && m < 11 * 60) {
-      icon = '☀️'; name = (typeof CFG !== 'undefined' && CFG.lang === 'ru') ? 'Утро' : '따사로운 아침';
+      icon = '☀️'; name = isRu ? 'Утро' : '따사로운 아침';
     } else if (m >= 11 * 60 && m < 15 * 60 + 30) {
-      icon = '🌤️'; name = (typeof CFG !== 'undefined' && CFG.lang === 'ru') ? 'Полдень' : '맑은 낮';
+      icon = '🌤️'; name = isRu ? 'Полдень' : '맑은 낮';
     } else if (m >= 15 * 60 + 30 && m < 17 * 60 + 30) {
-      icon = '⛅'; name = (typeof CFG !== 'undefined' && CFG.lang === 'ru') ? 'День' : '포근한 오후';
+      icon = '⛅'; name = isRu ? 'День' : '포근한 오후';
     } else if (m >= 17 * 60 + 30 && m < 19 * 60 + 30) {
-      icon = '🌇'; name = (typeof CFG !== 'undefined' && CFG.lang === 'ru') ? 'Закат' : '노을빛 저녁';
+      icon = '🌇'; name = isRu ? 'Закат' : '노을빛 저녁';
     } else if (m >= 19 * 60 + 30 && m < 22 * 60) {
-      icon = '🌙'; name = (typeof CFG !== 'undefined' && CFG.lang === 'ru') ? 'Сумерки' : '초승달 밤';
+      icon = '🌙'; name = isRu ? 'Сумерки' : '초승달 밤';
     } else if (m >= 22 * 60 || m < 2 * 60) {
-      icon = '🌔'; name = (typeof CFG !== 'undefined' && CFG.lang === 'ru') ? 'Полнолуние' : '달 밝은 밤';
+      icon = '🌔'; name = isRu ? 'Полнолуние' : '달 밝은 밤';
     } else {
-      icon = '🌟'; name = (typeof CFG !== 'undefined' && CFG.lang === 'ru') ? 'Звёздная ночь' : '반짝이는 새벽별';
+      icon = '🌟'; name = isRu ? 'Звёздная ночь' : '반짝이는 새벽별';
     }
     const weathers = [
       { ic: '☀️', ko: '쾌청', ru: 'Ясно' },
@@ -37,12 +48,40 @@ const TOWNUI = (() => {
       { ic: '⛅', ko: '구름조금', ru: 'Облачно' }
     ];
     const wth = weathers[day % weathers.length];
-    return { icon, name, weatherIcon: wth.ic, weatherName: (typeof CFG !== 'undefined' && CFG.lang === 'ru') ? wth.ru : wth.ko };
+    return { icon, name, weatherIcon: wth.ic, weatherName: isRu ? wth.ru : wth.ko };
   }
 
   // Helper: Pixel-art Landscape Sky Window (matching User Reference Image with mountains, river, and rising/setting sun & moon)
   function skyLandscapeSvg(m, day) {
     const w = 38, h = 28;
+    const raining = (typeof TOWN !== 'undefined' && TOWN.isRaining && typeof S !== 'undefined') ? TOWN.isRaining(S) : false;
+    if (raining) {
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="sky-pixel-frame">
+        <defs>
+          <linearGradient id="sk_rain" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#334155"/><stop offset="55%" stop-color="#475569"/><stop offset="100%" stop-color="#64748b"/></linearGradient>
+        </defs>
+        <rect width="${w}" height="${h}" rx="6" fill="url(#sk_rain)"/>
+        <!-- Soft Rainy Clouds -->
+        <ellipse cx="11" cy="7" rx="6.5" ry="3.5" fill="#1e293b" opacity="0.9"/>
+        <ellipse cx="23" cy="6" rx="8" ry="4" fill="#334155" opacity="0.95"/>
+        <ellipse cx="32" cy="8" rx="6" ry="3.2" fill="#1e293b" opacity="0.85"/>
+        <!-- Distant Misty Blue Mountains -->
+        <polygon points="0,19 8,16 14,18 19,20 24,18 30,16 38,19 38,28 0,28" fill="#1e293b"/>
+        <!-- River with raindrops -->
+        <polygon points="19,20 17,28 22,28 20,20" fill="#60a5fa" opacity="0.8"/>
+        <!-- Near Foothills -->
+        <polygon points="0,22 6,20 12,23 18,22 18,28 0,28" fill="#0f172a"/>
+        <polygon points="38,22 32,20 26,23 20,22 20,28 38,28" fill="#0f172a"/>
+        <!-- Pixel Rain Streaks -->
+        <line x1="8" y1="11" x2="6" y2="17" stroke="#93c5fd" stroke-width="0.8" opacity="0.75"/>
+        <line x1="16" y1="10" x2="14" y2="16" stroke="#bfdbfe" stroke-width="0.8" opacity="0.85"/>
+        <line x1="25" y1="12" x2="23" y2="18" stroke="#93c5fd" stroke-width="0.8" opacity="0.75"/>
+        <line x1="33" y1="11" x2="31" y2="17" stroke="#bfdbfe" stroke-width="0.8" opacity="0.85"/>
+        <line x1="12" y1="18" x2="10" y2="24" stroke="#93c5fd" stroke-width="0.8" opacity="0.7"/>
+        <line x1="28" y1="19" x2="26" y2="25" stroke="#93c5fd" stroke-width="0.8" opacity="0.7"/>
+        <rect width="${w}" height="${h}" rx="6" fill="none" stroke="#262626" stroke-width="1.6"/>
+      </svg>`;
+    }
     // 1. SUNSET (17:30 ~ 19:30)
     if (m >= 17 * 60 + 30 && m < 19 * 60 + 30) {
       return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="sky-pixel-frame">

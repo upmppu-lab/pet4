@@ -7535,10 +7535,33 @@ function getFlowerSprite(kind) {
     }
     return undefined;
   }
+
+  // Weather & Rain helper for Pet Town (User Request: occasional rain in town without lag)
+  function isRaining(s) {
+    if (!s || !s.clock) return false;
+    const day = s.clock.day || 1;
+    const m = (s.clock.m != null) ? s.clock.m : 720;
+    const b = s.village && s.village.board;
+    const w = (b && b.weather);
+
+    // 1. Full rainy day according to town village notice board:
+    if (w === 'rain') {
+      return (m >= 6 * 60 && m <= 22 * 60);
+    }
+    // 2. Occasional passing rain showers (가끔씩 내리는 소나기 / 단비):
+    if (w === 'cloud') {
+      if (day % 2 === 0 && ((m >= 8 * 60 + 30 && m <= 9 * 60 + 45) || (m >= 14 * 60 && m <= 15 * 60 + 30))) return true;
+    } else {
+      if (day % 2 === 1 && (m >= 13 * 60 + 30 && m <= 15 * 60)) return true;
+      if (day % 2 === 0 && (m >= 8 * 60 + 30 && m <= 9 * 60 + 45)) return true;
+    }
+    return false;
+  }
+
   return { houses, drawHouse, houseSolid, followStep, drawFollower, apply, FISH, FISH_MAX,
     roadSet, roadNearShop, drawPlayerRoads, roadLine, drawRoadTool, ROAD_COST, ROAD_TYPES, pathRects, maxR, rotPt, ground, collect, zonesOf, laneOf, zoneAt, zoneCost, zoneLots, villagerStep, lvOf, capOf, upNeed, upCost, upLevel, canUp, LV_MAX, pow, has, inBig, bigBuilt, ensure, stats, tick, custK, maxAdd, spendK, bestPop, mood, pickHome, doorOf, canPlace, fpOf, kindCost, unlockedK, drawObj, depthOf, drawGhost, stageOf, pop, cap, countOf, occFrac, nearFree, fitShop, clearBuildingOverlaps, resolveBuildingOverlaps, hasAnyBuildingOverlap, trainZones, overlapsTrain, relocateBuildingsOffTracks, syncResidents, pickResidentOf, residentById, residentsOf, addressOf, residentStatus, grantResidentPetExp, rebalanceResidentPets, RESIDENT_PET_MAX, addPetToResident,
     tierOf, houseCapOf, houseNextReq, houseUpOk, HOUSE_TIER_MAX, HOUSE_TIERS, HOUSE_TIER_NAMES, houseTierName, houseTierBuyCost, nextHouseSlotLevel, canPlaceNewHouse, getTownHouseImg,
-    isRoadTile, isCrosswalk, getCrosswalkRows, isRailCrossing, getRailCrossingRows, isRailCrossingTile, drawRailCrossings, facilityEntrances, isEntranceConnected, isFacilityAccessible, isHouseAccessible, drawCrosswalks,
+    isRoadTile, isCrosswalk, getCrosswalkRows, isRailCrossing, getRailCrossingRows, isRailCrossingTile, drawRailCrossings, facilityEntrances, isEntranceConnected, isFacilityAccessible, isHouseAccessible, drawCrosswalks, isRaining,
     DEF: TOWN_DEF,
     objs: () => (typeof S !== 'undefined' && S && S.town && S.town.objs) || [] };
 })();

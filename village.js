@@ -615,7 +615,7 @@ const VILLAGE = (() => {
     r.b = cnt(s, r); r.who = 1 + rnd(12); r.done = false; return r;
   }
   function newDay(s, day) {
-    const v = s.village = s.village || {}, sn = season(day), W = [['sun', 'cloud', 'sun', 'blossom'], ['sun', 'sun', 'rain', 'hot'], ['cloud', 'rain', 'leaf', 'sun'], ['snow', 'snow', 'cloud', 'sun']][sn];
+    const v = s.village = s.village || {}, sn = season(day), W = [['sun', 'cloud', 'rain', 'blossom'], ['sun', 'sun', 'rain', 'hot'], ['cloud', 'rain', 'leaf', 'sun'], ['snow', 'snow', 'cloud', 'rain']][sn];
     const rnd = n => Math.floor(Math.random() * n), old = v.board && v.board.v === 5 ? v.board : null;
     // keep yesterday's unfinished requests one more day (farm requests only while there is a farm)
     const keep = old ? old.reqs.filter(r => !r.done && r.day === day - 1 && (r.t !== 'item' || farmOn(s))) : [];
