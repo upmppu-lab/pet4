@@ -111,17 +111,7 @@ const ART = (() => {
     // dir: 0 = front (facing viewer), 1 = back
     const bob = moving ? Math.abs(Math.sin(t * 10)) * 2 : Math.sin(t * 2) * .6;
     const leg = moving ? Math.sin(t * 10) * 3.2 : 0;
-    const topLevel = HUMAN_SIL_DEPTH === 0;
-    // v2026-10-17: 동그란 타원 대신 이 캐릭터의 실제 실루엣(옷/머리/포즈별로 캐싱)을 납작하게 눌러서 그림자로 찍는다
-    if (topLevel && !shadowYOff) {
-      const key = 'ahum:' + JSON.stringify(o) + ':' + dir + ':' + (moving ? 1 : 0) + ':' + SIT.toFixed(2);
-      castShadow(c, key, 300, 300, 150, 190, g => {
-        HUMAN_SIL_DEPTH++; const prevSilenced = SHADOW_SILENCED; SHADOW_SILENCED = true;
-        try { human(g, o, dir, 0, moving, mood, mood2, mood3, shadowYOff); } finally { HUMAN_SIL_DEPTH--; SHADOW_SILENCED = prevSilenced; }
-      }, { squash: .3, alpha: .26 });
-    } else {
-      shadow(c, 0, 0, 14, 5.8);
-    }
+    shadow(c, 0, 0, 14, 5.8);
     c.save(); c.translate(0, -bob);
     // legs
     const pants = o.pants;
@@ -587,15 +577,7 @@ const ART = (() => {
     const st = Object.assign({}, st0);
     st.mood = st.sleep ? 'sleep' : st.happy ? 'happy' : (st.mood || 'calm');
     st.blink = !st.sleep && ((t + ((lk.seed || 7) % 97) * .37) % 3.4) < .14;
-    const topLevel = PET_SIL_DEPTH === 0;
-    // v2026-10-17: 동그란 타원 대신 이 펫의 실제 실루엣(종/개체/포즈별로 캐싱)을 납작하게 눌러서 그림자로 찍는다
-    if (topLevel) {
-      const key = 'pet:' + sp + ':' + (lk.seed || 7) + ':' + (st0.moving ? 'm' : '') + (st0.sleep ? 'z' : '') + (st0.happy ? 'h' : '') + ':' + (st0.dir || 1) + ':' + (st0.size || 1);
-      castShadow(c, key, 260, 260, 130, 170, g => {
-        PET_SIL_DEPTH++; const prevSilenced = SHADOW_SILENCED; SHADOW_SILENCED = true;
-        try { pet(g, sp, Object.assign({}, st0, { t: 0 })); } finally { PET_SIL_DEPTH--; SHADOW_SILENCED = prevSilenced; }
-      }, { squash: .32, alpha: .3 });
-    }
+    shadow(c, 0, 0, 12, 5);
     c.save(); c.scale(st.dir || 1, 1);
     const bob = st.moving ? Math.abs(Math.sin(t * 12)) * 2.2 : st.sleep ? Math.sin(t * 1.5) * .8 : st.mood === 'scared' ? Math.sin(t * 40) * .5 : Math.sin(t * 2.5) * .7;
     const sc = (lk.small ? .8 : 1) * (lk.sz || 1);

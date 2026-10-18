@@ -4034,17 +4034,15 @@ function getFlowerSprite(kind) {
     HS = hs || null;
   }
   function frameOff() { ROT = null; MR = null; HS = null; }
-  function drawHouse(c, h, T) {
+  function drawHouse(c, h, T, ghost) {
     // 5x5 부지 전용 정밀 렌더링: 회전(r) 시에도 위치가 전혀 이동하지 않고
     // 부지 중심(cx, cy)에서 제자리 회전하며, 3x3 칸을 차지하도록 알맞게 확대됨
-    drawHouse_(c, h, T);
+    drawHouse_(c, h, T, ghost);
   }
 
-  // ================= v2026-10-08: 집 크기 3x3 중앙 차지 + 제자리 방향 전환 (나무 제거) =================
-  function drawHouse_(c, h, T) {
+  // 1. 마당 잔디 및 진입로, 기초 바닥 (ground 패스에서 미리 그려지므로 ghost 모드가 아닐 때는 중복 렌더링 생략하여 주민 가림 방지)
+  function drawHouseGround(c, h) {
     const cx = h.x + 2.5, cy = h.y + 2.5;
-    const r = ((h.r || 0) % 2 + 2) % 2; // 0: 남서향(기본), 1: 남동향(반전)
-
     // 1. 마당 잔디 (5x5 부지 전체를 감싸는 부드러운 초록 잔디밭)
     poly(c, [
       [ISO.wx(h.x + .15, h.y + .15), ISO.wy(h.x + .15, h.y + .15)],
@@ -4053,9 +4051,9 @@ function getFlowerSprite(kind) {
       [ISO.wx(h.x + .15, h.y + 4.85), ISO.wy(h.x + .15, h.y + 4.85)]
     ], 'rgba(125,190,75,.42)');
 
-    // 1-1. 집 입구 방향에 맞춰 마당 진입로 흙길 타일 렌더링 (플레이어가 그 위에 도로를 깔지 않은 경우에만 기본 흙길 표시)
+    // 1-1. 집 입구 방향에 맞춰 마당 진입로 흙길 타일 렌더링
     const curDoor = (((h.doorDir != null ? h.doorDir : ((h.o && h.o.doorDir != null) ? h.o.doorDir : h.r)) || 0) % 4 + 4) % 4;
-    const R_house = roadSet(T && T.s ? T.s : (typeof S !== 'undefined' ? S : null));
+    const R_house = roadSet(typeof S !== 'undefined' ? S : null);
     const drawHouseEnt = (tx, ty) => {
       if (!R_house.has(tx + ',' + ty)) drawRoadTile(tx, ty, 'dirt', c);
     };
@@ -4071,6 +4069,16 @@ function getFlowerSprite(kind) {
       [ISO.wx(cx + 1.5, cy + 1.5), ISO.wy(cx + 1.5, cy + 1.5)],
       [ISO.wx(cx - 1.5, cy + 1.5), ISO.wy(cx - 1.5, cy + 1.5)]
     ], 'rgba(105,160,60,.30)');
+  }
+
+  // ================= v2026-10-08: 집 크기 3x3 중앙 차지 + 제자리 방향 전환 (나무 제거) =================
+  function drawHouse_(c, h, T, ghost) {
+    const cx = h.x + 2.5, cy = h.y + 2.5;
+    const r = ((h.r || 0) % 2 + 2) % 2; // 0: 남서향(기본), 1: 남동향(반전)
+
+    if (ghost) {
+      drawHouseGround(c, h);
+    }
 
     const tier = Math.min(HOUSE_TIER_MAX, Math.max(1, (h.tier != null ? h.tier : ((h.o && h.o.tier != null) ? h.o.tier : (tierOf(h) || 1)))));
     const img = getTownHouseImg(tier);
@@ -4658,7 +4666,14 @@ function getFlowerSprite(kind) {
     }
   }
   // ---------------- stage 3: shops & public buildings ----------------
-  function drawCivic(c, o, T) { frameOn(o, D[o.k].w, D[o.k].d); try { civic_(c, o, T); } finally { frameOff(); } }
+  function drawCivicGround(c, o) {
+    const d = D[o.k]; if (!d) return;
+    const x = o.x, y = o.y, w = d.w, dd = d.d;
+    poly(c, [Q(x + .1, y + .1), Q(x + w - .1, y + .1), Q(x + w - .1, y + dd - .1), Q(x + .1, y + dd - .1)], d.open ? 'rgba(120,180,80,.25)' : 'rgba(210,198,168,.5)');
+    const bx = x + .3, by = y + .25, bw = w - .6, bd = dd - .95;
+    poly(c, [Q(bx + bw / 2 - .3, by + bd), Q(bx + bw / 2 + .3, by + bd), Q(bx + bw / 2 + .3, y + dd - .05), Q(bx + bw / 2 - .3, y + dd - .05)], '#e3d6bc');
+  }
+  function drawCivic(c, o, T, ghost) { frameOn(o, D[o.k].w, D[o.k].d); try { civic_(c, o, T, ghost); } finally { frameOff(); } }
   function signBoard(c, x, y, z, ic, txt) {
     if (ROT) { const R = ROT; ROT = null; try { signBoard(c, 2 * R.ox + R.W - x, R.oy + R.D - .3, z, ic, txt); } finally { ROT = R; } return; } // turned: the name sign hangs on the back wall we see
     const q = Q(x, y, z); c.font = 'bold 7px sans-serif'; const tw = Math.max(18, c.measureText(txt).width + 16);
