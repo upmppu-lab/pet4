@@ -827,10 +827,13 @@ function clearThumbCache() {
       const totalCost = pendingCount * curRt.cost;
       const roadName = rd.erase ? (t('tRoadEraseCard') || '길 철거') : (curRt.name || t('road_' + curRt.id) || curRt.id);
       return `<div class="editbar tplacebar road-palette-bar">
-        <div class="road-bot-row">
-          <button type="button" class="btn b sm road-back-btn" data-a="troadback" style="display:inline-flex;align-items:center;gap:4px;font-weight:900;padding:5px 10px;background:#3b82f6;border:1.5px solid #60a5fa;color:#ffffff;border-radius:10px;cursor:pointer;flex-shrink:0;" title="다른 길 선택창으로 돌아가기">
+        <div class="road-top-row">
+          <button type="button" class="btn b sm road-back-btn" data-a="troadback" title="다른 길 선택창으로 돌아가기">
             ◀ 뒤로가기
           </button>
+          <button type="button" class="road-x-btn" data-a="troadclose" title="닫기">✕</button>
+        </div>
+        <div class="road-bot-row">
           <div class="grow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:#ffffff;">
             <span>${rd.erase ? '🧽' : curRt.ic} <b>${roadName}</b>
               <span class="m" style="color:rgba(255,255,255,0.85);">· ${pendingCount > 0 ? (rd.erase ? `선택 <b>${pendingCount}칸</b> (완료 시 철거)` : `선택 <b>${pendingCount}칸</b> 🪙${fmt(totalCost)}`) : '화면을 손가락으로 드래그하여 길을 그으세요'}</span>
@@ -846,13 +849,14 @@ function clearThumbCache() {
             </div>
             ` : ''}
           </div>
-          <button class="btn ${rd.erase ? '' : 'g'} sm" data-a="troadpave">🛤️ ${t('tRoadPave') || '깔기'}</button>
-          <button class="btn ${rd.erase ? 'r' : ''} sm" data-a="troaderase">🧽 ${t('tRoadErase') || '지우기'}</button>
+          ${rd.erase ?
+            `<button class="btn g sm" data-a="troadpave">🛤️ ${t('tRoadPave') || '깔기'}</button>` :
+            `<button class="btn sm" data-a="troaderase" style="background:linear-gradient(180deg,#fbf4e6 0%,#e8d4b3 45%,#d4bd98 50%,#ad966e 100%);color:var(--ink);border-color:#fff;">🧽 ${t('tRoadErase') || '지우기'}</button>`
+          }
           ${pendingCount > 0 ? `<button class="btn sm o" data-a="troadclear">✖ 취소</button>` : ''}
           <button class="btn sm ${pendingCount > 0 ? (rd.erase ? 'r' : 'g') : 'g'}" data-a="troaddone" style="font-weight:900;">
             ${pendingCount > 0 ? (rd.erase ? `✓ 철거 완료 (${pendingCount}칸)` : `✓ 깔기 완료 (${pendingCount}칸)`) : `✓ ${t('done') || '완료'}`}
           </button>
-          <button type="button" class="btn r sm" data-a="troadclose" title="닫기" style="font-weight:900;padding:5px 8px;margin-left:2px;">✕</button>
         </div>
       </div>`;
     }
