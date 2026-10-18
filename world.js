@@ -4464,6 +4464,7 @@ return true;
       }
     }
   }
+  let roadDragState = null;
   function grabAt(e) {
     const { gx, gy } = gridAt(e);
     if (App.tplace && typeof TOWN !== 'undefined') {
@@ -4495,7 +4496,16 @@ return true;
         if (g) {
           g.sx = e.clientX; g.sy = e.clientY; g.on = false; gdrag = g;
           if (g.m === 'road' && App.troad) {
-            const { gx, gy } = gridAt(e);
+            const r = getCvRect();
+            const flt = toGrid(e.clientX - r.left, e.clientY - r.top);
+            const gx = Math.floor(flt.x), gy = Math.floor(flt.y);
+            roadDragState = {
+              anchorGx: gx,
+              anchorGy: gy,
+              lastGx: gx,
+              lastGy: gy,
+              axis: null
+            };
             addRoadTiles([[gx, gy]]);
             App.troad.lastTile = { gx, gy };
             App.troad.hover = { x: gx, y: gy };
@@ -4554,15 +4564,105 @@ return true;
     const g = gdrag;
     if (g.m === 'road') {
       if (App.troad) {
-        const { gx, gy } = gridAt(e);
-        App.troad.hover = { x: gx, y: gy };
-        if (App.troad.lastTile) {
-          const pts = roadGridLine(App.troad.lastTile.gx, App.troad.lastTile.gy, gx, gy);
-          addRoadTiles(pts);
-        } else {
-          addRoadTiles([[gx, gy]]);
+        const r = getCvRect();
+        const flt = toGrid(e.clientX - r.left, e.clientY - r.top);
+        const rawGx = Math.floor(flt.x);
+        const rawGy = Math.floor(flt.y);
+
+        if (!roadDragState) {
+          roadDragState = {
+            anchorGx: rawGx,
+            anchorGy: rawGy,
+            lastGx: rawGx,
+            lastGy: rawGy,
+            axis: null
+          };
+          addRoadTiles([[rawGx, rawGy]]);
+          App.troad.lastTile = { gx: rawGx, gy: rawGy };
+          App.troad.hover = { x: rawGx, y: rawGy };
+          typeof render === 'function' && render();
+          return;
         }
-        App.troad.lastTile = { gx, gy };
+
+        const dx = flt.x - (roadDragState.anchorGx + 0.5);
+        const dy = flt.y - (roadDragState.anchorGy + 0.5);
+        const absDx = Math.abs(dx);
+        const absDy = Math.abs(dy);
+
+        // 1. 초기 드래그 방향(축) 감지: 앵커에서 0.45타일 이상 이동 시 X축 또는 Y축으로 방향 고정
+        if (!roadDragState.axis) {
+          if (absDx >= 0.45 || absDy >= 0.45) {
+            roadDragState.axis = absDx >= absDy ? 'x' : 'y';
+          }
+        }
+
+        let targetGx = roadDragState.lastGx;
+        let targetGy = roadDragState.lastGy;
+
+        if (roadDragState.axis === 'x') {
+          // X축(가로) 드래그 진행 중: 현재 행(anchorGy) 중심으로부터의 수직 이탈 거리 측정
+          const devY = Math.abs(flt.y - (roadDragState.anchorGy + 0.5));
+          const cornerDistY = Math.abs(flt.y - (roadDragState.lastGy + 0.5));
+          
+          // 의도적인 90도 코너 회전 판정: 1.25타일 이상 수직 이동 + Y이동 우세일 때만 코너 꺾기 허용
+          if (devY >= 1.25 && cornerDistY >= 1.0 && absDy > absDx * 0.75) {
+            roadDragState.anchorGx = roadDragState.lastGx;
+            roadDragState.anchorGy = roadDragState.anchorGy;
+            roadDragState.axis = 'y';
+            targetGx = roadDragState.anchorGx;
+            targetGy = rawGy;
+          } else {
+            // 미세한 손가락 떨림/수직 이탈을 완전히 무시하고 같은 행(한 줄)으로 고정
+            targetGx = rawGx;
+            targetGy = roadDragState.anchorGy;
+          }
+        } else if (roadDragState.axis === 'y') {
+          // Y축(세로) 드래그 진행 중: 현재 열(anchorGx) 중심으로부터의 수평 이탈 거리 측정
+          const devX = Math.abs(flt.x - (roadDragState.anchorGx + 0.5));
+          const cornerDistX = Math.abs(flt.x - (roadDragState.lastGx + 0.5));
+
+          // 의도적인 90도 코너 회전 판정: 1.25타일 이상 수평 이동 + X이동 우세일 때만 코너 꺾기 허용
+          if (devX >= 1.25 && cornerDistX >= 1.0 && absDx > absDy * 0.75) {
+            roadDragState.anchorGy = roadDragState.lastGy;
+            roadDragState.anchorGx = roadDragState.anchorGx;
+            roadDragState.axis = 'x';
+            targetGy = roadDragState.anchorGy;
+            targetGx = rawGx;
+          } else {
+            // 미세한 손가락 떨림/수평 이탈을 완전히 무시하고 같은 열(한 줄)로 고정
+            targetGx = roadDragState.anchorGx;
+            targetGy = rawGy;
+          }
+        } else {
+          // 데드존 내부: 최초 탭 위치 유지
+          targetGx = roadDragState.anchorGx;
+          targetGy = roadDragState.anchorGy;
+        }
+
+        // 이전 위치부터 타겟 위치까지 직교 직선으로만 타일 연속 추가
+        if (targetGx !== roadDragState.lastGx || targetGy !== roadDragState.lastGy) {
+          const pts = [];
+          if (targetGx !== roadDragState.lastGx) {
+            const sx = Math.sign(targetGx - roadDragState.lastGx);
+            for (let x = roadDragState.lastGx + sx; sx > 0 ? x <= targetGx : x >= targetGx; x += sx) {
+              pts.push([x, targetGy]);
+            }
+          }
+          if (targetGy !== roadDragState.lastGy) {
+            const sy = Math.sign(targetGy - roadDragState.lastGy);
+            for (let y = roadDragState.lastGy + sy; sy > 0 ? y <= targetGy : y >= targetGy; y += sy) {
+              pts.push([targetGx, y]);
+            }
+          }
+          if (pts.length > 0) {
+            addRoadTiles(pts);
+          }
+          roadDragState.lastGx = targetGx;
+          roadDragState.lastGy = targetGy;
+          App.troad.lastTile = { gx: targetGx, gy: targetGy };
+        }
+
+        App.troad.hover = { x: targetGx, y: targetGy };
         typeof render === 'function' && render();
       }
       return;
@@ -4596,6 +4696,7 @@ return true;
   function gdragUp(e) {
     const g = gdrag; gdrag = null;
     if (g && g.m === 'road') {
+      roadDragState = null;
       if (App.troad) App.troad.lastTile = null;
       typeof render === 'function' && render();
       return;
@@ -4633,10 +4734,10 @@ return true;
   function onUp(e) {
     ptrs.delete(e.pointerId);
     if (ptrs.size < 2) pinch = null;
-    if (gdrag && gdrag.on && ptrs.size === 0) { try { gdragUp(e); } catch (er) { gdrag = null; editDrag = null; } drag = null; return; }
-    if (ptrs.size === 0) { gdrag = null; editDrag = null; }
+    if (gdrag && gdrag.on && ptrs.size === 0) { try { gdragUp(e); } catch (er) { gdrag = null; editDrag = null; roadDragState = null; } drag = null; return; }
+    if (ptrs.size === 0) { gdrag = null; editDrag = null; roadDragState = null; }
     if (drag && !drag.moved && ptrs.size === 0) { const r = getCvRect(); tap(e.clientX - r.left, e.clientY - r.top); }
-    if (ptrs.size === 0) { drag = null; cvRect = null; }
+    if (ptrs.size === 0) { drag = null; cvRect = null; roadDragState = null; }
   }
   function tap(x, y) {
     const wx = (x - vw / 2) / cam.z + cam.x, wy = (y - vh / 2) / cam.z + cam.y;
