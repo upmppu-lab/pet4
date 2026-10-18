@@ -338,6 +338,8 @@ const ART = (() => {
     ferrets_white_2: { t: 'ferret', c1: '#ffffff', c2: '#e8e4de' },
     goldfish: { t: 'fish', c1: '#ff8c2b', c2: '#ffd08a' },
     guppy: { t: 'fish', c1: '#9fb6c8', c2: '#ff5a8a', small: 1, fins: 2 },
+    guppy_blue: { t: 'fish', c1: '#9fb6c8', c2: '#3a8ae8', small: 1, fins: 2 },
+    guppy_green: { t: 'fish', c1: '#9fb6c8', c2: '#3fae5a', small: 1, fins: 2 },
     neon: { t: 'fish', c1: '#2d6cdf', c2: '#e8343c', small: 1, neon: 1 },
     betta: { t: 'fish', c1: '#ff5a2b', c2: '#ffb347', fins: 1 },
     betta_gold: { t: 'fish', c1: '#f4c542', c2: '#fff0a0', fins: 1 },

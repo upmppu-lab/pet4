@@ -51,7 +51,8 @@ const World = (() => {
     // v2026-10-12: 사랑앵무(budgerigar_*)/왕관앵무(cockatiel_*)도 걷기 프레임 없는 단일 옆모습 그림.
     if (st.moving && !sp.startsWith('rat_') && !sp.startsWith('guineapig_') && !sp.startsWith('hamster_') &&
         !sp.startsWith('gerbil_') && !sp.startsWith('ferrets_') && !sp.startsWith('betta_') &&
-        !sp.startsWith('budgerigar_') && !sp.startsWith('cockatiel_')) {
+        !sp.startsWith('budgerigar_') && !sp.startsWith('cockatiel_') &&
+        sp !== 'clownfish' && !sp.startsWith('guppy_')) {
       const w1 = PET_PNG.img(sp + '_walk1');
       const w2 = PET_PNG.img(sp + '_walk2');
       if (w1 && w1.complete && w1.naturalWidth && w2 && w2.complete && w2.naturalWidth) {
@@ -96,7 +97,8 @@ const World = (() => {
 const SZ = isWalk ? baseSz * 1.3 : baseSz;  // walk를 30% 크게
 
 // v2026-10-17(5): 모든 PNG 동물 그림이 예외 없이 왼쪽을 보도록 동일하게 그려져 있어서, 종별로 반전 규칙을 다르게 줄 필요가 없음
-const isFish = sp.startsWith('betta_');
+// v2026-10-18: 흰동가리(clownfish)와 구피(guppy_*) PNG도 베타와 동일하게 어항 속을 "떠다니는" 물고기로 처리
+const isFish = sp.startsWith('betta_') || sp === 'clownfish' || sp.startsWith('guppy_');
 
 // v2026-10-10d: 베타는 어항 속을 "떠다니는" 물고기라, 다른 종들처럼 바닥 그림자 + 발이 바닥에 닿는
 // 처리를 하면 안 됨 (기존 벡터 물고기 그림도 그림자 없이 좌우/상하로 살짝 흔들리기만 함).
@@ -616,7 +618,9 @@ return true;
       const n = a.path[0], dx = n.x - a.x, dy = n.y - a.y, d = Math.hypot(dx, dy), s = a.speed * dt * pulse;
       // 길 단절 감지: 이동 중 길이 삭제되거나 끊겼을 때
       const allowDelivery = a.type === 'me' || a.type === 'staff';
-      if (!walk(Math.floor(n.x), Math.floor(n.y), allowDelivery)) {
+      // v2026-10-17: 길 잃은 동물(stray)은 도로가 아닌 잔디/빈터에서도 돌아다니는데, 아래 walk()는 도로(길) 타일이 아니면 막히는지만 봐서,
+      // 길이 아닌 곳(잔디 등)에서 길이 끊겼다는 처리를 받아 계속 가만히 서 있던 버그 수정 -- town.js의 isValidStraySpot()가 이미 안전한 타일만 골라주므로 바로 이동해도 안전
+      if (a.type !== 'stray' && !walk(Math.floor(n.x), Math.floor(n.y), allowDelivery)) {
         if (a.type !== 'vil') {
           a.say = (typeof t === 'function' && t('roadCut')) || '길이 끊겼어요! ⚠️';
           a.sayT = 3.5;
@@ -1172,9 +1176,15 @@ return true;
         continue;
       }
       if (a.type === 'cust' || a.type === 'insp' || a.type === 'reg' || a.type === 'staff' || a.type === 'thief') {
-        a.homeId = null; a.leaving = true; a.cust = null; a.watching = false;
         const seed = a.seed || (a.cust ? (a.cust.seed || a.cust.id) : (a.id ? a.id.length : 0));
-        const ex = getVillageEdge(seed, a.y);
+        // v2026-10-18: 마을 주민과 연결된 손님(주민이 직접 펫샵에서 펫을 산 경우)은 외부 손님처럼 마을 끝으로 나가지 않고,
+        // 실제 자기 집으로 돌아가도록 함 (cu 객체를 비우기 전에 미리 home을 가져와야 함)
+        let custHomeObj = null;
+        if (a.type === 'cust' && a.cust && a.cust.home != null && typeof TOWN !== 'undefined' && S.town && S.town.objs) {
+          custHomeObj = S.town.objs.find(o => o.id === a.cust.home) || null;
+        }
+        a.homeId = null; a.leaving = true; a.cust = null; a.watching = false;
+        const ex = (custHomeObj && typeof TOWN !== 'undefined' && TOWN.doorOf) ? (() => { const hd = TOWN.doorOf(custHomeObj); return { x: hd.x + .5, y: hd.y + .5 }; })() : getVillageEdge(seed, a.y);
         if (a.inside) {
           goTo(a, door.x, door.y, () => goTo(a, door.x + 2, door.y, () => {
             goTo(a, ex.x, ex.y, () => { actors.delete(id); });
@@ -2198,7 +2208,11 @@ return true;
       c.save();
       c.translate(sx, sy - (a.moving ? Math.abs(Math.sin(T * 8)) * 1.5 : 0));
       c.scale(.46 * (a.dir || 1), .46);
-      ART.pet(c, a.sp, { t: T, mood: 'calm', seed: 7, age: 1, moving: a.moving, dir: a.dir || 1 });
+      // v2026-10-17(2): 길 잃은 동물도 (PNG 그림이 있는 종이면) 유저가 직접 그린 실제 펫 그림을 그대로 쓰고,
+      // 종 전체를 대표하는 성체 모습 대신 아기 모습으로 보이게 함
+      { const strayPst = { t: T, mood: 'calm', seed: 7, age: .2, moving: a.moving, dir: a.dir || 1 };
+        const strayPngOk = (typeof PNG_PETS !== 'undefined' && PNG_PETS[a.sp]) && drawPngPet(c, a.sp, strayPst);
+        if (!strayPngOk) ART.pet(c, a.sp, strayPst); }
       c.restore();
       c.save();
       c.font = 'bold 8px sans-serif';

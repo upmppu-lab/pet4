@@ -226,7 +226,9 @@ const SPECIES_RAW = [
  ['pug','dog',15,600,1290,13,'퍼그','Мопс'],
  ['frenchie','dog',15,700,1500,14,'프렌치 불도그','Французский бульдог'],
  ['bordercollie','dog',15,780,1680,15,'보더콜리','Бордер-колли'],
- ['guppy','fish',1,20,50,2,'구피','Гуппи'],
+ // v2026-10-18: 유저가 그린 PNG가 생긴 색상별(파랑/초록) 구피 두 종으로 분리 (기존 'guppy'는 LEGACY_SP_MAP로 전환)
+ ['guppy_blue','fish',1,20,50,2,'파랑 구피','Голубая гуппи'],
+ ['guppy_green','fish',1,20,50,2,'초록 구피','Зелёная гуппи'],
  ['duckling','bird',3,90,200,5,'아기 오리','Утёнок'],
  ['chick','bird',1,50,110,3,'병아리','Цыплёнок'],
  ['clownfish','fish',5,120,260,4,'흰동가리','Рыба-клоун'],
@@ -271,6 +273,7 @@ const LEGACY_SP_MAP = {
   gerbil: 'gerbil_brown',
   ferret: 'ferrets_black',
   betta: 'betta_red',
+  guppy: 'guppy_blue',
   budgie: 'budgerigar_blue',
   cockatiel: 'cockatiel_cream',
 };
@@ -309,7 +312,7 @@ const UPGRADES = [
   {id:'sign', cost:900, lv:4, icon:'🪧'},
   {id:'vipdesk', cost:3000, lv:10, icon:'🎩'},
 ];
-const APP_VER = '1.807'; // build_nosdk.py rewrites this to the version being built
+const APP_VER = '1.809'; // build_nosdk.py rewrites this to the version being built
 // v9.85 economy balance (girlfriend earned too easily with a full staff): one place to tune it
 const BAL = { WAGE_K: 3, FARM_WAGE_K: 1.5, EXPAND_K: 2.5, BUILD_K: 3, SALE_K: .8, TOP_K: .65, BUY_K: 1.35, DECOR_CAP: .25, TIP: .06, COMBO_STEP: .06, COMBO_CAP: .3 }; // v9.98: pet shop margin trimmed (buy cost, decor bonus, tips, rush combos)
 const balCost = c => Math.round(c * BAL.EXPAND_K / 100) * 100;

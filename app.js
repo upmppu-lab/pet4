@@ -104,6 +104,9 @@ const PNG_PETS = {
   betta_pink: 1,
   betta_purple: 1,
   betta_red: 1,
+  clownfish: 1,
+  guppy_blue: 1,
+  guppy_green: 1,
   hamster_black: 1,
   hamster_brown: 1,
   hamster_cream: 1,
@@ -130,6 +133,12 @@ const PET_PNG = (() => {
         const im = new Image(); im.crossOrigin = 'anonymous'; im.src = url; return im;
       })();
       cache[sp] = img;
+      // v2026-10-17(3): 이 PNG가 아직 로딩 중일 때 이미 패널/화면이 한 번 그려졌다면, 로딩이 끝난 뒤
+      // 자동으로 다시 그려서 "임시 벡터 그림"이 영원히 안 바뀌고 남아있는 문제를 막음
+      // (패널은 매 프레임 다시 그리지 않고, 사용자가 뭔가 조작할 때만 다시 그려지기 때문)
+      if (img && !img.complete) {
+        img.addEventListener('load', () => { try { if (typeof render === 'function') render(); } catch (e) {} }, { once: true });
+      }
       return img;
     },
     has(sp) { return !!PNG_PETS[sp]; },
@@ -142,7 +151,8 @@ Object.keys(PNG_PETS).forEach(sp => {
   PET_PNG.load(sp);
   if (!sp.startsWith('rat_') && !sp.startsWith('guineapig_') && !sp.startsWith('hamster_') &&
       !sp.startsWith('gerbil_') && !sp.startsWith('ferrets_') && !sp.startsWith('betta_') &&
-      !sp.startsWith('budgerigar_') && !sp.startsWith('cockatiel_')) {
+      !sp.startsWith('budgerigar_') && !sp.startsWith('cockatiel_') &&
+      sp !== 'clownfish' && !sp.startsWith('guppy_')) {
     PET_PNG.load(sp + '_walk1');
     PET_PNG.load(sp + '_walk2');
   }

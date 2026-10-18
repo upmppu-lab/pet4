@@ -6772,6 +6772,14 @@ function getFlowerSprite(kind) {
       }
       return [{ x: hp.x1 - 2, y: hp.y + 3, sit: false }, false];
     }
+    if (o.k === 'shop') {
+      // v2026-10-18: 펫샵 안쪽, 출입문에서 조금 들어온 자리를 목표로 삼음 -- 가구 등에 걸려도
+      // goTo/findPath가 자동으로 가장 가까운 빈 칸으로 보정해주므로 대략적인 좌표면 충분함
+      const w0 = o.w || 10, d0 = o.d || 10;
+      const ux = Math.max(1, Math.min(w0 - 2, w0 - 3 + (Math.random() * 2 - 1)));
+      const uy = Math.max(1, Math.min(d0 - 2, d0 - 4 + (Math.random() * 2 - 1)));
+      return [{ x: o.x + ux, y: o.y + uy, sit: false }, false];
+    }
     if (o.k === 'salon') {
       const sp = (typeof SALON_POS === 'function') ? SALON_POS() : { x: o.x, y: o.y, w: 12, d: 9 };
       const SEATS = [{ u: 1.3, v: 3.8 }, { u: 1.3, v: 4.9 }, { u: 1.3, v: 6 }, { u: 2.6, v: 6.6 }];
@@ -6878,6 +6886,9 @@ function getFlowerSprite(kind) {
           const sp = SALON_POS();
           dests.push({ id: 'salon_fac', k: 'salon', x: sp.x, y: sp.y, w: sp.w, d: sp.d, r: 0 });
         }
+        // v2026-10-18: 산책 나온 주민도 (유저가 운영하는) 펫샵 자체를 구경하러 들어오도록 추가 --
+        // 전에는 7개 지정 시설에만 들렀고 정작 펫샵은 방문지 목록에 없어서 한 번도 들르지 않았음
+        dests.push({ id: 'shop_fac', k: 'shop', x: 0, y: 0, w: (S.room && S.room.w) || 10, d: (S.room && S.room.h) || 10, r: 0 });
 
         const hd = doorOf(home), id = 'vil' + (++vSeq);
         const res = pickResidentOf(S, home);
@@ -7046,6 +7057,8 @@ function getFlowerSprite(kind) {
           a.emo = rpick(['🏥', '💊', '✨', '😌']); a.emoT = a.tt;
         } else if (dst.k === 'salon') {
           a.emo = rpick(['✂️', '🐩', '✨', '🎀', '🛁']); a.emoT = a.tt;
+        } else if (dst.k === 'shop') {
+          a.emo = rpick(['🐾', '👀', '🛍️', '✨']); a.emoT = a.tt;
         }
         if (dst.k === 'zoo') {
           a.zooOrigin = { x: dst.x, y: dst.y };
@@ -7384,10 +7397,12 @@ function getFlowerSprite(kind) {
   }
   // 길거리 유기동물 (길강아지, 길토끼, 길쥐, 길고양이)
   const STRAY_SP = [
-    { sp: 'shiba', k: 'stray_shiba', name: '길강아지', icon: '🐕' },
+    // v2026-10-17: 'shiba'/'hamster'는 PNG 전용 그림이 없는 레거시 대표 종 id라서 항상 벡터 그림으로만 보였음 --
+    // 실제 유저가 그린 PNG가 있는 구체적인 종(shiba_sinu_black/hamster_brown)으로 바꿔서 길 잃은 동물도 그 그림 그대로 보이게 함
+    { sp: 'shiba_sinu_black', k: 'stray_shiba', name: '길강아지', icon: '🐕' },
     { sp: 'kitten', k: 'stray_kitten', name: '길고양이', icon: '🐈' },
     { sp: 'rabbit_white', k: 'stray_rabbit_white', name: '길토끼', icon: '🐇' },
-    { sp: 'hamster', k: 'stray_hamster', name: '길쥐', icon: '🐹' }
+    { sp: 'hamster_brown', k: 'stray_hamster', name: '길쥐', icon: '🐹' }
   ];
   const ST = []; let stSeq = 0, stT = 1;
   function strayStep(dt, actors, mkActor, alive, goTo) {
