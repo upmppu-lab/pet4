@@ -1001,6 +1001,9 @@ function clearThumbCache() {
           if (typeof toast === 'function') toast('변경할 수 있는 타일이 없습니다');
           rd.pending.clear();
         }
+      } else {
+        // 이미 깔기 완료 후 '완료' 버튼을 누르면 길깔기 창 닫기
+        App.troad = null;
       }
       render();
     },
