@@ -2261,6 +2261,12 @@ function handle(a, v, w) {
       }
       break;
     }
+    case 'troadback': {
+      App.troad = null;
+      if (typeof openPanel === 'function') openPanel({ type: 'tbuild', tab: 'road' });
+      render();
+      break;
+    }
     case 'troadclose': {
       App.troad = null;
       render();

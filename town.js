@@ -1325,6 +1325,24 @@ const roadTileOk = (s, x, y) => {
         } else if (!o.tier) o.tier = 1;
       }
     }
+    // Deduplicate any overlapping building or house coordinates in town.objs
+    if (s.town.objs) {
+      const takenLots = new Set();
+      for (const o of s.town.objs) {
+        if (!o || o.x <= -1000) continue;
+        const key = o.x + ',' + o.y;
+        if (takenLots.has(key)) {
+          if (D[o.k] && D[o.k].cat === 'house') {
+            const lots = zoneLots(s, o.k);
+            if (lots.length > 0) { o.x = lots[0].x; o.y = lots[0].y; }
+          } else {
+            const p = nearFree(s, o.k, o.x, o.y, o.r || 0, o.id);
+            if (p) { o.x = p.x; o.y = p.y; }
+          }
+        }
+        if (o.x > -1000) takenLots.add(o.x + ',' + o.y);
+      }
+    }
     syncFacilityGateRoads(s);
     fitShop(s);
     if (!s.town.residentPetsBalancedV20261017_Final) {
@@ -1563,7 +1581,8 @@ const roadTileOk = (s, x, y) => {
     return false;
   }
   function resolveBuildingOverlaps(s) {
-    const T = s && s.town; if (!T || !s.lay) return false;
+    const T = s && s.town; if (!T) return false;
+    s.lay = s.lay || {};
     let anyMoved = false;
     const W = Wd(s), H = Hd(s);
     const shopBox = { x: -1, y: -1, w: W + 2, d: H + 2 };
@@ -1625,7 +1644,12 @@ const roadTileOk = (s, x, y) => {
             }
           }
           if (needsMove) {
-            const p = nearFreeUp(s, o.k, o.x, o.y, o.r || 0, o.id, 70) || nearFree(s, o.k, o.x, o.y, o.r || 0, o.id, 95);
+            let p = null;
+            if (od.cat === 'house') {
+              const freeLots = zoneLots(s, o.k);
+              if (freeLots.length > 0) p = freeLots[0];
+            }
+            if (!p) p = nearFreeUp(s, o.k, o.x, o.y, o.r || 0, o.id, 70) || nearFree(s, o.k, o.x, o.y, o.r || 0, o.id, 95);
             if (p) {
               o.x = p.x;
               o.y = p.y;
@@ -1642,7 +1666,7 @@ const roadTileOk = (s, x, y) => {
   function fitShop(s) {
     const T = s && s.town; if (!T) return;
     const trLv = ((typeof TRAIN !== 'undefined' && s.train && s.train.lv) || 1);
-    const key = Wd(s) + 'x' + Hd(s) + ':' + ((s.cafe && s.cafe.lv) || 0) + ':' + ((s.hosp && s.hosp.lv) || 0) + ':tr' + trLv + ':fv5';
+    const key = Wd(s) + 'x' + Hd(s) + ':' + ((s.cafe && s.cafe.lv) || 0) + ':' + ((s.hosp && s.hosp.lv) || 0) + ':tr' + trLv + ':fv6';
     const mustResolve = hasAnyBuildingOverlap(s);
     if (T.fitKey !== key || mustResolve) {
       T.fitKey = key;
@@ -1658,7 +1682,12 @@ const roadTileOk = (s, x, y) => {
       }
       for (const o of T.objs) {
         if (['tTaken', 'tOut'].includes(canPlace(s, o.k, o.x, o.y, o.r, o.id))) {
-          const p = nearFree(s, o.k, o.x, o.y, o.r, o.id);
+          let p = null;
+          if (D[o.k] && D[o.k].cat === 'house') {
+            const freeLots = zoneLots(s, o.k);
+            if (freeLots.length > 0) p = freeLots[0];
+          }
+          if (!p) p = nearFree(s, o.k, o.x, o.y, o.r, o.id);
           if (p) { o.x = p.x; o.y = p.y; }
         }
       }
@@ -4053,7 +4082,7 @@ function getFlowerSprite(kind) {
     // 좌회전/우회전 시 위치는 (cx, cy) 제자리에서 전혀 이동하지 않고 방향만 깔끔하게 전환됨.
     if (img.complete && img.naturalWidth) {
       const q = [ISO.wx(cx, cy), ISO.wy(cx, cy)];
-      const dw = 285, dh = dw * (img.naturalHeight || 512) / (img.naturalWidth || 512);
+      const dw = 192, dh = dw * (img.naturalHeight || 512) / (img.naturalWidth || 512);
       const TIER_RATIOS = {
         1: 0.604, 2: 0.622, 3: 0.610, 4: 0.610, 5: 0.611,
         6: 0.610, 7: 0.600, 8: 0.606, 9: 0.613, 10: 0.614,
@@ -4672,7 +4701,7 @@ function getFlowerSprite(kind) {
   // 카메라와 가장 가까운(화면상 가장 아래) 꼭짓점은 중심점보다 (w+d)*16/2 만큼 더 아래에 있으므로,
   // 그림 밑단을 그 꼭짓점에 맞추도록 수정. 폭도 1.4배는 너무 커서 부지보다 건물이 과하게 커보였던
   // 것을 1.15배로 줄임 (처마/벤치 등 약간의 바깥쪽 여유만 남김).
-  const STORE_SPRITE_W = (w, dd) => (w + dd) * 32 * 1.15;
+  const STORE_SPRITE_W = (w, dd) => (w + dd) * 32 * 1.0;
   function drawStoreSprite(c, x, y, w, dd, key, r) {
     const im = STORE_IMG[key];
     if (!im || !im.complete || !im.naturalWidth) return false;

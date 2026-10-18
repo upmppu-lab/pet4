@@ -825,25 +825,14 @@ function clearThumbCache() {
       const isDouble = !!rd.double;
       const pendingCount = rd.pending ? rd.pending.size : 0;
       const totalCost = pendingCount * curRt.cost;
-      const cards = rts.map(rt => {
-        const isSel = !rd.erase && curStyle === rt.id;
-        const name = t('road_' + rt.id) || rt.id;
-        const pngUrl = (typeof assetUrl === 'function') ? assetUrl('spr/roads/' + rt.id + '.png') : ('spr/roads/' + rt.id + '.png');
-        return `<button class="road-card ${isSel ? 'active' : ''}" data-a="troadstyle" data-v="${rt.id}">
-          <div class="road-card-prev">
-            <img class="road-prev-img" src="${pngUrl}" width="46" height="26" alt="${rt.id}" onerror="this.style.display='none';this.nextElementSibling.style.display='block'" style="display:block;max-width:44px;max-height:24px;image-rendering:pixelated;" />
-            <div class="road-prev-svg-fallback" style="display:none">${roadPreviewSvg(rt.id)}</div>
-          </div>
-          <div class="road-card-title">${name}</div>
-          <div class="road-card-cost">🪙${rt.cost}</div>
-        </button>`;
-      }).join('');
+      const roadName = rd.erase ? (t('tRoadEraseCard') || '길 철거') : (curRt.name || t('road_' + curRt.id) || curRt.id);
       return `<div class="editbar tplacebar road-palette-bar">
-        <button type="button" class="road-close-x-btn" data-a="troadclose" title="닫기" style="position:absolute;top:6px;right:8px;z-index:30;width:30px;height:30px;border-radius:50%;background:#e11d48;border:2px solid #ffffff;color:#ffffff;font-size:16px;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.35);line-height:1;padding:0;">✕</button>
-        <div class="road-cards-scroll" style="padding-right:44px;">${cards}</div>
         <div class="road-bot-row">
+          <button type="button" class="btn b sm road-back-btn" data-a="troadback" style="display:inline-flex;align-items:center;gap:4px;font-weight:900;padding:5px 10px;background:#3b82f6;border:1.5px solid #60a5fa;color:#ffffff;border-radius:10px;cursor:pointer;flex-shrink:0;" title="다른 길 선택창으로 돌아가기">
+            ◀ 뒤로가기
+          </button>
           <div class="grow" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;color:#ffffff;">
-            <span>${rd.erase ? '🧽' : curRt.ic} <b>${rd.erase ? (t('tRoadErase') || '길 철거') : (t('tRoadPave') || '길 깔기')}</b>
+            <span>${rd.erase ? '🧽' : curRt.ic} <b>${roadName}</b>
               <span class="m" style="color:rgba(255,255,255,0.85);">· ${pendingCount > 0 ? (rd.erase ? `선택 <b>${pendingCount}칸</b> (완료 시 철거)` : `선택 <b>${pendingCount}칸</b> 🪙${fmt(totalCost)}`) : '화면을 손가락으로 드래그하여 길을 그으세요'}</span>
             </span>
             <button type="button" class="btn sm road-double-btn ${isDouble ? 'g' : ''}" data-a="troaddouble" style="display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none;font-weight:700;font-size:12px;padding:3px 9px;border-radius:12px;background:${isDouble ? 'rgba(34,197,94,0.32)' : 'rgba(255,255,255,0.18)'};border:1px solid ${isDouble ? '#22c55e' : 'rgba(255,255,255,0.35)'};color:#ffffff;">
@@ -863,6 +852,7 @@ function clearThumbCache() {
           <button class="btn sm ${pendingCount > 0 ? (rd.erase ? 'r' : 'g') : 'g'}" data-a="troaddone" style="font-weight:900;">
             ${pendingCount > 0 ? (rd.erase ? `✓ 철거 완료 (${pendingCount}칸)` : `✓ 깔기 완료 (${pendingCount}칸)`) : `✓ ${t('done') || '완료'}`}
           </button>
+          <button type="button" class="btn r sm" data-a="troadclose" title="닫기" style="font-weight:900;padding:5px 8px;margin-left:2px;">✕</button>
         </div>
       </div>`;
     }
@@ -1013,9 +1003,13 @@ function clearThumbCache() {
     troaderase: () => { const rd = App.troad; if (!rd) return; rd.erase = true; if (rd.pending) rd.pending.clear(); render(); },
     troadclear: () => { const rd = App.troad; if (rd && rd.pending) { rd.pending.clear(); render(); } },
     troaddouble: () => { const rd = App.troad; if (!rd) return; rd.double = !rd.double; render(); },
-    troaddir: () => { const rd = App.troad; if (!rd) return; rd.dir = rd.dir === 'y' ? 'x' : 'y'; render(); },
     troaddir_x: () => { const rd = App.troad; if (!rd) return; rd.dir = 'x'; render(); },
     troaddir_y: () => { const rd = App.troad; if (!rd) return; rd.dir = 'y'; render(); },
+    troadback: () => {
+      App.troad = null;
+      if (typeof openPanel === 'function') openPanel({ type: 'tbuild', tab: 'road' });
+      render();
+    },
     troadclose: () => {
       App.troad = null;
       render();

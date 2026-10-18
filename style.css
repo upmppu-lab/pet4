@@ -338,21 +338,19 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
   bottom: 0 !important;
   top: auto !important;
   z-index: 95 !important;
-  background: rgba(20, 24, 32, 0.60) !important;
+  background: rgba(20, 24, 32, 0.75) !important;
   backdrop-filter: blur(12px) saturate(130%) !important;
   -webkit-backdrop-filter: blur(12px) saturate(130%) !important;
-  border-top: 1.5px solid rgba(255, 255, 255, 0.18) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, 0.22) !important;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.40) !important;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px calc(10px + env(safe-area-inset-bottom)) !important;
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom)) !important;
   color: #ffffff !important;
 }
-.road-cards-scroll{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;padding:2px 2px 5px 2px}
-.road-card{width:56px;height:62px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,255,255,0.94);border:2px solid rgba(255,255,255,0.5);border-radius:10px;padding:3px 2px;box-shadow:0 3px 8px rgba(0,0,0,0.25);cursor:pointer;transition:transform .1s,border-color .1s,box-shadow .1s;box-sizing:border-box}
-.road-card:active{transform:scale(.95)}
-.road-card.active{background:#fffbeb;border-color:#f59e0b;box-shadow:0 0 0 2px #f59e0b,0 4px 12px rgba(245,158,11,0.45);transform:translateY(-2px)}
+.road-back-btn:active{transform:scale(.95)}
+.road-cards-scroll{display:none}
+.road-card{display:none}
 .road-card-prev{height:24px;display:flex;align-items:center;justify-content:center}
 .road-card-prev svg{display:block;max-width:44px;max-height:24px}
 .road-card-title{font-size:9.5px;font-weight:900;color:#2d231b;width:50px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;line-height:1.2}
