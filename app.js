@@ -535,6 +535,15 @@ function starStr(r) { r = r || 0; const tr = repTier(r), T = REP_TIERS[tr], n = 
 // ---------- panels ----------
 let panelOpenedAt = 0;
 const panelHistory = [];
+let currentPanelPos = { x: 0, y: 0 };
+function syncPanelTransform(pEl) {
+  if (!pEl) return;
+  if (currentPanelPos.x !== 0 || currentPanelPos.y !== 0) {
+    pEl.style.transform = `translate(${currentPanelPos.x}px, ${currentPanelPos.y}px)`;
+    pEl.dataset.tx = currentPanelPos.x;
+    pEl.dataset.ty = currentPanelPos.y;
+  }
+}
 function openPanel(p, isBack) {
   if (!p) { closePanel(); return; }
   // Normalize default sub-tabs so state comparison and back-navigation accurately track tabs
@@ -554,6 +563,9 @@ function openPanel(p, isBack) {
       if (panelHistory.length > 35) panelHistory.shift();
     }
   }
+  if (!panel || panel.type !== p.type) {
+    currentPanelPos = { x: 0, y: 0 };
+  }
   panel = Object.assign({}, p);
   panelOpenedAt = Date.now();
   renderPanel(true);
@@ -561,6 +573,7 @@ function openPanel(p, isBack) {
 function closePanel() {
   panel = null;
   panelHistory.length = 0;
+  currentPanelPos = { x: 0, y: 0 };
   $('#panel').innerHTML = '';
 }
 function panelBack() {
@@ -602,6 +615,7 @@ function renderPanel(force) {
   // 스크롤 위치 복원
   const pb = box.querySelector('.pb');
   if (pb && sc) pb.scrollTop = sc;
+  syncPanelTransform(box.querySelector('.panel'));
   if (panel && panel.type === 'welcome') charPreviewCanvas();
 }
 
@@ -2023,22 +2037,94 @@ function triggerAct(el) {
   handle(a, v, w);
 }
 
-// Stop pointerdown and pointerup on UI buttons from leaking into canvas world tap or moving the character
+// Window Dragging System (상단부분 손가락 터치/마우스 드래그로 창 이동)
+let dragPanelEl = null;
+let dragPhEl = null;
+let dragPointerId = null;
+let dragStartX = 0, dragStartY = 0;
+let dragStartTx = 0, dragStartTy = 0;
+let dragMoved = false;
+let lastDragAt = 0;
+
 document.addEventListener('pointerdown', e => {
-  const el = e.target.closest('[data-a], button, .bigbtn, .rbtn, .mbtn, .btn, .chip, .hbslot, .avatar');
+  const ph = e.target.closest('.ph');
+  if (ph && !e.target.closest('button, .pback, .x, input, select, textarea, a')) {
+    const pEl = ph.closest('.panel');
+    if (pEl) {
+      dragPanelEl = pEl;
+      dragPhEl = ph;
+      dragPointerId = e.pointerId;
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      dragStartTx = currentPanelPos.x || 0;
+      dragStartTy = currentPanelPos.y || 0;
+      dragMoved = false;
+      try { ph.setPointerCapture(e.pointerId); } catch (err) {}
+      pEl.style.animation = 'none';
+      pEl.classList.add('panel-dragging');
+      e.stopPropagation();
+      return;
+    }
+  }
+  const el = e.target.closest('[data-a], button, .bigbtn, .rbtn, .mbtn, .btn, .chip, .hbslot, .avatar, .panel');
   if (el && !el.closest('#joy')) {
     e.stopPropagation();
   }
 }, true);
 
-document.addEventListener('pointerup', e => {
-  const el = e.target.closest('[data-a], button, .bigbtn, .rbtn, .mbtn, .btn, .chip, .hbslot, .avatar');
-  if (el && !el.closest('#joy')) {
-    e.stopPropagation();
-  }
+document.addEventListener('pointermove', e => {
+  if (!dragPanelEl || e.pointerId !== dragPointerId) return;
+  const dx = e.clientX - dragStartX;
+  const dy = e.clientY - dragStartY;
+  if (!dragMoved && Math.hypot(dx, dy) < 4) return;
+  dragMoved = true;
+
+  let nx = dragStartTx + dx;
+  let ny = dragStartTy + dy;
+
+  // Viewport clamping: keep at least part of the window and header visible
+  const maxNx = Math.max(40, Math.floor(window.innerWidth / 2) - 20);
+  const minNx = -maxNx;
+  const maxNy = Math.max(40, Math.floor(window.innerHeight / 2) - 30);
+  const minNy = -maxNy;
+
+  nx = Math.max(minNx, Math.min(maxNx, nx));
+  ny = Math.max(minNy, Math.min(maxNy, ny));
+
+  currentPanelPos.x = nx;
+  currentPanelPos.y = ny;
+  dragPanelEl.style.transform = `translate(${nx}px, ${ny}px)`;
+  dragPanelEl.dataset.tx = nx;
+  dragPanelEl.dataset.ty = ny;
+  e.stopPropagation();
+  if (e.cancelable) e.preventDefault();
 }, true);
+
+const endPanelDrag = e => {
+  if (dragPhEl && dragPointerId != null && e.pointerId === dragPointerId) {
+    try { dragPhEl.releasePointerCapture(e.pointerId); } catch (err) {}
+    if (dragMoved) {
+      lastDragAt = Date.now();
+    }
+    if (dragPanelEl) {
+      dragPanelEl.classList.remove('panel-dragging');
+    }
+    dragPanelEl = null;
+    dragPhEl = null;
+    dragPointerId = null;
+    if (dragMoved) {
+      e.stopPropagation();
+    }
+  }
+};
+document.addEventListener('pointerup', endPanelDrag, true);
+document.addEventListener('pointercancel', endPanelDrag, true);
 
 document.addEventListener('click', e => {
+  if (Date.now() - lastDragAt < 250) {
+    e.stopPropagation();
+    return;
+  }
   const el = e.target.closest('[data-a]');
   if (!el) return;
   e.stopPropagation();
