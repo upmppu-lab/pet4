@@ -325,11 +325,19 @@ const TOWN = (() => {
     { id: 'dirt', ic: '🌱', cost: 10, lvl: 1, name: '기본 흙길', desc: '자연스럽고 포근한 기본 흙길' },
     { id: 'cobble', ic: '🪨', cost: 25, lvl: 3, name: '자갈길', desc: '둥글고 정겨운 조약돌 자갈길' },
     { id: 'brick', ic: '🧱', cost: 50, lvl: 5, name: '벽돌길', desc: '정갈하게 깔린 붉은 벽돌길' },
-    { id: 'yellow', ic: '🟨', cost: 70, lvl: 6, name: '노란 안내길', desc: '입구·출구를 한눈에 밝혀주는 화사한 노란길' },
+    { id: 'yellow', ic: '🟨', cost: 70, lvl: 6, name: '노란 안내길', desc: '입구·출구를 한눈에 밝혀주는 화사한 유도 블록길' },
     { id: 'block', ic: '🏙️', cost: 90, lvl: 8, name: '보도블록길', desc: '깔끔하고 튼튼한 도시형 보도블록길' },
-    { id: 'step', ic: '🌿', cost: 150, lvl: 12, name: '공원 산책로', desc: '꽃과 잔디가 어우러진 산책로' },
-    { id: 'stone', ic: '🏛️', cost: 230, lvl: 16, name: '고급 석재길', desc: '품격 있는 대리석과 화강암 석재길' },
-    { id: 'tile', ic: '✨', cost: 350, lvl: 20, name: '고급 타일길', desc: '화려한 기하학 문양의 고급 타일길' }
+    { id: 'step', ic: '🌿', cost: 120, lvl: 10, name: '공원 산책로', desc: '자연 디딤돌과 잔디꽃이 어우러진 산책로' },
+    { id: 'wood', ic: '🪵', cost: 160, lvl: 12, name: '통나무 데크길', desc: '따뜻하고 아늑한 삼나무 판자 데크길' },
+    { id: 'sand', ic: '🏖️', cost: 200, lvl: 14, name: '해변 모래길', desc: '고운 백사장과 조개껍데기가 놓인 해변 산책로' },
+    { id: 'stone', ic: '🏛️', cost: 260, lvl: 16, name: '고급 석재길', desc: '품격 있는 대리석과 화강암 석재길' },
+    { id: 'sakura', ic: '🌸', cost: 320, lvl: 18, name: '벚꽃 산책로', desc: '은은한 분홍빛 벚꽃잎이 흩날리는 로맨틱한 길' },
+    { id: 'tile', ic: '✨', cost: 380, lvl: 20, name: '고급 타일길', desc: '화려한 기하학 문양의 지중해 타일길' },
+    { id: 'mosaic', ic: '💠', cost: 450, lvl: 22, name: '로열 모자이크길', desc: '사파이어와 에메랄드빛 궁전 모자이크길' },
+    { id: 'autumn', ic: '🍁', cost: 520, lvl: 24, name: '가을 단풍길', desc: '붉은 단풍잎과 노란 은행잎이 소복한 길' },
+    { id: 'slate', ic: '⬛', cost: 600, lvl: 26, name: '현무암 판석길', desc: '모던하고 중후한 다크 슬레이트 고급 판석길' },
+    { id: 'crystal', ic: '🔮', cost: 750, lvl: 28, name: '별빛 크리스탈길', desc: '영롱한 원석과 별빛 가루가 은은히 빛나는 길' },
+    { id: 'gold', ic: '👑', cost: 1000, lvl: 30, name: '황금 벽돌길', desc: '순금 벽돌과 보석이 박힌 최고급 황금길' }
   ];
   let _rset = null, _rkey = '', _parsedRoads = [];
   const parsedRoadList = s => {
@@ -1345,7 +1353,7 @@ const roadTileOk = (s, x, y) => {
     }
     syncFacilityGateRoads(s);
     fitShop(s);
-    if (!s.town.residentPetsBalancedV20261017_Final) {
+    if (!s.town.residentPetsBalancedV20261018_Fix) {
       rebalanceResidentPets(s);
     }
     return s.town;
@@ -1454,7 +1462,7 @@ const roadTileOk = (s, x, y) => {
   function tick(s, dt) {
     const T = ensure(s);
     if (T.day !== s.clock.day) newDay(s);
-    if (!T.residentsInit || !T.residentPetsBalancedV20261017_Final) { syncResidents(s); T.residentsInit = 1; } // first load on an existing save: backfill residents once, immediately (don't wait for the next day)
+    if (!T.residentsInit || !T.residentPetsBalancedV20261018_Fix) { syncResidents(s); T.residentsInit = 1; } // first load on an existing save: backfill residents once, immediately (don't wait for the next day)
     // the shop grew over a house? move that house to the nearest free spot (host only: guests never tick)
     fitShop(s);
     if (typeof STORE_STATS !== 'undefined' && STORE_STATS.updateTownShops) STORE_STATS.updateTownShops(s);
@@ -1909,9 +1917,10 @@ const roadTileOk = (s, x, y) => {
         T.residents = T.residents.filter(r => !drop.has(r.id));
       }
     }
-    // v2026-10-17: 주민 펫 레벨 정상화 및 현실적인 RPG 분포 적용
-    // (레벨 1이 다수, 레벨 2도 다수, 레벨 3/4는 가끔, 레벨 5는 드물게)
-    if (!T.residentPetsBalancedV20261017_Final) {
+    // v2026-10-18: 마을 주민 펫 레벨이 모두 7로 고착되는 버그 수정 및 현실적인 RPG 분포 적용
+    // (레벨 1이 다수, 레벨 2~3 중심, 레벨 4 가끔, 레벨 5 극소수)
+    const needsRebalance = !T.residentPetsBalancedV20261018_Fix || (T.residents && T.residents.length > 0 && T.residents.every(r => (r.pets || []).length > 0 && (r.pets || []).every(p => (p.blv || 1) >= 6)));
+    if (needsRebalance) {
       rebalanceResidentPets(s);
     }
 
@@ -1979,6 +1988,7 @@ const roadTileOk = (s, x, y) => {
         p.exp = p.bxp;
       });
     }
+    T.residentPetsBalancedV20261018_Fix = 1;
     T.residentPetsBalancedV20261017_Final = 1;
     T.residentPetsBalancedV6 = 1;
     T.residentPetsBalancedV5 = 1;
@@ -1989,9 +1999,11 @@ const roadTileOk = (s, x, y) => {
     pet.bxp = (pet.bxp || 0) + expGain;
     const need = (typeof BATTLE !== 'undefined' && BATTLE.needXp) ? BATTLE.needXp : (lv => 12 + (lv - 1) * 9);
     let lvup = 0;
-    while (pet.blv < 10 && pet.bxp >= need(pet.blv)) {
+    // 일상적인 마을 생활로 도달할 수 있는 자연스러운 레벨 상한: Lv.5 (더 높은 레벨은 플레이어와의 도전 대결 등을 통해 성장)
+    while (pet.blv < 5 && pet.bxp >= need(pet.blv)) {
       pet.bxp -= need(pet.blv);
       pet.blv++;
+      pet.lv = pet.blv;
       lvup++;
     }
     return lvup;
@@ -5614,32 +5626,19 @@ function getFlowerSprite(kind) {
     return img;
   };
 
-  // Helper to draw a road tile at (x, y) with the chosen road style
+  // Helper to draw a road tile at (x, y) with the chosen road style in high-detail vector isometric graphics
   const drawRoadTile = (x, y, style, targetC) => {
     const curC = targetC || (typeof c !== 'undefined' ? c : null);
     if (!curC) return;
-    const st = style === 'wood' ? 'block' : style === 'marble' ? 'stone' : style === 'pink' ? 'tile' : (style || 'cobble');
+    const st = style || 'cobble';
     // Fast deterministic pseudo-random hash
     const rh = (ox, oy, s = 0) => {
       const v = Math.sin((ox + s * 1.31) * 12.9898 + (oy + s * 2.73) * 78.233) * 43758.5453;
       return v - Math.floor(v);
     };
 
-    // If PNG sprite exists and is loaded, draw the high-quality PNG image!
-    const varIdx = Math.floor(rh(x, y, 9) * 2);
-    const pngImg = getRoadPng(st, varIdx) || getRoadPng(st, 0);
-    if (pngImg && pngImg.complete && pngImg.naturalWidth > 0) {
-      // Isometric tile diamond top-left screen position:
-      // Diamond center is at ISO.wx(x + 0.5, y + 0.5), ISO.wy(x + 0.5, y + 0.5)
-      // Tile top vertex is at Q(x, y) = [sx, sy]
-      // Tile width is 64, height is 32. Diamond bounding box is [sx - 32, sy, 64, 32].
-      const pTop = Q(x, y);
-      curC.drawImage(pngImg, pTop[0] - 32, pTop[1], 64, 32);
-      return;
-    }
-
     if (st === 'dirt') {
-      // 1. Packed warm earth base
+      // 1. Packed warm earth base with natural gradient
       const h0 = rh(x, y, 1);
       const baseCol = h0 > 0.5 ? '#be8a56' : '#b6814e';
       poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], baseCol, '#7e4d25', 0.8);
@@ -5653,26 +5652,28 @@ function getFlowerSprite(kind) {
       ];
       poly(curC, pTrack, 'rgba(148, 92, 44, 0.35)');
 
-      // 3. Embedded gravel pebbles & soil granules with micro-shadows & highlights
+      // 3. Embedded 3D gravel pebbles with highlights & contact shadows
       const pebbles = [
-        [0.22, 0.28, 2.2, 1.4, '#d8bc98', '#68401c'],
-        [0.72, 0.25, 2.8, 1.6, '#caa67c', '#5e3615'],
-        [0.38, 0.65, 3.2, 1.8, '#ecd7bd', '#68401c'],
-        [0.78, 0.72, 2.0, 1.3, '#be9a70', '#542f12'],
-        [0.50, 0.46, 2.6, 1.5, '#debfa0', '#68401c'],
-        [0.28, 0.82, 1.8, 1.1, '#caa47a', '#542f12'],
-        [0.82, 0.48, 2.4, 1.4, '#e6ceb2', '#68401c'],
-        [0.48, 0.18, 1.6, 1.0, '#ba946c', '#542f12']
+        [0.22, 0.28, 2.4, 1.5, '#d8bc98', '#68401c'],
+        [0.72, 0.25, 2.9, 1.7, '#caa67c', '#5e3615'],
+        [0.38, 0.65, 3.3, 1.9, '#ecd7bd', '#68401c'],
+        [0.78, 0.72, 2.1, 1.3, '#be9a70', '#542f12'],
+        [0.50, 0.46, 2.7, 1.6, '#debfa0', '#68401c'],
+        [0.28, 0.82, 1.9, 1.2, '#caa47a', '#542f12'],
+        [0.82, 0.48, 2.5, 1.5, '#e6ceb2', '#68401c'],
+        [0.48, 0.18, 1.8, 1.1, '#ba946c', '#542f12'],
+        [0.34, 0.40, 1.5, 1.0, '#d2b48c', '#542f12'],
+        [0.64, 0.60, 2.2, 1.3, '#c8ad8d', '#5e3615']
       ];
       for (let i = 0; i < pebbles.length; i++) {
         const [ux, vy, rx, ry, col, shCol] = pebbles[i];
         const p = Q(x + ux, y + vy);
         ART.ell(curC, p[0] + 0.6, p[1] + 0.8, rx, ry, 'rgba(60, 35, 15, 0.35)');
         ART.ell(curC, p[0], p[1], rx, ry, col, shCol, 0.6);
-        ART.ell(curC, p[0] - 0.4, p[1] - 0.4, rx * 0.45, ry * 0.45, 'rgba(255, 255, 255, 0.6)');
+        ART.ell(curC, p[0] - 0.4, p[1] - 0.4, rx * 0.45, ry * 0.45, 'rgba(255, 255, 255, 0.65)');
       }
 
-      // 4. Subtle wheel / foot tread grooves
+      // 4. Subtle cart wheel / foot grooves
       curC.strokeStyle = 'rgba(125, 78, 36, 0.28)';
       curC.lineWidth = 1.0;
       const t1a = Q(x + 0.3, y + 0.15), t1b = Q(x + 0.35, y + 0.85);
@@ -5680,7 +5681,7 @@ function getFlowerSprite(kind) {
       const t2a = Q(x + 0.7, y + 0.15), t2b = Q(x + 0.65, y + 0.85);
       curC.beginPath(); curC.moveTo(t2a[0], t2a[1]); curC.lineTo(t2b[0], t2b[1]); curC.stroke();
 
-      // 5. Delicate grass sprouts at corners/edges blending naturally into the landscape
+      // 5. Delicate grass sprouts at corners/edges
       const sprSeed = Math.floor(rh(x, y, 7) * 4);
       if (sprSeed === 0 || sprSeed === 2) {
         const gp = Q(x + 0.08, y + 0.5);
@@ -5725,7 +5726,7 @@ function getFlowerSprite(kind) {
           const tl0 = pts[0], tl1 = pts[1], bl = pts[3];
           curC.beginPath();
           curC.moveTo(bl[0], bl[1]); curC.lineTo(tl0[0], tl0[1]); curC.lineTo(tl1[0], tl1[1]);
-          curC.strokeStyle = 'rgba(255, 235, 220, 0.55)';
+          curC.strokeStyle = 'rgba(255, 235, 220, 0.65)';
           curC.lineWidth = 1.0;
           curC.stroke();
 
@@ -5733,15 +5734,55 @@ function getFlowerSprite(kind) {
           const br = pts[2];
           curC.beginPath();
           curC.moveTo(tl1[0], tl1[1]); curC.lineTo(br[0], br[1]); curC.lineTo(bl[0], bl[1]);
-          curC.strokeStyle = 'rgba(60, 20, 10, 0.42)';
+          curC.strokeStyle = 'rgba(60, 20, 10, 0.45)';
           curC.lineWidth = 1.1;
           curC.stroke();
 
           // Clay speckle texture
           const cp = Q(x + (u0 + u1) / 2, y + (v0 + v1) / 2);
-          ART.ell(curC, cp[0], cp[1], 1.4, 0.9, 'rgba(80, 25, 12, 0.22)');
+          ART.ell(curC, cp[0], cp[1], 1.4, 0.9, 'rgba(80, 25, 12, 0.25)');
         }
       }
+    } else if (st === 'yellow') {
+      // 1. Warm amber plaza base
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#f59e0b', '#b45309', 1.2);
+
+      // 2. Four large interlocking plaza flagstones
+      const quadrants = [
+        [0.04, 0.04, 0.47, 0.47], [0.53, 0.04, 0.96, 0.47],
+        [0.04, 0.53, 0.47, 0.96], [0.53, 0.53, 0.96, 0.96]
+      ];
+      const paverCols = ['#fde047', '#facc15', '#fef08a', '#eab308'];
+
+      for (let i = 0; i < 4; i++) {
+        const [u0, v0, u1, v1] = quadrants[i];
+        const col = paverCols[(x + y + i) % 4];
+        const pts = [Q(x + u0, y + v0), Q(x + u1, y + v0), Q(x + u1, y + v1), Q(x + u0, y + v1)];
+        poly(curC, pts, col, 'rgba(180, 95, 10, 0.4)', 0.8);
+
+        // Sunlit top-left chamfer
+        curC.beginPath();
+        curC.moveTo(pts[3][0], pts[3][1]); curC.lineTo(pts[0][0], pts[0][1]); curC.lineTo(pts[1][0], pts[1][1]);
+        curC.strokeStyle = 'rgba(255, 255, 255, 0.75)'; curC.lineWidth = 1.0; curC.stroke();
+
+        // 3D tactile studs (tactile guidance paving)
+        for (let su = 0.22; su <= 0.78; su += 0.28) {
+          for (let sv = 0.22; sv <= 0.78; sv += 0.28) {
+            const stuX = u0 + (u1 - u0) * su;
+            const stvY = v0 + (v1 - v0) * sv;
+            const sp = Q(x + stuX, y + stvY);
+            ART.ell(curC, sp[0] + 0.4, sp[1] + 0.6, 1.8, 1.1, 'rgba(150, 70, 5, 0.45)');
+            ART.ell(curC, sp[0], sp[1], 1.8, 1.1, '#fde047', '#ca8a04', 0.6);
+            ART.ell(curC, sp[0] - 0.3, sp[1] - 0.3, 0.7, 0.5, '#ffffff');
+          }
+        }
+      }
+
+      // Plaza center brass rosette medallion
+      const cp = Q(x + 0.5, y + 0.5);
+      ART.ell(curC, cp[0], cp[1] + 0.4, 3.8, 2.2, 'rgba(120, 55, 5, 0.4)');
+      ART.ell(curC, cp[0], cp[1], 3.8, 2.2, '#fffbeb', '#b45309', 1.0);
+      ART.ell(curC, cp[0], cp[1], 1.8, 1.1, '#f59e0b');
     } else if (st === 'block') {
       // 1. Granite sidewalk mortar bed
       poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#787168', '#544e46', 1.0);
@@ -5763,24 +5804,24 @@ function getFlowerSprite(kind) {
         // Sunlit top-left chamfer
         curC.beginPath();
         curC.moveTo(pts[3][0], pts[3][1]); curC.lineTo(pts[0][0], pts[0][1]); curC.lineTo(pts[1][0], pts[1][1]);
-        curC.strokeStyle = 'rgba(255, 255, 255, 0.65)'; curC.lineWidth = 1.0; curC.stroke();
+        curC.strokeStyle = 'rgba(255, 255, 255, 0.70)'; curC.lineWidth = 1.0; curC.stroke();
 
         // Recessed joint shadow on bottom-right
         curC.beginPath();
         curC.moveTo(pts[1][0], pts[1][1]); curC.lineTo(pts[2][0], pts[2][1]); curC.lineTo(pts[3][0], pts[3][1]);
-        curC.strokeStyle = 'rgba(50, 45, 40, 0.4)'; curC.lineWidth = 1.0; curC.stroke();
+        curC.strokeStyle = 'rgba(50, 45, 40, 0.45)'; curC.lineWidth = 1.0; curC.stroke();
 
         // Granite mineral speckles (quartz and dark mica)
         const cp = Q(x + (u0 + u1) / 2, y + (v0 + v1) / 2);
-        ART.ell(curC, cp[0] - 2, cp[1], 0.9, 0.7, '#ffffff');
-        ART.ell(curC, cp[0] + 2, cp[1] + 1, 0.9, 0.7, '#504a42');
+        ART.ell(curC, cp[0] - 2, cp[1], 1.0, 0.7, '#ffffff');
+        ART.ell(curC, cp[0] + 2, cp[1] + 1, 1.0, 0.7, '#504a42');
       }
     } else if (st === 'step') {
       // 1. Lush vibrant garden lawn
       poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#5fa81b', '#3b6e10', 0.9);
 
       // Fine grass blade texture
-      curC.strokeStyle = 'rgba(40, 80, 15, 0.35)'; curC.lineWidth = 1.0;
+      curC.strokeStyle = 'rgba(40, 80, 15, 0.4)'; curC.lineWidth = 1.0;
       const g1 = Q(x + 0.15, y + 0.8);
       curC.beginPath(); curC.moveTo(g1[0], g1[1]); curC.lineTo(g1[0] - 2, g1[1] - 4); curC.stroke();
       const g2 = Q(x + 0.85, y + 0.2);
@@ -5797,15 +5838,15 @@ function getFlowerSprite(kind) {
       for (let i = 0; i < slabs.length; i++) {
         const [ux, vy, rx, ry, col] = slabs[i];
         const p = Q(x + ux, y + vy);
-        ART.ell(curC, p[0] + 0.8, p[1] + 1.6, rx + 0.5, ry + 0.5, 'rgba(25, 45, 10, 0.42)');
-        ART.ell(curC, p[0], p[1], rx, ry, col, 'rgba(75, 62, 48, 0.45)', 0.9);
+        ART.ell(curC, p[0] + 0.8, p[1] + 1.6, rx + 0.5, ry + 0.5, 'rgba(25, 45, 10, 0.45)');
+        ART.ell(curC, p[0], p[1], rx, ry, col, 'rgba(75, 62, 48, 0.50)', 0.9);
         curC.beginPath();
         curC.ellipse(p[0] - 0.8, p[1] - 0.8, rx * 0.7, ry * 0.6, 0, Math.PI * 0.95, Math.PI * 1.95);
-        curC.strokeStyle = 'rgba(255, 255, 255, 0.65)'; curC.lineWidth = 1.1; curC.stroke();
+        curC.strokeStyle = 'rgba(255, 255, 255, 0.70)'; curC.lineWidth = 1.1; curC.stroke();
         ART.ell(curC, p[0] + 0.5, p[1] + 0.3, rx * 0.25, ry * 0.25, 'rgba(100, 85, 70, 0.25)');
       }
 
-      // 3. Scattered garden wildflowers
+      // 3. Scattered garden wildflowers (daisies and pink blossoms)
       const flowers = [
         [0.82, 0.84, '#ffffff', '#f59e0b'],
         [0.15, 0.18, '#ffffff', '#f59e0b'],
@@ -5818,6 +5859,97 @@ function getFlowerSprite(kind) {
         ART.ell(curC, fp[0], fp[1] - 1.0, 0.8, 1.2, petCol);
         ART.ell(curC, fp[0], fp[1] + 1.0, 0.8, 1.2, petCol);
         ART.ell(curC, fp[0], fp[1], 1.0, 0.8, coreCol);
+      }
+    } else if (st === 'wood') {
+      // 1. Warm timber substructure bed
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#5c3818', '#38200b', 1.0);
+
+      // 2. Four longitudinal timber deck planks with natural cedar wood tones
+      const planks = [
+        [0.03, 0.03, 0.97, 0.23],
+        [0.03, 0.27, 0.97, 0.47],
+        [0.03, 0.51, 0.97, 0.71],
+        [0.03, 0.75, 0.97, 0.95]
+      ];
+      const woodTones = ['#b87333', '#a25f25', '#c47d3c', '#98551f'];
+
+      for (let i = 0; i < planks.length; i++) {
+        const [u0, v0, u1, v1] = planks[i];
+        const baseWood = woodTones[(x + y * 2 + i) % woodTones.length];
+        const pts = [Q(x + u0, y + v0), Q(x + u1, y + v0), Q(x + u1, y + v1), Q(x + u0, y + v1)];
+        poly(curC, pts, baseWood);
+
+        // Sunlight rim on top edge
+        const pTopA = pts[0], pTopB = pts[1];
+        curC.beginPath();
+        curC.moveTo(pTopA[0], pTopA[1]); curC.lineTo(pTopB[0], pTopB[1]);
+        curC.strokeStyle = 'rgba(255, 230, 200, 0.55)';
+        curC.lineWidth = 1.0;
+        curC.stroke();
+
+        // Dark gap shadow at bottom
+        const pBotA = pts[3], pBotB = pts[2];
+        curC.beginPath();
+        curC.moveTo(pBotA[0], pBotA[1]); curC.lineTo(pBotB[0], pBotB[1]);
+        curC.strokeStyle = 'rgba(30, 15, 5, 0.65)';
+        curC.lineWidth = 1.2;
+        curC.stroke();
+
+        // Wood grain streak lines
+        curC.strokeStyle = 'rgba(60, 30, 10, 0.28)';
+        curC.lineWidth = 0.8;
+        const gA = Q(x + 0.1, y + (v0 + v1) / 2);
+        const gB = Q(x + 0.9, y + (v0 + v1) / 2);
+        curC.beginPath(); curC.moveTo(gA[0], gA[1]); curC.lineTo(gB[0], gB[1]); curC.stroke();
+
+        // Metallic screw/nail rivets at ends
+        const nailSpots = [Q(x + 0.08, y + (v0 + v1) / 2), Q(x + 0.92, y + (v0 + v1) / 2)];
+        for (const np of nailSpots) {
+          ART.ell(curC, np[0] + 0.3, np[1] + 0.4, 0.9, 0.6, 'rgba(0,0,0,0.5)');
+          ART.ell(curC, np[0], np[1], 0.9, 0.6, '#e2e8f0', '#475569', 0.5);
+          ART.ell(curC, np[0] - 0.2, np[1] - 0.2, 0.4, 0.3, '#ffffff');
+        }
+      }
+    } else if (st === 'sand') {
+      // 1. Silky golden-white beach sand base
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#f3dfb5', '#caa977', 1.0);
+
+      // 2. Wind-rippled dune curves
+      curC.strokeStyle = 'rgba(195, 160, 105, 0.45)';
+      curC.lineWidth = 1.2;
+      const r1a = Q(x + 0.08, y + 0.30), r1b = Q(x + 0.92, y + 0.35);
+      curC.beginPath(); curC.moveTo(r1a[0], r1a[1]); curC.quadraticCurveTo(Q(x + 0.5, y + 0.38)[0], Q(x + 0.5, y + 0.38)[1], r1b[0], r1b[1]); curC.stroke();
+      const r2a = Q(x + 0.12, y + 0.70), r2b = Q(x + 0.88, y + 0.65);
+      curC.beginPath(); curC.moveTo(r2a[0], r2a[1]); curC.quadraticCurveTo(Q(x + 0.5, y + 0.62)[0], Q(x + 0.5, y + 0.62)[1], r2b[0], r2b[1]); curC.stroke();
+
+      // 3. Delicate seashells & ocean pebbles
+      // Scallop shell
+      const sp1 = Q(x + 0.32, y + 0.42);
+      ART.ell(curC, sp1[0] + 0.6, sp1[1] + 0.8, 2.8, 1.8, 'rgba(140, 100, 50, 0.35)');
+      ART.ell(curC, sp1[0], sp1[1], 2.8, 1.8, '#fdf2f8', '#f472b6', 0.7);
+      ART.ell(curC, sp1[0] - 0.5, sp1[1] - 0.3, 1.4, 0.8, '#ffffff');
+
+      // Spiral conch / pearl pebble
+      const sp2 = Q(x + 0.75, y + 0.62);
+      ART.ell(curC, sp2[0] + 0.5, sp2[1] + 0.7, 2.2, 1.4, 'rgba(140, 100, 50, 0.35)');
+      ART.ell(curC, sp2[0], sp2[1], 2.2, 1.4, '#e0f2fe', '#38bdf8', 0.6);
+      ART.ell(curC, sp2[0] - 0.4, sp2[1] - 0.3, 0.9, 0.6, '#ffffff');
+
+      // Tiny pink starfish
+      const stp = Q(x + 0.65, y + 0.25);
+      curC.fillStyle = '#fb7185';
+      for (let a = 0; a < 5; a++) {
+        const rad = a * Math.PI * 2 / 5 - Math.PI / 2;
+        const ax = stp[0] + Math.cos(rad) * 3.2, ay = stp[1] + Math.sin(rad) * 2.0;
+        curC.beginPath(); curC.arc(ax, ay, 0.9, 0, Math.PI * 2); curC.fill();
+      }
+      ART.ell(curC, stp[0], stp[1], 1.2, 0.8, '#ffe4e6');
+
+      // Glistening mica sand sparkles
+      const sparkles = [[0.2, 0.75], [0.8, 0.4], [0.45, 0.18]];
+      for (const [sx, sy] of sparkles) {
+        const p = Q(x + sx, y + sy);
+        ART.ell(curC, p[0], p[1], 0.8, 0.5, '#ffffff');
       }
     } else if (st === 'stone') {
       // 1. Polished imperial limestone / marble base
@@ -5855,6 +5987,47 @@ function getFlowerSprite(kind) {
       ART.ell(curC, cp[0], cp[1] + 0.4, 2.6, 1.5, 'rgba(100, 60, 10, 0.35)');
       ART.ell(curC, cp[0], cp[1], 2.6, 1.5, '#facc15', '#b45309', 0.8);
       ART.ell(curC, cp[0], cp[1], 1.2, 0.7, '#ffffff');
+    } else if (st === 'sakura') {
+      // 1. Soft blush garden flagstone bed
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#fce7f3', '#db2777', 0.9);
+
+      // 2. Rosy flagstones with smooth contours
+      const sStones = [
+        [0.32, 0.35, 9.0, 5.2, '#fdf2f8'],
+        [0.72, 0.68, 10.0, 5.8, '#fbcfe8'],
+        [0.26, 0.75, 6.5, 3.8, '#fce7f3']
+      ];
+      for (const [ux, vy, rx, ry, col] of sStones) {
+        const p = Q(x + ux, y + vy);
+        ART.ell(curC, p[0] + 0.7, p[1] + 1.2, rx, ry, 'rgba(190, 24, 93, 0.22)');
+        ART.ell(curC, p[0], p[1], rx, ry, col, 'rgba(219, 39, 119, 0.45)', 0.8);
+        ART.ell(curC, p[0] - 0.6, p[1] - 0.5, rx * 0.6, ry * 0.5, 'rgba(255, 255, 255, 0.7)');
+      }
+
+      // 3. Cherry blossom flower heads (5 petals with gold pistil)
+      const blossoms = [[0.48, 0.22], [0.78, 0.45]];
+      for (const [bx, by] of blossoms) {
+        const bp = Q(x + bx, y + by);
+        // 5 petals
+        for (let a = 0; a < 5; a++) {
+          const rad = a * Math.PI * 2 / 5 - Math.PI / 2;
+          const px = bp[0] + Math.cos(rad) * 2.8, py = bp[1] + Math.sin(rad) * 1.8;
+          ART.ell(curC, px, py, 1.6, 1.1, '#f472b6', '#db2777', 0.5);
+          ART.ell(curC, px - 0.3, py - 0.3, 0.8, 0.5, '#ffffff');
+        }
+        ART.ell(curC, bp[0], bp[1], 1.2, 0.8, '#fde047');
+      }
+
+      // 4. Loose drifting sakura petals
+      const petals = [
+        [0.18, 0.20, -0.4], [0.82, 0.82, 0.3], [0.38, 0.65, 0.8], [0.65, 0.85, -0.6]
+      ];
+      for (const [px, py, rot] of petals) {
+        const pt = Q(x + px, y + py);
+        ART.ell(curC, pt[0] + 0.4, pt[1] + 0.5, 1.8, 1.0, 'rgba(190, 24, 93, 0.25)');
+        ART.ell(curC, pt[0], pt[1], 1.8, 1.0, '#f9a8d4', '#ec4899', 0.5);
+        ART.ell(curC, pt[0] - 0.3, pt[1] - 0.2, 0.8, 0.4, '#ffffff');
+      }
     } else if (st === 'tile') {
       // 1. Ceramic porcelain base
       poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#fbf7f0', '#b85832', 1.0);
@@ -5891,77 +6064,245 @@ function getFlowerSprite(kind) {
       ART.ell(curC, cp[0] - 0.5, cp[1] - 0.4, 0.8, 0.5, '#ffffff');
 
       // Glaze sheen reflection streak across tile
-      curC.strokeStyle = 'rgba(255, 255, 255, 0.45)'; curC.lineWidth = 1.2;
+      curC.strokeStyle = 'rgba(255, 255, 255, 0.50)'; curC.lineWidth = 1.2;
       const sh1 = Q(x + 0.15, y + 0.35), sh2 = Q(x + 0.65, y + 0.85);
       curC.beginPath(); curC.moveTo(sh1[0], sh1[1]); curC.lineTo(sh2[0], sh2[1]); curC.stroke();
-    } else if (st === 'yellow') {
-      // 1. Warm amber plaza base
-      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#f59e0b', '#b45309', 1.2);
+    } else if (st === 'mosaic') {
+      // 1. Royal Mediterranean mosaic bed
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#0f172a', '#1e3a8a', 1.0);
 
-      // 2. Four large interlocking plaza flagstones
-      const quadrants = [
-        [0.04, 0.04, 0.47, 0.47], [0.53, 0.04, 0.96, 0.47],
-        [0.04, 0.53, 0.47, 0.96], [0.53, 0.53, 0.96, 0.96]
+      // 2. Interlocking concentric tesserae rings
+      const pOuter = [Q(x + 0.06, y + 0.06), Q(x + 0.94, y + 0.06), Q(x + 0.94, y + 0.94), Q(x + 0.06, y + 0.94)];
+      poly(curC, pOuter, '#1e293b', '#3b82f6', 1.1);
+
+      // Inner diamond in sapphire blue
+      const pDia = [Q(x + 0.5, y + 0.12), Q(x + 0.88, y + 0.5), Q(x + 0.5, y + 0.88), Q(x + 0.12, y + 0.5)];
+      poly(curC, pDia, '#1d4ed8', '#60a5fa', 1.0);
+
+      // Inner emerald rosette
+      const pEm = [Q(x + 0.5, y + 0.28), Q(x + 0.72, y + 0.5), Q(x + 0.5, y + 0.72), Q(x + 0.28, y + 0.5)];
+      poly(curC, pEm, '#059669', '#34d399', 0.9);
+
+      // Tiny multi-color mosaic tesserae dots along perimeter
+      const tesserae = [
+        [0.15, 0.15, '#fbbf24'], [0.85, 0.15, '#fbbf24'], [0.85, 0.85, '#fbbf24'], [0.15, 0.85, '#fbbf24'],
+        [0.5, 0.08, '#f43f5e'], [0.92, 0.5, '#f43f5e'], [0.5, 0.92, '#f43f5e'], [0.08, 0.5, '#f43f5e'],
+        [0.3, 0.5, '#38bdf8'], [0.7, 0.5, '#38bdf8'], [0.5, 0.3, '#38bdf8'], [0.5, 0.7, '#38bdf8']
       ];
-      const paverCols = ['#fde047', '#facc15', '#fef08a', '#eab308'];
-
-      for (let i = 0; i < 4; i++) {
-        const [u0, v0, u1, v1] = quadrants[i];
-        const col = paverCols[(x + y + i) % 4];
-        const pts = [Q(x + u0, y + v0), Q(x + u1, y + v0), Q(x + u1, y + v1), Q(x + u0, y + v1)];
-        poly(curC, pts, col, 'rgba(180, 95, 10, 0.4)', 0.8);
-
-        // Sunlit top-left chamfer
-        curC.beginPath();
-        curC.moveTo(pts[3][0], pts[3][1]); curC.lineTo(pts[0][0], pts[0][1]); curC.lineTo(pts[1][0], pts[1][1]);
-        curC.strokeStyle = 'rgba(255, 255, 255, 0.72)'; curC.lineWidth = 1.0; curC.stroke();
-
-        // 3D tactile studs
-        for (let su = 0.22; su <= 0.78; su += 0.28) {
-          for (let sv = 0.22; sv <= 0.78; sv += 0.28) {
-            const stuX = u0 + (u1 - u0) * su;
-            const stvY = v0 + (v1 - v0) * sv;
-            const sp = Q(x + stuX, y + stvY);
-            ART.ell(curC, sp[0] + 0.4, sp[1] + 0.6, 1.8, 1.1, 'rgba(150, 70, 5, 0.45)');
-            ART.ell(curC, sp[0], sp[1], 1.8, 1.1, '#fde047', '#ca8a04', 0.6);
-            ART.ell(curC, sp[0] - 0.3, sp[1] - 0.3, 0.7, 0.5, '#ffffff');
-          }
-        }
+      for (const [tx, ty, tCol] of tesserae) {
+        const tp = Q(x + tx, y + ty);
+        ART.ell(curC, tp[0], tp[1], 1.4, 0.9, tCol, '#0f172a', 0.5);
       }
 
-      // Plaza center brass medallion
+      // Center royal ruby gemstone
       const cp = Q(x + 0.5, y + 0.5);
-      ART.ell(curC, cp[0], cp[1] + 0.4, 3.8, 2.2, 'rgba(120, 55, 5, 0.4)');
-      ART.ell(curC, cp[0], cp[1], 3.8, 2.2, '#fffbeb', '#b45309', 1.0);
-      ART.ell(curC, cp[0], cp[1], 1.8, 1.1, '#f59e0b');
+      ART.ell(curC, cp[0], cp[1] + 0.4, 3.0, 1.8, 'rgba(0,0,0,0.4)');
+      ART.ell(curC, cp[0], cp[1], 3.0, 1.8, '#e11d48', '#881337', 0.8);
+      ART.ell(curC, cp[0] - 0.5, cp[1] - 0.4, 1.0, 0.6, '#ffffff');
+    } else if (st === 'autumn') {
+      // 1. Warm woodland earth trail
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#854d0e', '#593207', 1.0);
+
+      // 2. Weathered rustic stepping slabs
+      const aSlabs = [
+        [0.32, 0.34, 9.0, 5.2, '#a16207'],
+        [0.70, 0.66, 10.0, 5.8, '#92400e']
+      ];
+      for (const [ux, vy, rx, ry, col] of aSlabs) {
+        const p = Q(x + ux, y + vy);
+        ART.ell(curC, p[0] + 0.6, p[1] + 1.2, rx, ry, 'rgba(40, 20, 5, 0.4)');
+        ART.ell(curC, p[0], p[1], rx, ry, col, 'rgba(80, 40, 10, 0.5)', 0.8);
+        ART.ell(curC, p[0] - 0.5, p[1] - 0.5, rx * 0.6, ry * 0.5, 'rgba(255, 230, 180, 0.4)');
+      }
+
+      // 3. Crisp red maple leaves (단풍잎)
+      const maples = [[0.22, 0.68], [0.78, 0.28]];
+      for (const [mx, my] of maples) {
+        const mp = Q(x + mx, y + my);
+        ART.ell(curC, mp[0] + 0.4, mp[1] + 0.6, 2.8, 1.8, 'rgba(50, 10, 5, 0.35)');
+        // 3-point maple silhouette
+        curC.fillStyle = '#dc2626';
+        curC.beginPath();
+        curC.moveTo(mp[0], mp[1] - 3.2);
+        curC.lineTo(mp[0] + 2.8, mp[1] - 0.5);
+        curC.lineTo(mp[0] + 1.8, mp[1] + 2.2);
+        curC.lineTo(mp[0] - 1.8, mp[1] + 2.2);
+        curC.lineTo(mp[0] - 2.8, mp[1] - 0.5);
+        curC.closePath();
+        curC.fill();
+        ART.ell(curC, mp[0] - 0.4, mp[1] - 0.5, 1.0, 0.6, '#f87171');
+      }
+
+      // 4. Golden fan-shaped ginkgo leaves (은행잎)
+      const ginkgos = [[0.45, 0.20], [0.82, 0.78]];
+      for (const [gx, gy] of ginkgos) {
+        const gp = Q(x + gx, y + gy);
+        ART.ell(curC, gp[0] + 0.4, gp[1] + 0.5, 2.5, 1.6, 'rgba(60, 30, 5, 0.35)');
+        curC.fillStyle = '#facc15';
+        curC.beginPath();
+        curC.moveTo(gp[0], gp[1] + 1.8);
+        curC.lineTo(gp[0] - 2.6, gp[1] - 1.5);
+        curC.quadraticCurveTo(gp[0], gp[1] - 3.0, gp[0] + 2.6, gp[1] - 1.5);
+        curC.closePath();
+        curC.fill();
+        ART.ell(curC, gp[0], gp[1] - 1.0, 1.0, 0.5, '#fef08a');
+      }
+
+      // Tiny acorn
+      const ac = Q(x + 0.20, y + 0.22);
+      ART.ell(curC, ac[0], ac[1], 1.6, 2.0, '#78350f');
+      ART.ell(curC, ac[0], ac[1] - 1.2, 1.8, 0.9, '#451a03');
+    } else if (st === 'slate') {
+      // 1. Dark volcanic basalt mortar bed
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#1e293b', '#0f172a', 1.0);
+
+      // 2. Heavy basalt / dark slate slabs with natural cleft lines
+      const sSlabs = [
+        [0.04, 0.04, 0.56, 0.46], [0.60, 0.04, 0.96, 0.46],
+        [0.04, 0.50, 0.40, 0.96], [0.44, 0.50, 0.96, 0.96]
+      ];
+      const sTones = ['#334155', '#1e293b', '#283344', '#1a2230'];
+
+      for (let i = 0; i < sSlabs.length; i++) {
+        const [u0, v0, u1, v1] = sSlabs[i];
+        const col = sTones[(x + y * 2 + i) % sTones.length];
+        const pts = [Q(x + u0, y + v0), Q(x + u1, y + v0), Q(x + u1, y + v1), Q(x + u0, y + v1)];
+        poly(curC, pts, col);
+
+        // Wet-look specular sheen rim
+        curC.beginPath();
+        curC.moveTo(pts[3][0], pts[3][1]); curC.lineTo(pts[0][0], pts[0][1]); curC.lineTo(pts[1][0], pts[1][1]);
+        curC.strokeStyle = 'rgba(148, 163, 184, 0.65)';
+        curC.lineWidth = 1.0;
+        curC.stroke();
+
+        // Deep recessed joints
+        curC.beginPath();
+        curC.moveTo(pts[1][0], pts[1][1]); curC.lineTo(pts[2][0], pts[2][1]); curC.lineTo(pts[3][0], pts[3][1]);
+        curC.strokeStyle = 'rgba(10, 15, 25, 0.65)';
+        curC.lineWidth = 1.1;
+        curC.stroke();
+
+        // Quartz mineral vein
+        const vA = Q(x + u0 + 0.05, y + v0 + 0.1);
+        const vB = Q(x + u1 - 0.05, y + v1 - 0.1);
+        curC.strokeStyle = 'rgba(203, 213, 225, 0.35)';
+        curC.lineWidth = 0.8;
+        curC.beginPath(); curC.moveTo(vA[0], vA[1]); curC.lineTo(vB[0], vB[1]); curC.stroke();
+      }
+    } else if (st === 'crystal') {
+      // 1. Deep cosmic indigo/violet foundation
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#1e1b4b', '#4c1d95', 1.1);
+
+      // 2. Cosmic nebula glow overlay
+      const pInner = [Q(x + 0.1, y + 0.1), Q(x + 0.9, y + 0.1), Q(x + 0.9, y + 0.9), Q(x + 0.1, y + 0.9)];
+      poly(curC, pInner, 'rgba(109, 40, 217, 0.45)', 'rgba(167, 139, 250, 0.5)', 0.8);
+
+      // 3. Embedded luminous crystal geodes
+      const crystals = [
+        [0.32, 0.32, 4.0, 2.5, '#c084fc', '#6b21a8'],
+        [0.68, 0.68, 4.2, 2.6, '#38bdf8', '#0369a1'],
+        [0.72, 0.28, 3.2, 2.0, '#f472b6', '#9d174d'],
+        [0.26, 0.74, 3.0, 1.9, '#a78bfa', '#5b21b6']
+      ];
+      for (const [cx, cy, rx, ry, cFill, cRim] of crystals) {
+        const cp = Q(x + cx, y + cy);
+        // Crystal glow aura
+        ART.ell(curC, cp[0], cp[1], rx + 2.0, ry + 1.5, 'rgba(192, 132, 252, 0.25)');
+        // Crystal body
+        ART.ell(curC, cp[0], cp[1], rx, ry, cFill, cRim, 0.8);
+        // Sharp specular facet
+        ART.ell(curC, cp[0] - 0.6, cp[1] - 0.4, rx * 0.45, ry * 0.45, '#ffffff');
+      }
+
+      // 4. Starlight sparkles (✨)
+      const stars = [[0.5, 0.18], [0.85, 0.5], [0.5, 0.82], [0.15, 0.5], [0.5, 0.5]];
+      for (const [sx, sy] of stars) {
+        const sp = Q(x + sx, y + sy);
+        curC.strokeStyle = '#ffffff'; curC.lineWidth = 1.0;
+        curC.beginPath();
+        curC.moveTo(sp[0] - 2.5, sp[1]); curC.lineTo(sp[0] + 2.5, sp[1]);
+        curC.moveTo(sp[0], sp[1] - 2.0); curC.lineTo(sp[0], sp[1] + 2.0);
+        curC.stroke();
+        ART.ell(curC, sp[0], sp[1], 0.8, 0.5, '#fef08a');
+      }
+    } else if (st === 'gold') {
+      // 1. Solid gold bullion foundation
+      poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#b45309', '#78350f', 1.2);
+
+      // 2. Staggered 24K gold bullion bars
+      const bars = [
+        [0.04, 0.04, 0.96, 0.30],
+        [0.04, 0.35, 0.48, 0.65], [0.52, 0.35, 0.96, 0.65],
+        [0.04, 0.70, 0.96, 0.96]
+      ];
+      const goldTones = ['#fbbf24', '#f59e0b', '#facc15', '#fde047'];
+
+      for (let i = 0; i < bars.length; i++) {
+        const [u0, v0, u1, v1] = bars[i];
+        const pts = [Q(x + u0, y + v0), Q(x + u1, y + v0), Q(x + u1, y + v1), Q(x + u0, y + v1)];
+        poly(curC, pts, goldTones[i % goldTones.length]);
+
+        // Brilliant metallic bevel highlight
+        curC.beginPath();
+        curC.moveTo(pts[3][0], pts[3][1]); curC.lineTo(pts[0][0], pts[0][1]); curC.lineTo(pts[1][0], pts[1][1]);
+        curC.strokeStyle = '#ffffff';
+        curC.lineWidth = 1.1;
+        curC.stroke();
+
+        // Bottom shadow bevel
+        curC.beginPath();
+        curC.moveTo(pts[1][0], pts[1][1]); curC.lineTo(pts[2][0], pts[2][1]); curC.lineTo(pts[3][0], pts[3][1]);
+        curC.strokeStyle = '#92400e';
+        curC.lineWidth = 1.2;
+        curC.stroke();
+      }
+
+      // 3. Inlaid ruby & emerald gemstones
+      const gemRuby = Q(x + 0.26, y + 0.50);
+      ART.ell(curC, gemRuby[0], gemRuby[1], 2.2, 1.4, '#ef4444', '#991b1b', 0.8);
+      ART.ell(curC, gemRuby[0] - 0.4, gemRuby[1] - 0.3, 0.8, 0.5, '#ffffff');
+
+      const gemEmerald = Q(x + 0.74, y + 0.50);
+      ART.ell(curC, gemEmerald[0], gemEmerald[1], 2.2, 1.4, '#10b981', '#065f46', 0.8);
+      ART.ell(curC, gemEmerald[0] - 0.4, gemEmerald[1] - 0.3, 0.8, 0.5, '#ffffff');
+
+      // 4. Glint starburst on gold bar
+      const glp = Q(x + 0.5, y + 0.17);
+      curC.strokeStyle = '#ffffff'; curC.lineWidth = 1.2;
+      curC.beginPath();
+      curC.moveTo(glp[0] - 3.5, glp[1]); curC.lineTo(glp[0] + 3.5, glp[1]);
+      curC.moveTo(glp[0], glp[1] - 2.8); curC.lineTo(glp[0], glp[1] + 2.8);
+      curC.stroke();
+      ART.ell(curC, glp[0], glp[1], 1.0, 0.6, '#ffffff');
     } else {
       // Default cobble: nested natural river cobblestones with 3D relief
       poly(curC, [Q(x, y), Q(x + 1, y), Q(x + 1, y + 1), Q(x, y + 1)], '#7a6c5b', '#524536', 1.0);
 
       const stones = [
-        [0.22, 0.20, 6.2, 3.8, '#d4c8b6'],
-        [0.54, 0.16, 7.0, 4.0, '#beb2a0'],
-        [0.82, 0.22, 5.5, 3.5, '#e2d8c9'],
-        [0.18, 0.46, 6.8, 4.2, '#b2a592'],
-        [0.48, 0.44, 7.8, 4.8, '#ded4c4'],
-        [0.80, 0.48, 6.4, 4.0, '#c7baa8'],
-        [0.20, 0.74, 6.0, 3.8, '#dfd5c5'],
-        [0.50, 0.72, 7.2, 4.4, '#bcb09e'],
-        [0.80, 0.76, 6.2, 3.8, '#d7ccbc'],
-        [0.34, 0.32, 4.5, 2.8, '#a69986'],
-        [0.66, 0.32, 4.8, 3.0, '#e5dcd0'],
-        [0.35, 0.58, 4.6, 2.9, '#a29582'],
-        [0.65, 0.60, 4.8, 3.0, '#cac0b0']
+        [0.22, 0.20, 6.4, 3.9, '#d4c8b6'],
+        [0.54, 0.16, 7.2, 4.1, '#beb2a0'],
+        [0.82, 0.22, 5.7, 3.6, '#e2d8c9'],
+        [0.18, 0.46, 7.0, 4.3, '#b2a592'],
+        [0.48, 0.44, 8.0, 4.9, '#ded4c4'],
+        [0.80, 0.48, 6.6, 4.1, '#c7baa8'],
+        [0.20, 0.74, 6.2, 3.9, '#dfd5c5'],
+        [0.50, 0.72, 7.4, 4.5, '#bcb09e'],
+        [0.80, 0.76, 6.4, 3.9, '#d7ccbc'],
+        [0.34, 0.32, 4.6, 2.9, '#a69986'],
+        [0.66, 0.32, 5.0, 3.1, '#e5dcd0'],
+        [0.35, 0.58, 4.8, 3.0, '#a29582'],
+        [0.65, 0.60, 5.0, 3.1, '#cac0b0']
       ];
 
       for (let i = 0; i < stones.length; i++) {
         const [ux, vy, rx, ry, col] = stones[i];
         const p = Q(x + ux, y + vy);
-        ART.ell(curC, p[0] + 0.8, p[1] + 1.2, rx, ry, 'rgba(40, 30, 20, 0.42)');
-        ART.ell(curC, p[0], p[1], rx, ry, col, 'rgba(65, 52, 40, 0.55)', 0.8);
+        ART.ell(curC, p[0] + 0.8, p[1] + 1.2, rx, ry, 'rgba(40, 30, 20, 0.45)');
+        ART.ell(curC, p[0], p[1], rx, ry, col, 'rgba(65, 52, 40, 0.60)', 0.8);
         curC.beginPath();
         curC.ellipse(p[0] - 0.6, p[1] - 0.7, rx * 0.65, ry * 0.6, 0, Math.PI * 1.0, Math.PI * 1.9);
-        curC.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+        curC.strokeStyle = 'rgba(255, 255, 255, 0.65)';
         curC.lineWidth = 1.0;
         curC.stroke();
         ART.ell(curC, p[0] + 0.4, p[1] + 0.3, 1.0, 0.7, 'rgba(80, 65, 50, 0.22)');
@@ -6345,6 +6686,28 @@ function getFlowerSprite(kind) {
     return out;
   };
 
+  const roadEdgeCol = st => {
+    switch (st) {
+      case 'dirt': return 'rgba(122,75,34,.65)';
+      case 'cobble': return 'rgba(72,60,48,.75)';
+      case 'brick': return 'rgba(122,46,27,.80)';
+      case 'yellow': return 'rgba(180,83,9,.85)';
+      case 'block': return 'rgba(84,78,70,.75)';
+      case 'step': return 'rgba(59,110,16,.60)';
+      case 'wood': return 'rgba(107,63,28,.80)';
+      case 'sand': return 'rgba(180,140,80,.65)';
+      case 'stone': return 'rgba(180,142,35,.85)';
+      case 'sakura': return 'rgba(219,39,119,.75)';
+      case 'tile': return 'rgba(194,65,12,.75)';
+      case 'mosaic': return 'rgba(30,58,138,.80)';
+      case 'autumn': return 'rgba(168,68,24,.80)';
+      case 'slate': return 'rgba(40,40,45,.85)';
+      case 'crystal': return 'rgba(126,34,206,.80)';
+      case 'gold': return 'rgba(180,120,10,.90)';
+      default: return 'rgba(72,60,48,.75)';
+    }
+  };
+
   const drawPlayerRoads = (targetC) => {
     const W = Wd(), H = Hd();
     const R = roadSet(S);
@@ -6369,8 +6732,8 @@ function getFlowerSprite(kind) {
       }
       const st = rstyles[k] || 'cobble';
       drawRoadTile(x, y, st, curC);
-      if (st !== 'step') {
-        curC.strokeStyle = st === 'tile' ? 'rgba(194,65,12,.75)' : st === 'stone' ? 'rgba(180,142,35,.85)' : st === 'yellow' ? 'rgba(180,83,9,.85)' : st === 'brick' ? 'rgba(122,46,27,.80)' : st === 'block' ? 'rgba(84,78,70,.75)' : st === 'dirt' ? 'rgba(122,75,34,.65)' : 'rgba(72,60,48,.75)';
+      if (st !== 'step' && st !== 'sand' && st !== 'sakura') {
+        curC.strokeStyle = roadEdgeCol(st);
         curC.lineWidth = 1.3;
         curC.beginPath();
         let anyEdge = false;
@@ -6432,8 +6795,8 @@ function getFlowerSprite(kind) {
         for (let ly = L.y; ly < L.y + L.d; ly++) {
           const lst = rstyles[lx + ',' + ly] || 'cobble';
           drawRoadTile(lx, ly, lst, c);
-          if (lst !== 'step') {
-            c.strokeStyle = lst === 'tile' ? 'rgba(194,65,12,.75)' : lst === 'stone' ? 'rgba(180,142,35,.85)' : lst === 'yellow' ? 'rgba(180,83,9,.85)' : lst === 'brick' ? 'rgba(122,46,27,.80)' : lst === 'block' ? 'rgba(84,78,70,.75)' : lst === 'dirt' ? 'rgba(122,75,34,.65)' : 'rgba(72,60,48,.75)';
+          if (lst !== 'step' && lst !== 'sand' && lst !== 'sakura') {
+            c.strokeStyle = roadEdgeCol(lst);
             c.lineWidth = 1.3;
             if (!laneSet.has(lx + ',' + (ly - 1)) && !R.has(lx + ',' + (ly - 1))) { const a = Q(lx, ly), b2 = Q(lx + 1, ly); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b2[0], b2[1]); c.stroke(); }
             if (!laneSet.has(lx + ',' + (ly + 1)) && !R.has(lx + ',' + (ly + 1))) { const a = Q(lx, ly + 1), b2 = Q(lx + 1, ly + 1); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b2[0], b2[1]); c.stroke(); }
@@ -7003,7 +7366,7 @@ function getFlowerSprite(kind) {
           r2.happy = Math.round(Math.min(100, (r2.happy || 70) + 1));
           const pet = (r2.pets || []).find(p => p.sp === a.pet) || (r2.pets || [])[0];
           if (pet) {
-            const expGain = 5 + Math.floor(Math.random() * 6); // +5~10 EXP
+            const expGain = 1; // +1 EXP (자연스러운 성장 속도 유지)
             const lvup = grantResidentPetExp(r2, pet, expGain);
             if (lvup > 0) {
               const lang2 = (s && s.lang) || 'ko';
@@ -7287,10 +7650,10 @@ function getFlowerSprite(kind) {
             const pet = (r2 && r2.pets) ? (r2.pets.find(p => p.sp === a.pet) || r2.pets[0]) : null;
             if (pet) {
               let bonusXp = 0;
-              if (a.dstK === 'hosp') bonusXp = 20; // 동물병원(🏥) 방문: 건강 검진과 체력 단련으로 EXP +20
-              else if (a.dstK === 'salon') bonusXp = 15; // 펫 미용실(✂️) 방문: 털 관리 및 컨디션 UP으로 EXP +15
-              else if (a.dstK === 'cafe') bonusXp = 15; // 펫 카페(☕) 방문: 다른 펫들과의 사회화 교류 및 특별 간식으로 EXP +15
-              else if (a.dstK === 'park' || a.dstK === 'lake') bonusXp = 8 + Math.floor(Math.random() * 3); // 공원/호수 산책 EXP +8~10
+              if (a.dstK === 'hosp') bonusXp = 2; // 동물병원(🏥) 방문: EXP +2
+              else if (a.dstK === 'salon') bonusXp = 2; // 펫 미용실(✂️) 방문: EXP +2
+              else if (a.dstK === 'cafe') bonusXp = 2; // 펫 카페(☕) 방문: EXP +2
+              else if (a.dstK === 'park' || a.dstK === 'lake') bonusXp = 1; // 공원/호수 산책 EXP +1
               if (bonusXp > 0) {
                 const lvup = grantResidentPetExp(r2, pet, bonusXp);
                 if (lvup > 0) {
@@ -7380,8 +7743,8 @@ function getFlowerSprite(kind) {
             const winner = win1 ? a1 : a2, loser = win1 ? a2 : a1;
             const wPet = win1 ? p1 : p2, lPet = win1 ? p2 : p1;
             const wRes = win1 ? r1 : r2, lRes = win1 ? r2 : r1;
-            const wXp = 15 + Math.floor(Math.random() * 11); // 승자 EXP +15~25
-            const lXp = 10 + Math.floor(Math.random() * 6);  // 패자 EXP +10~15
+            const wXp = 3; // 승자 EXP +3
+            const lXp = 1; // 패자 EXP +1
             const wLvup = grantResidentPetExp(wRes, wPet, wXp);
             const lLvup = grantResidentPetExp(lRes, lPet, lXp);
             wRes.happy = Math.min(100, (wRes.happy || 70) + 2);
@@ -7593,7 +7956,7 @@ Object.assign(I18N.ko, {
   roadNeedWarn: '길 연결 필요', roadCut: '길이 끊겼어요! ⚠️', roadNone: '길이 없어요 😢',
   roadRefundToast: '건물 확장 구역의 길 {n}개가 철거되어 🪙{c}이 100% 환불되었습니다!',
   roadErasedRefundToast: '길 {n}개가 철거되어 🪙{c}이 100% 환불되었습니다!',
-  road_dirt: '기본 흙길', road_cobble: '자갈길', road_brick: '벽돌길', road_block: '보도블록길', road_step: '공원 산책로', road_stone: '고급 석재길', road_tile: '고급 타일길'
+  road_dirt: '기본 흙길', road_cobble: '자갈길', road_brick: '벽돌길', road_yellow: '노란 안내길', road_block: '보도블록길', road_step: '공원 산책로', road_wood: '통나무 데크길', road_sand: '해변 모래길', road_stone: '고급 석재길', road_sakura: '벚꽃 산책로', road_tile: '고급 타일길', road_mosaic: '로열 모자이크길', road_autumn: '가을 단풍길', road_slate: '현무암 판석길', road_crystal: '별빛 크리스탈길', road_gold: '황금 벽돌길'
 });
 Object.assign(I18N.ru, {
   followBtn: '🐾 Взять с собой', followStop: '🏠 Оставить дома', followOn: 'Гуляем вместе с {n} 🐾', followOff: '{n} остался дома', followNoAqua: 'Водных питомцев нельзя взять с собой',
@@ -7612,5 +7975,5 @@ Object.assign(I18N.ru, {
   roadNeedWarn: 'Нужна дорога', roadCut: 'Дорога оборвалась! ⚠️', roadNone: 'Нет дороги 😢',
   roadRefundToast: 'Удалено {n} дорог под зданием, возвращено 🪙{c} (100%)!',
   roadErasedRefundToast: 'Снесено {n} дорог, возвращено 🪙{c} (100%)!',
-  road_dirt: 'Грунтовая дорога', road_cobble: 'Брусчатка', road_brick: 'Кирпичная дорога', road_block: 'Тротуарная плитка', road_step: 'Парковая тропа', road_stone: 'Каменная дорога', road_tile: 'Элитная плитка'
+  road_dirt: 'Грунтовая дорога', road_cobble: 'Брусчатка', road_brick: 'Кирпичная дорога', road_yellow: 'Жёлтая дорожка', road_block: 'Тротуарная плитка', road_step: 'Парковая тропа', road_wood: 'Деревянный настил', road_sand: 'Песчаная тропа', road_stone: 'Каменная дорога', road_sakura: 'Сакуровая аллея', road_tile: 'Элитная плитка', road_mosaic: 'Царская мозаика', road_autumn: 'Осенняя тропа', road_slate: 'Сланцевая дорога', road_crystal: 'Кристальная дорога', road_gold: 'Золотая мостовая'
 });

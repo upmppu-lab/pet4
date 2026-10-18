@@ -153,10 +153,11 @@ const G = (() => {
     s.pets.forEach(p => { if (p) fixPet(p); });
     ensureOffers(s);
     EXTRA.migrate(s); HOME.ensure(s); TOWN.ensure(s); // PET TOWN
-    // v2026-10-17: 기존 세이브에서 매일 아침 경험치 과지급으로 모든 펫이 Lv.6/Lv.7로 고정되어 있던 문제 즉시 정상화
-    // 레벨 1이 대다수, 레벨 2도 다수, 레벨 3~4는 가끔, 레벨 5는 드물게 분포
+    // v2026-10-18: 마을 주민 펫 레벨이 모두 7로 고착되던 버그 즉시 정상화 및 현실적인 RPG 분포 적용
+    // 레벨 1이 대다수, 레벨 2~3 중심, 레벨 4 가끔, 레벨 5 극소수 분포
     if (s.town && Array.isArray(s.town.residents)) {
-      if (!s.town.residentPetsBalancedV20261017_Final) {
+      const needsRebal = !s.town.residentPetsBalancedV20261018_Fix || (s.town.residents.length > 0 && s.town.residents.every(r => (r.pets || []).length > 0 && (r.pets || []).every(p => (p.blv || 1) >= 6)));
+      if (needsRebal) {
         if (typeof TOWN !== 'undefined' && TOWN.rebalanceResidentPets) {
           TOWN.rebalanceResidentPets(s);
         } else {
@@ -189,6 +190,7 @@ const G = (() => {
               p.exp = p.bxp;
             });
           }
+          s.town.residentPetsBalancedV20261018_Fix = 1;
           s.town.residentPetsBalancedV20261017_Final = 1;
           s.town.residentPetsBalancedV6 = 1;
           s.town.residentPetsBalancedV5 = 1;

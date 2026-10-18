@@ -766,6 +766,25 @@ function clearThumbCache() {
         <circle cx="26" cy="8" r="1.4" fill="#ffffff"/>
         <circle cx="26" cy="8" r="0.6" fill="#f59e0b"/>
       </svg>`;
+    } else if (id === 'wood') {
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#5c3818" stroke="#38200b" stroke-width="1.2"/>
+        <polygon points="23,3 38,10.5 23,18 8,10.5" fill="#b87333" stroke="#38200b" stroke-width="0.5"/>
+        <polygon points="9,11 23,18 16,21.5 2,14.5" fill="#a25f25" stroke="#38200b" stroke-width="0.5"/>
+        <polygon points="37,11 44,14.5 30,21.5 23,18" fill="#c47d3c" stroke="#38200b" stroke-width="0.5"/>
+        <path d="M14,6 L32,15 M20,10 L38,19" stroke="#78350f" stroke-width="0.6" opacity="0.5"/>
+        <circle cx="10" cy="11" r="0.8" fill="#e2e8f0" stroke="#475569" stroke-width="0.3"/>
+        <circle cx="36" cy="11" r="0.8" fill="#e2e8f0" stroke="#475569" stroke-width="0.3"/>
+      </svg>`;
+    } else if (id === 'sand') {
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#f3dfb5" stroke="#caa977" stroke-width="1.2"/>
+        <path d="M7,11 Q23,16 39,11 M9,16 Q23,21 37,16" stroke="#caa977" stroke-width="0.8" fill="none"/>
+        <ellipse cx="20" cy="12" rx="2.5" ry="1.6" fill="#fdf2f8" stroke="#f472b6" stroke-width="0.5"/>
+        <ellipse cx="28" cy="17" rx="2" ry="1.3" fill="#e0f2fe" stroke="#38bdf8" stroke-width="0.5"/>
+        <circle cx="27" cy="9" r="1.5" fill="#fb7185"/>
+        <circle cx="14" cy="18" r="0.8" fill="#ffffff"/>
+      </svg>`;
     } else if (id === 'stone') {
       return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
         <polygon points="23,2 44,13 23,24 2,13" fill="#f5f1e8" stroke="#b89230" stroke-width="1.3"/>
@@ -775,6 +794,16 @@ function clearThumbCache() {
         <circle cx="22.6" cy="12.6" r="0.6" fill="#ffffff"/>
         <circle cx="7" cy="13" r="1" fill="#fef08a"/>
         <circle cx="39" cy="13" r="1" fill="#fef08a"/>
+      </svg>`;
+    } else if (id === 'sakura') {
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#fce7f3" stroke="#db2777" stroke-width="1.2"/>
+        <ellipse cx="18" cy="11" rx="5" ry="3" fill="#fdf2f8" stroke="#f472b6" stroke-width="0.6"/>
+        <ellipse cx="28" cy="15" rx="5.5" ry="3.2" fill="#fbcfe8" stroke="#f472b6" stroke-width="0.6"/>
+        <circle cx="23" cy="8" r="1.4" fill="#f472b6"/>
+        <circle cx="23" cy="8" r="0.5" fill="#fde047"/>
+        <ellipse cx="13" cy="16" rx="1.6" ry="0.9" fill="#f9a8d4" stroke="#ec4899" stroke-width="0.4"/>
+        <ellipse cx="33" cy="11" rx="1.6" ry="0.9" fill="#f9a8d4" stroke="#ec4899" stroke-width="0.4"/>
       </svg>`;
     } else if (id === 'tile') {
       return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
@@ -786,6 +815,58 @@ function clearThumbCache() {
         <circle cx="23" cy="13" r="1.8" fill="#ea580c"/>
         <circle cx="22.5" cy="12.5" r="0.6" fill="#ffffff"/>
         <path d="M12,12 L30,20" stroke="#ffffff" stroke-width="0.8" opacity="0.6"/>
+      </svg>`;
+    } else if (id === 'mosaic') {
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#0f172a" stroke="#1e3a8a" stroke-width="1.2"/>
+        <polygon points="23,5 39,13 23,21 7,13" fill="#1d4ed8" stroke="#60a5fa" stroke-width="0.7"/>
+        <polygon points="23,8 33,13 23,18 13,13" fill="#059669" stroke="#34d399" stroke-width="0.6"/>
+        <circle cx="23" cy="13" r="1.8" fill="#e11d48"/>
+        <circle cx="22.5" cy="12.5" r="0.6" fill="#ffffff"/>
+        <circle cx="15" cy="9" r="0.8" fill="#fbbf24"/>
+        <circle cx="31" cy="9" r="0.8" fill="#fbbf24"/>
+        <circle cx="15" cy="17" r="0.8" fill="#38bdf8"/>
+        <circle cx="31" cy="17" r="0.8" fill="#38bdf8"/>
+      </svg>`;
+    } else if (id === 'autumn') {
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#854d0e" stroke="#593207" stroke-width="1.2"/>
+        <ellipse cx="18" cy="12" rx="5" ry="3" fill="#a16207" stroke="#713f12" stroke-width="0.6"/>
+        <ellipse cx="29" cy="14" rx="5.5" ry="3.2" fill="#92400e" stroke="#713f12" stroke-width="0.6"/>
+        <polygon points="22,7 25,10 23,12 20,10" fill="#dc2626"/>
+        <circle cx="22" cy="9" r="0.6" fill="#f87171"/>
+        <polygon points="14,15 17,18 15,20 12,18" fill="#facc15"/>
+        <circle cx="32" cy="16" r="1.2" fill="#78350f"/>
+      </svg>`;
+    } else if (id === 'slate') {
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#1e293b" stroke="#0f172a" stroke-width="1.2"/>
+        <polygon points="23,3 38,10.5 23,18 8,10.5" fill="#334155" stroke="#0f172a" stroke-width="0.6"/>
+        <path d="M23,3 L8,10.5" stroke="#94a3b8" stroke-width="0.8" opacity="0.75"/>
+        <polygon points="8,12 23,19.5 15.5,23.2 0.5,15.7" fill="#1e293b" stroke="#0f172a" stroke-width="0.5"/>
+        <polygon points="38,12 45.5,15.7 30.5,23.2 23,19.5" fill="#283344" stroke="#0f172a" stroke-width="0.5"/>
+        <path d="M16,8 L30,15" stroke="#cbd5e1" stroke-width="0.6" opacity="0.45"/>
+      </svg>`;
+    } else if (id === 'crystal') {
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#1e1b4b" stroke="#4c1d95" stroke-width="1.2"/>
+        <polygon points="23,5 39,13 23,21 7,13" fill="#6d28d9" fill-opacity="0.4" stroke="#a78bfa" stroke-width="0.6"/>
+        <polygon points="18,10 24,7 22,14 16,13" fill="#c084fc" stroke="#6b21a8" stroke-width="0.5"/>
+        <polygon points="28,14 34,12 32,18 26,17" fill="#38bdf8" stroke="#0369a1" stroke-width="0.5"/>
+        <path d="M23,11 L23,15 M21,13 L25,13" stroke="#ffffff" stroke-width="1"/>
+        <circle cx="23" cy="13" r="0.6" fill="#fef08a"/>
+        <circle cx="33" cy="8" r="0.8" fill="#ffffff"/>
+        <circle cx="12" cy="18" r="0.8" fill="#ffffff"/>
+      </svg>`;
+    } else if (id === 'gold') {
+      return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+        <polygon points="23,2 44,13 23,24 2,13" fill="#b45309" stroke="#78350f" stroke-width="1.2"/>
+        <polygon points="23,4 39,12 23,20 7,12" fill="#fbbf24" stroke="#78350f" stroke-width="0.6"/>
+        <path d="M23,4 L7,12 M23,4 L39,12" stroke="#ffffff" stroke-width="0.9"/>
+        <polygon points="15,10 23,14 18,17 10,13" fill="#f59e0b" stroke="#78350f" stroke-width="0.5"/>
+        <circle cx="23" cy="12" r="1.5" fill="#ef4444" stroke="#991b1b" stroke-width="0.4"/>
+        <circle cx="22.6" cy="11.6" r="0.5" fill="#ffffff"/>
+        <path d="M30,8 L34,8 M32,6 L32,10" stroke="#ffffff" stroke-width="0.9"/>
       </svg>`;
     } else if (id === 'yellow') {
       return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
