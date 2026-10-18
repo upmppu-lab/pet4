@@ -1561,7 +1561,6 @@ return true;
   // target walks indoors mid-approach). Reused later for the autonomous villager-vs-villager battle result
   // text ("이겼다"/"졌다"/"뺏겼다"), so it lives on the actor rather than being tied to the player specifically.
   function floatMsg(actor, txt, dur) { if (!actor || !txt) return; actor._floatMsg = { txt, start: T, dur: dur || 2.2 }; }
-  if (typeof window !== 'undefined') window.floatMsg = floatMsg;
 
   let _frameDrawList = [], _framePenHits = [];
 
@@ -1771,51 +1770,13 @@ return true;
       const cs = [[hp0.x, hp0.y], [hp0.x + hp0.w, hp0.y], [hp0.x + hp0.w, hp0.y + hp0.d], [hp0.x, hp0.y + hp0.d]].map(([x, y]) => [ISO.wx(x, y), ISO.wy(x, y)]); const xs = cs.map(q => q[0]), ys = cs.map(q => q[1]); hits.push({ kind: 'home', x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys) - hp0.h - 60, y1: Math.max(...ys) + 10 });
     }
     for (const m of S.messes || []) { if (!poopShown(m)) continue; const sx = ISO.wx(m.x + .5, m.y + .5), sy = ISO.wy(m.x + .5, m.y + .5); if (!isPtVis(sx, sy, 40, 40)) continue; hits.push({ kind: 'mess', m, x0: sx - 26, x1: sx + 26, y0: sy - 24, y1: sy + 14 }); }
-    const isPassingShopWall = a => {
-      const sw = W(), sh = H();
-      return (
-        (Math.abs(a.x - sw) <= 1.4 && a.y >= -0.8 && a.y <= sh + 1.4) ||
-        (Math.abs(a.y - sh) <= 1.4 && a.x >= -0.8 && a.x <= sw + 1.4) ||
-        (Math.abs(a.x) <= 1.2 && a.y >= -0.8 && a.y <= sh + 1.4) ||
-        (Math.abs(a.y) <= 1.2 && a.x >= -0.8 && a.x <= sw + 1.4)
-      );
-    };
-    const drawObjWithOcclusion = (c, e, T) => {
-      let actorBehind = false;
-      const b = e.tobj;
-      const f = e.f || (typeof TOWN !== 'undefined' && TOWN.fpOf ? TOWN.fpOf(b.k, b.r) : { w: 3, d: 3 });
-      // 건물 지붕/외벽이 북서/위쪽으로 높게 솟아있으므로 Y/X 북쪽 방향 및 부지 범위를 넉넉히 감지
-      const bx0 = b.x - 2.5, by0 = b.y - 2.5, bx1 = b.x + (f ? f.w : 4) + 0.5, by1 = b.y + (f ? f.d : 4) + 0.5;
-      const bDep = e.depth;
-      for (const a of actors.values()) {
-        if (a.hidden) continue;
-        if (a.x >= bx0 && a.x <= bx1 && a.y >= by0 && a.y <= by1 && (a.x + a.y) < bDep + 0.05) {
-          actorBehind = true;
-          break;
-        }
-      }
-      if (actorBehind) {
-        c.save();
-        c.globalAlpha = 0.42; // 건물이 주민을 가리지 않도록 은은하고 투명하게 처리 (주민이 훤히 투명하게 비쳐 보임)
-        TOWN.drawObj(c, e.tobj, T);
-        c.restore();
-      } else {
-        TOWN.drawObj(c, e.tobj, T);
-      }
-      hits.push({ kind: 'tobj', id: e.tobj.id, x0: e.sx - (e.big ? 50 : e.isTree ? 45 : 16 * (f ? f.w : 4)), x1: e.sx + (e.big ? 50 : e.isTree ? 45 : 16 * (f ? f.w : 4)), y0: e.sy - (e.big ? 70 : e.isTree ? 210 : 40), y1: e.sy + 10 });
-    };
     for (const e of list) {
       if (!e.inShop) continue;
       if (e.item) drawItem(e.item, e.d);
-      else if (e.actor) {
-        if (isPassingShopWall(e.actor)) {
-          c.save(); c.globalAlpha = 0.58; drawActor(e.actor); c.restore();
-        } else {
-          drawActor(e.actor);
-        }
-      }
+      else if (e.actor) drawActor(e.actor);
       else if (e.tobj) {
-        drawObjWithOcclusion(c, e, T);
+        TOWN.drawObj(c, e.tobj, T);
+        hits.push({ kind: 'tobj', id: e.tobj.id, x0: e.sx - (e.big ? 50 : e.isTree ? 45 : 16 * e.f.w), x1: e.sx + (e.big ? 50 : e.isTree ? 45 : 16 * e.f.w), y0: e.sy - (e.big ? 70 : e.isTree ? 210 : 40), y1: e.sy + 10 });
       }
       else if (e.fn) e.fn();
     }
@@ -1827,15 +1788,10 @@ return true;
     for (const e of list) {
       if (e.inShop) continue;
       if (e.item) drawItem(e.item, e.d);
-      else if (e.actor) {
-        if (isPassingShopWall(e.actor)) {
-          c.save(); c.globalAlpha = 0.58; drawActor(e.actor); c.restore();
-        } else {
-          drawActor(e.actor);
-        }
-      }
+      else if (e.actor) drawActor(e.actor);
       else if (e.tobj) {
-        drawObjWithOcclusion(c, e, T);
+        TOWN.drawObj(c, e.tobj, T);
+        hits.push({ kind: 'tobj', id: e.tobj.id, x0: e.sx - (e.big ? 50 : e.isTree ? 45 : 16 * e.f.w), x1: e.sx + (e.big ? 50 : e.isTree ? 45 : 16 * e.f.w), y0: e.sy - (e.big ? 70 : e.isTree ? 210 : 40), y1: e.sy + 10 });
       }
       else if (e.fn) e.fn();
     }
@@ -2398,7 +2354,16 @@ return true;
     } else if (a.type === 'hstaff' && !a.moving && !a.talk && !a.faceBack) {
       vface = 0; a.faceBack = false; a.diag = false;
     }
-    c.save(); c.translate(sx, (a.salon && a.sit) ? sy - 5 : sy);
+    // v2026-10-18: 펫샵 자체의 북쪽/서쪽 외벽(wallCanvas)은 캐릭터보다 먼저 배경처럼 한 번에
+    // 그려지는 그림이라서, 벽 '뒤'(바깥쪽)에 있어야 할 캐릭터가 항상 벽보다 위에 그려져 마치 벽을
+    // 그냥 통과하는 것처럼 보였음. 완전히 숨기면 주민이 안 보인다는 다른 요청과 충돌하므로, 벽 뒤에
+    // 있을 때는 살짝만 투명하게 그려서 "벽 뒤에 가려져 있다"는 느낌만 자연스럽게 주도록 함.
+    // v2026-10-18(2): "길을 그냥 다닐 때도 반투명해진다"는 피드백 -- 벽에서 먼 곳(마을 안쪽)까지
+    // 전부 해당 조건에 걸려서 평범하게 산책하는 주민까지 계속 반투명하게 보였음. 실제 벽 그림과
+    // 겹치는 건 벽 바로 바깥쪽 1~2칸 정도뿐이므로, 그 좁은 범위에만 적용하도록 좁힘.
+    const behindShopWall = (a.y < -.3 && a.y > -2.4 && a.x > -1.3 && a.x < W() + .3) || (a.x < -.3 && a.x > -2.4 && a.y > -1.3 && a.y < H() + .3);
+    c.save(); if (behindShopWall) c.globalAlpha = .55;
+    c.translate(sx, (a.salon && a.sit) ? sy - 5 : sy);
     if (a.type === 'me' || a.type === 'partner' || a.type === 'cust' || a.type === 'insp' || a.type === 'reg' || a.type === 'staff' || a.type === 'thief' || a.type === 'cafeguest' || a.type === 'patient' || a.type === 'hstaff' || a.type === 'vil') {
       // v1.100.14: 필드 캐릭터가 프리뷰보다 가로로 좁아 보인다는 피드백 - 가로로 12% 더 넓게
       // v1.100.49: "사람들 크기가 다 다르다" 피드백 - 직원(staff/hstaff)은 human.js의 STAFF_HEAD_SIZE/

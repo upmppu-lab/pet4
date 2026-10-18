@@ -2169,11 +2169,21 @@ const P2 = {
     const bw = o.bw || 1;
     const isSit = (ART.SIT || 0) > 0.05;
 
-    // Ground Contact Shadow (발 아래에 깔끔하게 밀착되는 3겹 타원 그림자 - 뒤에 선 사람을 덮지 않음)
-    const sy0 = (shadowYOff || 0);
-    ART.ell(c, 0, sy0 + 8, 20 * k * bw, 6.5 * k, 'rgba(15,20,30,.12)');
-    ART.ell(c, 0, sy0 + 7.5, 15 * k * bw, 5.0 * k, 'rgba(15,20,30,.22)');
-    ART.ell(c, 0, sy0 + 7, 9 * k * bw, 3.2 * k, 'rgba(15,20,30,.40)');
+    // Contact Ground Shadow (shadowYOff: 캐릭터 미리보기 전용 - 발 아래로 그림자를 더 내려서 보여줄 때 씀)
+    // v2026-10-17: 동그란 타원 3겹 대신, 이 캐릭터의 실제 실루엣(옷/머리/포즈별로 캐싱)을 납작하게 눌러서
+    // 그림자로 찍는다. 미리보기 화면(shadowYOff 있음)은 기존 타원 방식을 그대로 유지.
+    if (DRAW_SIL_DEPTH === 0 && !shadowYOff) {
+      const key = 'hum:' + JSON.stringify(o) + ':' + realDir + ':' + (faceBack ? 1 : 0) + ':' + (moving ? 1 : 0) + ':' + mood + ':' + (isSit ? 1 : 0) + ':' + k.toFixed(2) + ':' + bw.toFixed(2);
+      ART.castShadow(c, key, 360, 360, 180, 260, g => {
+        DRAW_SIL_DEPTH++;
+        try { draw(g, o, dir, 0, moving, mood, diag, faceBack, 0); } finally { DRAW_SIL_DEPTH--; }
+      }, { squash: .3, alpha: .26 });
+    } else {
+      const sy0 = (shadowYOff || 0);
+      ART.ell(c, 0, sy0 + 8, 22 * k * bw, 7.5 * k, 'rgba(15,20,30,.10)');
+      ART.ell(c, 0, sy0 + 7.5, 16 * k * bw, 5.5 * k, 'rgba(15,20,30,.20)');
+      ART.ell(c, 0, sy0 + 7, 9 * k * bw, 3.2 * k, 'rgba(15,20,30,.42)');
+    }
 
     c.save();
     c.scale(k, k);

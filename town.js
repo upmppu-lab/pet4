@@ -1441,30 +1441,9 @@ const roadTileOk = (s, x, y) => {
     if (moved || left) ev_(s, { k: 'townDay', moved, left, hap: st.hap });
     syncResidents(s); // move-ins/move-outs above change o.n per house, so the resident roster needs to catch up
     for (const r of T.residents) r.happy = Math.round(Math.max(0, Math.min(100, (r.happy == null ? st.hap : r.happy) * .85 + st.hap * .15))); // personal happiness drifts gently toward how the whole town feels
-    // 날짜 경과(Day)에 따른 주민 펫 성장:
-    // 어제 펫을 산 사람과 오늘 펫을 산 사람 간의 경험치/레벨 차이가 자연스럽게 반영되도록,
-    // 매일 아침 모든 주민의 모든 펫에게 밸런스를 깨뜨리지 않는 미세한 정성 돌봄 경험치(기본 1 EXP, 주민 행복도 높으면 +1 EXP)를 지급합니다.
-    // 고레벨(Lv.6 이상)에서는 특정 레벨 쏠림을 방지하기 위해 매일 오르지 않고 확률적(40%)으로만 1 EXP 부여되며,
-    // 주된 성장은 산책, 공원 놀이, 친선 배틀, 병원 진료 등 마을 활동을 통해 이루어집니다.
-    for (const r of (T.residents || [])) {
-      const pets = r.pets || [];
-      if (!pets.length) continue;
-      const isHappyOwner = (r.happy || 70) >= 75;
-      for (const p of pets) {
-        if (!p) continue;
-        p.blv = p.blv || p.lv || 1;
-        p.bxp = p.bxp || 0;
-        let dayGain = 0;
-        if (p.blv < 6) {
-          dayGain = Math.random() < (isHappyOwner ? 0.75 : 0.5) ? (Math.random() < 0.25 ? 2 : 1) : 0;
-        } else if (p.blv < 10) {
-          dayGain = Math.random() < (isHappyOwner ? 0.4 : 0.2) ? 1 : 0;
-        }
-        if (dayGain > 0) {
-          grantResidentPetExp(r, p, dayGain);
-        }
-      }
-    }
+    // v2026-10-18(2): 시간이 지나면 주민 펫들이 가만히 있어도 레벨이 오른다는 피드백으로, 매일 자동으로
+    // 지급되던 위의 날짜 경과 경험치를 완전히 제거했음. 이제 주민 펫의 성장은 산책, 공원 놀이, 친선 배틀,
+    // 병원 진료 등 실제 마을 활동을 통해서만 이루어짐 (각각의 grantResidentPetExp 호출 지점에서만 경험치가 오름).
     checkMilestones(s);
   }
   function checkMilestones(s) {
@@ -4034,33 +4013,24 @@ function getFlowerSprite(kind) {
     HS = hs || null;
   }
   function frameOff() { ROT = null; MR = null; HS = null; }
-  function drawHouse(c, h, T, ghost) {
+  function drawHouse(c, h, T) {
     // 5x5 부지 전용 정밀 렌더링: 회전(r) 시에도 위치가 전혀 이동하지 않고
     // 부지 중심(cx, cy)에서 제자리 회전하며, 3x3 칸을 차지하도록 알맞게 확대됨
-    drawHouse_(c, h, T, ghost);
+    drawHouse_(c, h, T);
   }
 
-  // 1. 마당 잔디 및 진입로, 기초 바닥 (ground 패스에서 미리 그려지므로 ghost 모드가 아닐 때는 중복 렌더링 생략하여 주민 가림 방지)
-  function drawHouseGround(c, h) {
+  // ================= v2026-10-08: 집 크기 3x3 중앙 차지 + 제자리 방향 전환 (나무 제거) =================
+  function drawHouse_(c, h, T) {
     const cx = h.x + 2.5, cy = h.y + 2.5;
-    // 1. 마당 잔디 (5x5 부지 전체를 감싸는 부드러운 초록 잔디밭)
-    poly(c, [
-      [ISO.wx(h.x + .15, h.y + .15), ISO.wy(h.x + .15, h.y + .15)],
-      [ISO.wx(h.x + 4.85, h.y + .15), ISO.wy(h.x + 4.85, h.y + .15)],
-      [ISO.wx(h.x + 4.85, h.y + 4.85), ISO.wy(h.x + 4.85, h.y + 4.85)],
-      [ISO.wx(h.x + .15, h.y + 4.85), ISO.wy(h.x + .15, h.y + 4.85)]
-    ], 'rgba(125,190,75,.42)');
+    const r = ((h.r || 0) % 2 + 2) % 2; // 0: 남서향(기본), 1: 남동향(반전)
 
-    // 1-1. 집 입구 방향에 맞춰 마당 진입로 흙길 타일 렌더링
+    // v2026-10-18(4): "주민이 집 땅/길에 가려진다"는 진짜 원인을 찾음 -- 여기(집 그리기 함수) 안에서
+    // 마당 잔디(5x5 전체)와 출입문 앞 흙길 타일을 '또' 그리고 있었음. 이 집 그리기 함수는 캐릭터들과
+    // 함께 깊이(depth) 순서로 섞여서 그려지기 때문에, 캐릭터가 이 타일 위에 서 있을 때 하필 집보다
+    // 먼저 그려지는 차례면 집이 그 위에(캐릭터를 덮어서) 다시 칠해져 버렸음. 잔디/흙길은 이미
+    // TOWN.ground()(모든 캐릭터보다 항상 먼저 그려지는 바닥 레이어)에서 drawHouseEntranceTiles로
+    // 정상적으로 그려지고 있으므로, 여기서는 완전히 제거함 (curDoor는 아래 우체통 위치에 계속 필요).
     const curDoor = (((h.doorDir != null ? h.doorDir : ((h.o && h.o.doorDir != null) ? h.o.doorDir : h.r)) || 0) % 4 + 4) % 4;
-    const R_house = roadSet(typeof S !== 'undefined' ? S : null);
-    const drawHouseEnt = (tx, ty) => {
-      if (!R_house.has(tx + ',' + ty)) drawRoadTile(tx, ty, 'dirt', c);
-    };
-    if (curDoor === 0) { drawHouseEnt(h.x + 4, h.y + 2); drawHouseEnt(h.x + 5, h.y + 2); }
-    else if (curDoor === 1) { drawHouseEnt(h.x + 2, h.y + 4); drawHouseEnt(h.x + 2, h.y + 5); }
-    else if (curDoor === 2) { drawHouseEnt(h.x, h.y + 2); drawHouseEnt(h.x - 1, h.y + 2); drawHouseEnt(h.x - 2, h.y + 2); }
-    else if (curDoor === 3) { drawHouseEnt(h.x + 2, h.y); drawHouseEnt(h.x + 2, h.y - 1); drawHouseEnt(h.x + 2, h.y - 2); }
 
     // 2. 5x5 부지의 정중앙 3x3 (cx-1.5 ~ cx+1.5, cy-1.5 ~ cy+1.5) 집 밑바닥 기초/마루
     poly(c, [
@@ -4069,16 +4039,6 @@ function getFlowerSprite(kind) {
       [ISO.wx(cx + 1.5, cy + 1.5), ISO.wy(cx + 1.5, cy + 1.5)],
       [ISO.wx(cx - 1.5, cy + 1.5), ISO.wy(cx - 1.5, cy + 1.5)]
     ], 'rgba(105,160,60,.30)');
-  }
-
-  // ================= v2026-10-08: 집 크기 3x3 중앙 차지 + 제자리 방향 전환 (나무 제거) =================
-  function drawHouse_(c, h, T, ghost) {
-    const cx = h.x + 2.5, cy = h.y + 2.5;
-    const r = ((h.r || 0) % 2 + 2) % 2; // 0: 남서향(기본), 1: 남동향(반전)
-
-    if (ghost) {
-      drawHouseGround(c, h);
-    }
 
     const tier = Math.min(HOUSE_TIER_MAX, Math.max(1, (h.tier != null ? h.tier : ((h.o && h.o.tier != null) ? h.o.tier : (tierOf(h) || 1)))));
     const img = getTownHouseImg(tier);
@@ -4666,14 +4626,7 @@ function getFlowerSprite(kind) {
     }
   }
   // ---------------- stage 3: shops & public buildings ----------------
-  function drawCivicGround(c, o) {
-    const d = D[o.k]; if (!d) return;
-    const x = o.x, y = o.y, w = d.w, dd = d.d;
-    poly(c, [Q(x + .1, y + .1), Q(x + w - .1, y + .1), Q(x + w - .1, y + dd - .1), Q(x + .1, y + dd - .1)], d.open ? 'rgba(120,180,80,.25)' : 'rgba(210,198,168,.5)');
-    const bx = x + .3, by = y + .25, bw = w - .6, bd = dd - .95;
-    poly(c, [Q(bx + bw / 2 - .3, by + bd), Q(bx + bw / 2 + .3, by + bd), Q(bx + bw / 2 + .3, y + dd - .05), Q(bx + bw / 2 - .3, y + dd - .05)], '#e3d6bc');
-  }
-  function drawCivic(c, o, T, ghost) { frameOn(o, D[o.k].w, D[o.k].d); try { civic_(c, o, T, ghost); } finally { frameOff(); } }
+  function drawCivic(c, o, T) { frameOn(o, D[o.k].w, D[o.k].d); try { civic_(c, o, T); } finally { frameOff(); } }
   function signBoard(c, x, y, z, ic, txt) {
     if (ROT) { const R = ROT; ROT = null; try { signBoard(c, 2 * R.ox + R.W - x, R.oy + R.D - .3, z, ic, txt); } finally { ROT = R; } return; } // turned: the name sign hangs on the back wall we see
     const q = Q(x, y, z); c.font = 'bold 7px sans-serif'; const tw = Math.max(18, c.measureText(txt).width + 16);
@@ -5485,10 +5438,18 @@ function getFlowerSprite(kind) {
   function drawObj(c, o, T, ghost) { const d = D[o.k]; if (!d) return; drawObj_(c, o, T, ghost); if (!ghost) { occTag(c, o); lvBadge(c, o); } }
   const depthOf = o => {
     const f = fpOf(o.k, o.r), d = D[o.k];
-    const base = o.x + o.y + f.w + f.d - 1.02;
+    // v2026-10-18(3): 집만 보정했더니 "출입구 길"과 "집 근처 나무/마당"에서 여전히 가려지는
+    // 현상이 남아 있었음 -- 원래 -1.02 보정값 자체가 모든 종류의 건물/나무/장식물에 공통으로
+    // 약 한 칸 가까이 '카메라 쪽으로 너무 당겨진' 값이라, 집뿐 아니라 나무/장식물 바로 앞에 서
+    // 있는 주민도 똑같이 가려졌었음. 모든 종류에 공통으로 실제 모서리 값(-2, 동률 방지용으로
+    // 아주 살짝만 남김)으로 보정해서 주민이 건물/나무보다 카메라 쪽에 있을 때 항상 앞에 그려지게 함.
+    const base = o.x + o.y + f.w + f.d - 1.98;
     // 사용자 요구사항: 건물끼리 겹칠 때는 나중에 지은 건물/확장된 건물의 서쪽, 북쪽 벽이 기존 건물보다 무조건 위에 오도록 정렬
-    let bonus = (d && (d.cat === 'house' || (d.cat === 'civic' && !d.open))) ? 0.6 : 0;
-    bonus += (o.id || 0) * 1e-5 + (o.lv || 1) * 0.01;
+    // v2026-10-18: 위 0.6 보너스가 거의 한 타일만큼 커서, 건물 바로 앞(도로/마당)에 서 있는 주민이
+    // 실제로는 건물보다 카메라 쪽(앞)에 있는데도 건물에 가려져 보이는 버그를 만들었음. 겹치는 건물들
+    // 사이의 순서만 깨지지 않을 정도로 아주 작게 줄여서, 더 이상 주변 주민을 건물 뒤로 밀어넣지 않게 함.
+    let bonus = (d && (d.cat === 'house' || (d.cat === 'civic' && !d.open))) ? 0.05 : 0;
+    bonus += (o.id || 0) * 1e-5 + (o.lv || 1) * 0.001;
     return base + bonus;
   };
   function drawGhost(c, g, T) {
@@ -6905,8 +6866,14 @@ function getFlowerSprite(kind) {
       const home = pickHome(S);
       // 도로가 연결되어 있지 않은 집에서는 주민이 밖으로 나오지 않음
       if (home && isHouseAccessible(S, home)) {
-        // 주민이 방문할 시설은 오직 7개 지정 장소만 (펫 카페, 동물병원, 펫 미용실, 동물원, 공원, 호수, 유기동물 보관소)
-        const allowedKinds = new Set(['cafe', 'hosp', 'salon', 'zoo', 'park', 'lake', 'shelter']);
+        // v2026-10-18: 전엔 주민이 방문할 시설을 7개 지정 장소로만 막아놔서, 편의점/빵집/사진관 등
+        // 유저가 지은 '상점 공공 시설'(civic 건물)들은 아무리 지어도 주민이 한 번도 들르지 않았음.
+        // 이런 상점은 방문객이 와야 수익(fx: spend2/spend3/collector 등)이 생기는 구조라서, 주민이
+        // 직접 들어갈 수 있는 모든 상점/공공 시설 종류를 전부 허용 목록에 추가함 (장식용 정문 gate만 제외).
+        const allowedKinds = new Set(['cafe', 'hosp', 'salon', 'zoo', 'park', 'lake', 'shelter',
+          'conv', 'bakery', 'florist', 'clinic', 'dogpark', 'photo', 'school', 'police', 'fire',
+          'library', 'market', 'training', 'pethotel', 'clocktower', 'lookout', 'chapel',
+          'aquarium_center', 'pet_themepark', 'cat_cafe', 'pet_bakery']);
         const dests = S.town.objs.filter(o => allowedKinds.has(o.k) && isFacilityAccessible(S, o));
         if (typeof PARK !== 'undefined' && PARK.isBuilt() && typeof PARK_POS === 'function' && isFacilityAccessible(S, 'park')) {
           const pp = PARK_POS();
