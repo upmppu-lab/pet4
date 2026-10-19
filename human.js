@@ -2177,7 +2177,7 @@ const P2 = {
       // Contact Ambient Occlusion (AO) under feet
       ART.ell(c, 0, 7.5, 12 * k * bw, 4.5 * k, 'rgba(20,12,6,.32)');
       ART.ell(c, 0, 7.5, 6 * k * bw, 2.4 * k, 'rgba(10,5,2,.45)');
-      ART.castShadow(c, key, 360, 360, 180, 260, g => {
+      ART.castShadow(c, key, 240, 240, 120, 180, g => {
         DRAW_SIL_DEPTH++;
         try { draw(g, o, dir, 0, moving, mood, diag, faceBack, 0); } finally { DRAW_SIL_DEPTH--; }
       }, { squash: .3, alpha: .32, offX: 7, offY: 4 });

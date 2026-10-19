@@ -84,24 +84,37 @@ if (typeof globalThis !== 'undefined') globalThis.ASSET_CACHE = ASSET_CACHE;
 // v2026-10-17: 보관상자(마을게시판 옆/목장/농장 셋 다 공용) 사용자 제공 그림 -- 한 번만 로드해서 세 곳에서 재사용
 var CHEST_IMG = (typeof ASSET_CACHE !== 'undefined') ? ASSET_CACHE.preload('spr/chest.png') : null;
 
-// Asynchronously preload initial core assets without blocking main thread
+// Asynchronously preload and decode core game assets before/during title screen
 if (typeof setTimeout === 'function') {
   setTimeout(function() {
     try {
       var essentials = [
         'spr/home.png', 'spr/ui/title_bg.jpg', 'spr/ui/icon_rotate.png',
         'spr/park.png', 'spr/lake/lake.png', 'spr/ranch/ranch.png', 'spr/train.png', 'spr/zoo/zoo.png', 'spr/station_1.png',
-        'spr/roads/block.png', 'spr/roads/block_1.png', 'spr/roads/cobble.png', 'spr/roads/brick.png', 'spr/roads/dirt.png', 'spr/roads/yellow.png', 'spr/roads/step.png', 'spr/roads/stone.png', 'spr/roads/tile.png',
         'spr/shelf.png', 'spr/counter.png', 'spr/toyshelf.png', 'spr/plant.png', 'spr/bench.png', 'spr/table.png',
-        'spr/tree_oak.png', 'spr/house/house_1.png', 'spr/house/house_2.png', 'spr/chest.png'
+        'spr/tree_oak.png', 'spr/tree_sakura.png', 'spr/tree_evergreen.png', 'spr/chest.png'
       ];
+      // All 12 house tiers
+      for (var h = 1; h <= 12; h++) {
+        essentials.push('spr/house/house_' + h + '.png');
+      }
+      // All 18 town civic store sprites
+      var stores = ['conv', 'florist', 'bakery', 'fire', 'clocktower', 'aquarium_center', 'chapel', 'lookout', 'market', 'pet_themepark', 'school', 'gazebo', 'windmill', 'clinic', 'photo', 'training', 'police', 'library'];
+      for (var s = 0; s < stores.length; s++) {
+        essentials.push('spr/store/' + stores[s] + '.png');
+      }
+      // All road tiles
+      var roads = ['dirt', 'cobble', 'brick', 'yellow', 'block', 'block_1', 'step', 'wood', 'sand', 'stone', 'sakura', 'tile', 'mosaic', 'autumn', 'slate', 'crystal', 'gold'];
+      for (var r = 0; r < roads.length; r++) {
+        essentials.push('spr/roads/' + roads[r] + '.png');
+      }
       for (var i = 1; i <= 6; i++) {
         essentials.push('spr/grass/grass' + i + '.png');
         essentials.push('spr/grass/stone_' + i + '.png');
       }
       ASSET_CACHE.preloadList(essentials);
     } catch (e) {}
-  }, 60);
+  }, 20);
 }
 
 // ---- Species data ----

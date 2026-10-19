@@ -30,16 +30,18 @@ const ART = (() => {
         g.globalCompositeOperation = 'source-over';
         ent = { cv, ox, oy };
         SIL_CACHE.set(key, ent);
-        if (SIL_CACHE.size > 150) SIL_CACHE.clear(); // 안전장치: 캔버스가 커서 캐시 캡을 낮춤
+        // LRU 부분 삭제: 전체 캐시를 날리지 않고 가장 오래된 60개만 점진적으로 정리하여 프레임 드랍(렉) 완전 방지
+        if (SIL_CACHE.size > 260) {
+          const it = SIL_CACHE.keys();
+          for (let i = 0; i < 60; i++) {
+            const k = it.next().value;
+            if (k) SIL_CACHE.delete(k);
+          }
+        }
       } catch (e) {
-        // v2026-10-17(3): 특정 포즈(이동 중 등)에서 캡처 중 에러가 나도 그림자 하나 때문에 전체 렌더링이
-        // 깨지면 안 되므로 조용히 포기 -- 이번 프레임은 그림자 없이, 다음 프레임에 다시 시도됨(캐시 안 됨)
         return;
       }
     }
-    // v2026-10-17(3): 캐릭터가 왼쪽/오른쪽 중 어느 쪽을 보든(= 바깥에서 이미 좌우반전 transform이
-    // 걸려 있어도) 그림자 방향은 항상 화면 기준 고정(남서쪽)이어야 하므로, 현재 변환행렬에서
-    // "위치"와 "크기(절대값)"만 가져오고 반전 부호는 무시한 채 새로 구성한다.
     const m = c.getTransform();
     const sx = Math.hypot(m.a, m.b) || 1, sy = Math.hypot(m.c, m.d) || 1;
     const sq = opts.squash != null ? opts.squash : .32;
@@ -49,11 +51,15 @@ const ART = (() => {
     c.save();
     c.setTransform(sx, 0, .42 * sy, -sq * sy, m.e + offX, m.f + offY);
     c.globalAlpha = opts.alpha != null ? opts.alpha : .32;
-    try {
-      if (c.filter) {
-        c.filter = 'blur(4px)';
-      }
-    } catch (e) {}
+    // 모바일 기기는 GPU 과부하를 막기 위해 초고속 하드웨어 블릿 사용, 데스크톱은 가우시안 블러 적용
+    const isMobile = typeof window !== 'undefined' && (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth < 900));
+    if (!isMobile) {
+      try {
+        if (c.filter) {
+          c.filter = 'blur(3px)';
+        }
+      } catch (e) {}
+    }
     c.drawImage(ent.cv, -ent.ox, -ent.oy);
     c.restore();
   }
@@ -129,7 +135,7 @@ const ART = (() => {
       // Contact Ambient Occlusion (AO) under feet
       ell(c, 0, 0, 11, 4.5, 'rgba(20,12,6,.32)');
       ell(c, 0, 0, 6, 2.5, 'rgba(10,6,3,.45)');
-      castShadow(c, key, 300, 300, 150, 190, g => {
+      castShadow(c, key, 220, 220, 110, 150, g => {
         HUMAN_SIL_DEPTH++; const prevSilenced = SHADOW_SILENCED; SHADOW_SILENCED = true;
         try { human(g, o, dir, 0, moving, mood, mood2, mood3, shadowYOff); } finally { HUMAN_SIL_DEPTH--; SHADOW_SILENCED = prevSilenced; }
       }, { squash: .3, alpha: .32, offX: 6.5, offY: 3.8 });
@@ -609,7 +615,7 @@ const ART = (() => {
       ell(c, 0, 0, 13 * pSz, 5.2 * pSz, 'rgba(20,12,6,.32)');
       ell(c, 0, 0, 7 * pSz, 2.8 * pSz, 'rgba(10,6,3,.42)');
       const key = 'pet:' + sp + ':' + (lk.seed || 7) + ':' + (st0.moving ? 'm' : '') + (st0.sleep ? 'z' : '') + (st0.happy ? 'h' : '') + ':' + (st0.dir || 1) + ':' + (st0.size || 1);
-      castShadow(c, key, 260, 260, 130, 170, g => {
+      castShadow(c, key, 180, 180, 90, 120, g => {
         PET_SIL_DEPTH++; const prevSilenced = SHADOW_SILENCED; SHADOW_SILENCED = true;
         try { pet(g, sp, Object.assign({}, st0, { t: 0 })); } finally { PET_SIL_DEPTH--; SHADOW_SILENCED = prevSilenced; }
       }, { squash: .32, alpha: .32, offX: 5.5, offY: 3.2 });

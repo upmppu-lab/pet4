@@ -514,7 +514,7 @@ return true;
       return false;
     };
     let closestNode = null, closestDist = Math.hypot(tx - sx, ty - sy);
-    while (heap.length && n < 8000) {
+    while (heap.length && n < 2500) {
       const [, x, y] = pop(), kc = key(x, y);
       if (closed.has(kc)) continue; closed.add(kc); n++;
       const distToTarget = Math.hypot(tx - x, ty - y);
@@ -2103,19 +2103,22 @@ return true;
     c.save();
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    // Step 4.1: 저채도 팔레트 보정 (원색의 채도를 20~25% 낮춰 따뜻하고 편안한 스토리북 톤으로 융합)
-    c.globalCompositeOperation = 'color';
-    c.fillStyle = isNight ? 'rgba(75, 90, 135, 0.16)' : 'rgba(160, 142, 120, 0.15)';
-    c.fillRect(0, 0, vw, vh);
+    const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.innerWidth < 900);
 
-    // Step 4.2: 명도 대비(Contrast) 향상 레이어
-    c.globalCompositeOperation = 'overlay';
-    c.fillStyle = isNight ? 'rgba(70, 75, 100, 0.10)' : 'rgba(130, 120, 110, 0.08)';
-    c.fillRect(0, 0, vw, vh);
+    // Step 4.1 & 4.2: 저채도 팔레트 및 대비 보정 (데스크톱에서는 정밀 다중 합성, 모바일에서는 단일 패스로 최적화)
+    if (!isMobile) {
+      c.globalCompositeOperation = 'color';
+      c.fillStyle = isNight ? 'rgba(75, 90, 135, 0.16)' : 'rgba(160, 142, 120, 0.15)';
+      c.fillRect(0, 0, vw, vh);
+
+      c.globalCompositeOperation = 'overlay';
+      c.fillStyle = isNight ? 'rgba(70, 75, 100, 0.10)' : 'rgba(130, 120, 110, 0.08)';
+      c.fillRect(0, 0, vw, vh);
+    }
 
     // Step 4.3: 글로벌 라이트 (globalCompositeOperation = 'soft-light'로 따뜻한 시간대별 햇살 필터)
     c.globalCompositeOperation = 'soft-light';
-    let sunCol = 'rgba(255, 230, 190, 0.16)'; // 기본 낮 시간대 따뜻한 햇살
+    let sunCol = isMobile ? 'rgba(255, 222, 180, 0.20)' : 'rgba(255, 230, 190, 0.16)'; // 기본 낮 시간대 따뜻한 햇살
     if (m >= 5 * 60 && m < 7.5 * 60) {
       // 05:00 ~ 07:30: 은은한 로즈 골드 일출
       sunCol = 'rgba(255, 195, 150, 0.24)';
@@ -2124,7 +2127,7 @@ return true;
       sunCol = 'rgba(255, 240, 205, 0.18)';
     } else if (m >= 11.5 * 60 && m < 16 * 60) {
       // 11:30 ~ 16:00: 포근한 정오 황금빛
-      sunCol = 'rgba(255, 235, 195, 0.15)';
+      sunCol = isMobile ? 'rgba(255, 225, 185, 0.18)' : 'rgba(255, 235, 195, 0.15)';
     } else if (m >= 16 * 60 && m < 18 * 60) {
       // 16:00 ~ 18:00: 골든 아워 앰버 글로우
       sunCol = 'rgba(255, 185, 95, 0.28)';
@@ -2138,14 +2141,16 @@ return true;
     c.fillStyle = sunCol;
     c.fillRect(0, 0, vw, vh);
 
-    // Step 4.4: 텍스처 노이즈 오버레이 (물리적인 흙/나무/종이 질감)
-    const pat = getNoisePattern();
-    if (pat) {
-      c.globalCompositeOperation = 'soft-light';
-      c.globalAlpha = 0.055;
-      c.fillStyle = pat;
-      c.fillRect(0, 0, vw, vh);
-      c.globalAlpha = 1.0;
+    // Step 4.4: 텍스처 노이즈 오버레이 (물리적인 흙/나무/종이 질감 - 데스크톱)
+    if (!isMobile) {
+      const pat = getNoisePattern();
+      if (pat) {
+        c.globalCompositeOperation = 'soft-light';
+        c.globalAlpha = 0.055;
+        c.fillStyle = pat;
+        c.fillRect(0, 0, vw, vh);
+        c.globalAlpha = 1.0;
+      }
     }
 
     // Step 3: 비네트 (화면 가장자리를 부드럽게 어둡게 하여 마을 중앙에 시선 집중)
