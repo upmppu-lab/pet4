@@ -43,9 +43,17 @@ const ART = (() => {
     const m = c.getTransform();
     const sx = Math.hypot(m.a, m.b) || 1, sy = Math.hypot(m.c, m.d) || 1;
     const sq = opts.squash != null ? opts.squash : .32;
+    // Directional shadow offset (sun from top-left, casting shadow towards south-east)
+    const offX = (opts.offX != null ? opts.offX : 6.5) * sx;
+    const offY = (opts.offY != null ? opts.offY : 3.8) * sy;
     c.save();
-    c.setTransform(sx, 0, .42 * sy, -sq * sy, m.e, m.f);
-    c.globalAlpha = opts.alpha != null ? opts.alpha : .28;
+    c.setTransform(sx, 0, .42 * sy, -sq * sy, m.e + offX, m.f + offY);
+    c.globalAlpha = opts.alpha != null ? opts.alpha : .32;
+    try {
+      if (c.filter) {
+        c.filter = 'blur(4px)';
+      }
+    } catch (e) {}
     c.drawImage(ent.cv, -ent.ox, -ent.oy);
     c.restore();
   }
@@ -63,9 +71,12 @@ const ART = (() => {
   function shadow(c, x, y, rx, ry) {
     if (SHADOW_SILENCED) return; // 실루엣 그림자가 대신 그려짐
     const rY = ry || rx * .4;
-    ell(c, x + .8, y + .8, rx * 1.25, rY * 1.25, 'rgba(30,18,8,.20)');
-    ell(c, x + .4, y + .4, rx, rY, 'rgba(35,20,10,.36)');
-    ell(c, x, y, rx * .68, rY * .55, 'rgba(25,12,5,.55)');
+    // Directional drop shadow offset towards south-east
+    ell(c, x + 5, y + 3.2, rx * 1.25, rY * 1.25, 'rgba(20,12,6,.16)');
+    ell(c, x + 2.5, y + 1.8, rx * 1.05, rY, 'rgba(25,14,7,.26)');
+    // Ambient Occlusion (AO): deep contact shadow under object
+    ell(c, x, y, rx * 0.72, rY * 0.6, 'rgba(18,10,4,.45)');
+    ell(c, x, y, rx * 0.38, rY * 0.32, 'rgba(10,5,2,.60)');
   }
 
   // ---------------- eyes/faces ----------------
@@ -115,10 +126,13 @@ const ART = (() => {
     // v2026-10-17: 동그란 타원 대신 이 캐릭터의 실제 실루엣(옷/머리/포즈별로 캐싱)을 납작하게 눌러서 그림자로 찍는다
     if (topLevel && !shadowYOff) {
       const key = 'ahum:' + JSON.stringify(o) + ':' + dir + ':' + (moving ? 1 : 0) + ':' + SIT.toFixed(2);
+      // Contact Ambient Occlusion (AO) under feet
+      ell(c, 0, 0, 11, 4.5, 'rgba(20,12,6,.32)');
+      ell(c, 0, 0, 6, 2.5, 'rgba(10,6,3,.45)');
       castShadow(c, key, 300, 300, 150, 190, g => {
         HUMAN_SIL_DEPTH++; const prevSilenced = SHADOW_SILENCED; SHADOW_SILENCED = true;
         try { human(g, o, dir, 0, moving, mood, mood2, mood3, shadowYOff); } finally { HUMAN_SIL_DEPTH--; SHADOW_SILENCED = prevSilenced; }
-      }, { squash: .3, alpha: .26 });
+      }, { squash: .3, alpha: .32, offX: 6.5, offY: 3.8 });
     } else {
       shadow(c, 0, 0, 14, 5.8);
     }
@@ -590,11 +604,15 @@ const ART = (() => {
     const topLevel = PET_SIL_DEPTH === 0;
     // v2026-10-17: 동그란 타원 대신 이 펫의 실제 실루엣(종/개체/포즈별로 캐싱)을 납작하게 눌러서 그림자로 찍는다
     if (topLevel) {
+      const pSz = st0.size || 1;
+      // Contact Ambient Occlusion (AO) under pet
+      ell(c, 0, 0, 13 * pSz, 5.2 * pSz, 'rgba(20,12,6,.32)');
+      ell(c, 0, 0, 7 * pSz, 2.8 * pSz, 'rgba(10,6,3,.42)');
       const key = 'pet:' + sp + ':' + (lk.seed || 7) + ':' + (st0.moving ? 'm' : '') + (st0.sleep ? 'z' : '') + (st0.happy ? 'h' : '') + ':' + (st0.dir || 1) + ':' + (st0.size || 1);
       castShadow(c, key, 260, 260, 130, 170, g => {
         PET_SIL_DEPTH++; const prevSilenced = SHADOW_SILENCED; SHADOW_SILENCED = true;
         try { pet(g, sp, Object.assign({}, st0, { t: 0 })); } finally { PET_SIL_DEPTH--; SHADOW_SILENCED = prevSilenced; }
-      }, { squash: .32, alpha: .3 });
+      }, { squash: .32, alpha: .32, offX: 5.5, offY: 3.2 });
     }
     c.save(); c.scale(st.dir || 1, 1);
     const bob = st.moving ? Math.abs(Math.sin(t * 12)) * 2.2 : st.sleep ? Math.sin(t * 1.5) * .8 : st.mood === 'scared' ? Math.sin(t * 40) * .5 : Math.sin(t * 2.5) * .7;

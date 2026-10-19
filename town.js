@@ -4025,6 +4025,25 @@ function getFlowerSprite(kind) {
     HS = hs || null;
   }
   function frameOff() { ROT = null; MR = null; HS = null; }
+  // 모든 스프라이트 밑에 부드러운 방향성 드롭섀도 및 앰비언트 오클루전
+  function drawWithShadow(c, img, x, y, w, h, offX = 8, offY = 5, blur = 6, opacity = 0.35) {
+    if (!img) return;
+    c.save();
+    try {
+      if (c.filter) {
+        c.filter = `blur(${blur}px) brightness(0) opacity(${opacity})`;
+        c.drawImage(img, x + offX, y + offY, w, h);
+      } else {
+        c.globalAlpha = opacity * 0.7;
+        c.drawImage(img, x + offX, y + offY, w, h);
+      }
+    } catch (e) {
+      // fallback if filter not supported
+    }
+    c.restore();
+    c.drawImage(img, x, y, w, h);
+  }
+
   function drawHouse(c, h, T) {
     // 5x5 부지 전용 정밀 렌더링: 회전(r) 시에도 위치가 전혀 이동하지 않고
     // 부지 중심(cx, cy)에서 제자리 회전하며, 3x3 칸을 차지하도록 알맞게 확대됨
@@ -4044,6 +4063,22 @@ function getFlowerSprite(kind) {
     // 정상적으로 그려지고 있으므로, 여기서는 완전히 제거함 (curDoor는 아래 우체통 위치에 계속 필요).
     const curDoor = (((h.doorDir != null ? h.doorDir : ((h.o && h.o.doorDir != null) ? h.o.doorDir : h.r)) || 0) % 4 + 4) % 4;
 
+    // 1. Ambient Occlusion (AO) around house footprint (soft contact gradient)
+    const pt = (px, py) => [ISO.wx(px, py), ISO.wy(px, py)];
+    poly(c, [
+      pt(cx - 1.58, cy - 1.58),
+      pt(cx + 1.58, cy - 1.58),
+      pt(cx + 1.58, cy + 1.58),
+      pt(cx - 1.58, cy + 1.58)
+    ], 'rgba(15, 25, 10, 0.28)');
+    // Directional shadow extension towards south/east
+    poly(c, [
+      pt(cx - 1.45, cy - 1.45),
+      pt(cx + 1.85, cy - 1.15),
+      pt(cx + 1.85, cy + 1.85),
+      pt(cx - 1.15, cy + 1.85)
+    ], 'rgba(10, 18, 5, 0.20)');
+
     // 2. 5x5 부지의 정중앙 3x3 (cx-1.5 ~ cx+1.5, cy-1.5 ~ cy+1.5) 집 밑바닥 기초/마루
     poly(c, [
       [ISO.wx(cx - 1.5, cy - 1.5), ISO.wy(cx - 1.5, cy - 1.5)],
@@ -4057,9 +4092,6 @@ function getFlowerSprite(kind) {
 
     // 3. 집 본체: 5x5 땅 정중앙(cx, cy)의 3x3 칸(너비 약 192px)을 정확히 차지하도록 배치
     // PNG 스프라이트(512x512)의 아이소메트릭 밑면 중심 Y좌표 비율은 0.60~0.62(평균 0.61)에 위치함.
-    // 기존에 남쪽 맨 끝점(0.792)을 기준으로 잡아 집 전체가 북쪽 모서리로 밀렸던 문제를 완벽 해결!
-    // 밑면 중심(anchorY)을 (cx, cy)에 정확히 맞춤으로써 5x5 땅의 완벽한 정중앙 3x3에 안착함.
-    // 좌회전/우회전 시 위치는 (cx, cy) 제자리에서 전혀 이동하지 않고 방향만 깔끔하게 전환됨.
     if (img.complete && img.naturalWidth) {
       const q = [ISO.wx(cx, cy), ISO.wy(cx, cy)];
       const dw = 192, dh = dw * (img.naturalHeight || 512) / (img.naturalWidth || 512);
@@ -4075,10 +4107,10 @@ function getFlowerSprite(kind) {
         c.save();
         c.translate(q[0], q[1]);
         c.scale(-1, 1);
-        c.drawImage(img, -dw / 2, -anchorY, dw, dh);
+        drawWithShadow(c, img, -dw / 2, -anchorY, dw, dh, -8, 5, 6, 0.35);
         c.restore();
       } else {
-        c.drawImage(img, q[0] - dw / 2, q[1] - anchorY, dw, dh);
+        drawWithShadow(c, img, q[0] - dw / 2, q[1] - anchorY, dw, dh, 8, 5, 6, 0.35);
       }
     }
 
@@ -4096,9 +4128,13 @@ function getFlowerSprite(kind) {
   // ---------------- saplings, trees & flowers (grow over the days) ----------------
   function drawTree(c, o, T, ghost) {
     const st = ghost ? 2 : stageOf(S, o), k = o.k, q = Q(o.x + .5, o.y + .5), sw = Math.sin(T * 1.4 + o.x * .7 + o.y) * 1.5;
-    const isFlw = D[k] && D[k].flower;
-    // Ground shadow & soft grass bedding: much wider and deeper for tall majestic trees!
-    ART.ell(c, q[0], q[1], isFlw ? (st === 2 ? 14 : 9) : (st === 2 ? 30 : 18), isFlw ? (st === 2 ? 6 : 4) : (st === 2 ? 11 : 7), 'rgba(0,0,0,.15)');
+    // Ambient Occlusion core & directional ground drop shadow
+    const rBase = isFlw ? (st === 2 ? 14 : 9) : (st === 2 ? 30 : 18);
+    const rBaseY = isFlw ? (st === 2 ? 6 : 4) : (st === 2 ? 11 : 7);
+    // Contact AO under trunk / base
+    ART.ell(c, q[0], q[1], rBase * 0.75, rBaseY * 0.75, 'rgba(12, 22, 8, 0.45)');
+    // Directional shadow cast to southeast
+    ART.ell(c, q[0] + (isFlw ? 4 : 14), q[1] + (isFlw ? 2 : 7), rBase * 1.3, rBaseY * 1.25, 'rgba(10, 18, 6, 0.25)');
     if (st === 0) { // a sapling: rich soil mound, sturdy green sprout with twin leaves & dew
       ART.ell(c, q[0], q[1] - 1, 9, 4, '#5c3d24');
       ART.ell(c, q[0], q[1] - 2, 7, 3, '#785030');
@@ -4318,7 +4354,7 @@ function getFlowerSprite(kind) {
           ? { w: 86, h: 86, bottomFrac: 467 / 512 }
           : { w: 85, h: 85, bottomFrac: 476 / 512 };
         const swx = sw * 0.3; // 미풍에 살짝 흔들리는 느낌
-        c.drawImage(img, -TG.w / 2 + swx, -TG.bottomFrac * TG.h, TG.w, TG.h);
+        drawWithShadow(c, img, -TG.w / 2 + swx, -TG.bottomFrac * TG.h, TG.w, TG.h, 7, 5, 5, 0.32);
       } else {
         // 로딩 중일 때 임시 캐노피
         ART.ell(c, 0, -36, 16, 16, k === 'oaktree' ? '#4a8f3b' : '#f89ab4');
@@ -4329,7 +4365,7 @@ function getFlowerSprite(kind) {
       if (img.complete && img.naturalWidth) {
         const TG = { w: 90, h: 90, bottomFrac: 480 / 512 };
         const swx = sw * 0.3;
-        c.drawImage(img, -TG.w / 2 + swx, -TG.bottomFrac * TG.h, TG.w, TG.h);
+        drawWithShadow(c, img, -TG.w / 2 + swx, -TG.bottomFrac * TG.h, TG.w, TG.h, 7, 5, 5, 0.32);
       } else {
         // Majestic Grand Conical Evergreen Fir Tree (풍성한 상록수 / 전나무)
         // Matching the user's illustration: thick textured bark trunk + 5 lush layered frilly pine tiers
@@ -4690,15 +4726,26 @@ function getFlowerSprite(kind) {
     const dw = STORE_SPRITE_W(w, dd);
     const dh = dw * (im.naturalHeight / im.naturalWidth);
     const groundY = q[1] + (w + dd) * 16 / 2; // 부지 다이아몬드의 남쪽(카메라와 가장 가까운) 꼭짓점
-    // v2026-10-10: "방향 회전이 안 먹는다" -- 그림이 한 각도로만 그려진 실사풍 사진이라 진짜
-    // 4방향 건축 회전은 표현할 수 없지만, 회전 버튼을 눌렀을 때 아무 변화가 없으면 "고장났다"고
-    // 느껴지므로, 기존 캐릭터 방향 전환과 같은 방식(좌우 반전)으로 홀수 회전값에서 그림을 뒤집어
-    // 최소한 시각적으로 "돌아갔다"는 게 보이게 함.
     const flip = (r % 2) ? -1 : 1;
+
+    // 1. 부지 바닥 앰비언트 오클루전(AO) 및 방향성 그림자
+    poly(c, [
+      Q(x - 0.2, y - 0.2),
+      Q(x + w + 0.2, y - 0.2),
+      Q(x + w + 0.2, y + dd + 0.2),
+      Q(x - 0.2, y + dd + 0.2)
+    ], 'rgba(15, 25, 10, 0.25)');
+    poly(c, [
+      Q(x - 0.1, y - 0.1),
+      Q(x + w + 0.45, y + 0.1),
+      Q(x + w + 0.45, y + dd + 0.45),
+      Q(x + 0.1, y + dd + 0.45)
+    ], 'rgba(10, 18, 5, 0.18)');
+
     c.save();
     c.translate(q[0], groundY);
     c.scale(flip, 1);
-    c.drawImage(im, -dw / 2, -dh, dw, dh);
+    drawWithShadow(c, im, -dw / 2, -dh, dw, dh, flip < 0 ? -9 : 9, 6, 7, 0.36);
     c.restore();
     return true;
   }

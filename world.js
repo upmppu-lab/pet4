@@ -1,7 +1,7 @@
 // ================= Isometric shop world: camera, actors, pathfinding, input =================
 const World = (() => {
   let cv, c, dpr = 1, vw = 0, vh = 0;
-  const cam = { x: 0, y: 0, z: 1.3, follow: true };
+  const cam = { x: 0, y: 0, z: 1.4, follow: true };
   let bgCanvas = null, bgKey = '';
   const actors = new Map();   // id -> actor
   const trucked = new Set();
@@ -1595,12 +1595,19 @@ return true;
     // camera follow
     if (cam.follow && me) {
       const tx = ISO.wx(me.x, me.y), ty = ISO.wy(me.x, me.y) - 30;
-      cam.x += (tx - cam.x) * Math.min(1, dt * 3); cam.y += (ty - cam.y) * Math.min(1, dt * 3);
+      cam.x += (tx - cam.x) * Math.min(1, dt * 3.5); cam.y += (ty - cam.y) * Math.min(1, dt * 3.5);
     }
     buildBg();
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     c.fillStyle = '#5fa23a'; c.fillRect(0, 0, vw, vh);
-    c.setTransform(dpr * cam.z, 0, 0, dpr * cam.z, dpr * (vw / 2 - cam.x * cam.z), dpr * (vh / 2 - cam.y * cam.z));
+
+    // Step 5: 이동 시 자연스러운 미세 흔들림(카메라 셰이크/스텝 스웨이)
+    let camBobX = 0, camBobY = 0;
+    if (me && me.moving) {
+      camBobX = Math.sin(T * 11) * 1.35;
+      camBobY = Math.cos(T * 22) * 0.85;
+    }
+    c.setTransform(dpr * cam.z, 0, 0, dpr * cam.z, dpr * (vw / 2 - (cam.x + camBobX) * cam.z), dpr * (vh / 2 - (cam.y + camBobY) * cam.z));
 
     // Viewport cull metrics (generous padding for roofs, trees, balloons, tall characters)
     const cx = cam.x, cy = cam.y;
@@ -1802,7 +1809,7 @@ return true;
       c.beginPath(); c.moveTo(sx, sy - 6); c.lineTo(sx, sy); c.moveTo(sx - 2.5, sy - 2.5); c.lineTo(sx, sy); c.lineTo(sx + 2.5, sy - 2.5);
       c.lineCap = 'round'; c.lineJoin = 'round'; c.lineWidth = 3.2; c.strokeStyle = 'rgba(90,60,0,.55)'; c.stroke(); c.lineWidth = 1.8; c.strokeStyle = '#ffe135'; c.stroke();
     }
-    tint();
+    lightingPass();
     drawStrayArrow();
     fxOverlay(dt);
     // overlays: bubbles & names
@@ -2066,76 +2073,137 @@ return true;
     }
     c.restore();
   }
-  // User Request 13: Smooth procedural day/night & weather canvas lighting with stars and ambient glow
-  function tint() {
-    if (!S.clock) return;
-    const m = S.clock.m, ph = S.clock.ph;
-    let col = null, a = 0, isNight = false;
+  let _noisePattern = null;
+  function getNoisePattern() {
+    if (_noisePattern) return _noisePattern;
+    try {
+      const nc = document.createElement('canvas');
+      nc.width = 128; nc.height = 128;
+      const ng = nc.getContext('2d');
+      const idata = ng.createImageData(128, 128);
+      const d = idata.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const v = 118 + Math.floor(Math.random() * 26);
+        d[i] = v; d[i + 1] = v; d[i + 2] = v; d[i + 3] = 255;
+      }
+      ng.putImageData(idata, 0, 0);
+      _noisePattern = c.createPattern(nc, 'repeat');
+    } catch (e) {
+      _noisePattern = null;
+    }
+    return _noisePattern;
+  }
 
+  // ================= Lighting Pass: Directional Sunlight, AO, Warm Color Grading, Vignette & Atmosphere =================
+  function lightingPass() {
+    if (!S || !S.clock) return;
+    const m = S.clock.m, ph = S.clock.ph;
+    const isNight = (ph === 'closed' || m >= 20.5 * 60 || m < 5 * 60);
+
+    c.save();
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    // Step 4.1: 저채도 팔레트 보정 (원색의 채도를 20~25% 낮춰 따뜻하고 편안한 스토리북 톤으로 융합)
+    c.globalCompositeOperation = 'color';
+    c.fillStyle = isNight ? 'rgba(75, 90, 135, 0.16)' : 'rgba(160, 142, 120, 0.15)';
+    c.fillRect(0, 0, vw, vh);
+
+    // Step 4.2: 명도 대비(Contrast) 향상 레이어
+    c.globalCompositeOperation = 'overlay';
+    c.fillStyle = isNight ? 'rgba(70, 75, 100, 0.10)' : 'rgba(130, 120, 110, 0.08)';
+    c.fillRect(0, 0, vw, vh);
+
+    // Step 4.3: 글로벌 라이트 (globalCompositeOperation = 'soft-light'로 따뜻한 시간대별 햇살 필터)
+    c.globalCompositeOperation = 'soft-light';
+    let sunCol = 'rgba(255, 230, 190, 0.16)'; // 기본 낮 시간대 따뜻한 햇살
     if (m >= 5 * 60 && m < 7.5 * 60) {
-      // 05:00 ~ 07:30: Rosy golden dawn / sunrise
-      col = '255,185,130';
-      const k = (m - 300) / 150;
-      a = 0.22 * (1 - k * 0.6);
+      // 05:00 ~ 07:30: 은은한 로즈 골드 일출
+      sunCol = 'rgba(255, 195, 150, 0.24)';
     } else if (m >= 7.5 * 60 && m < 11.5 * 60) {
-      // 07:30 ~ 11:30: Soft morning sun
-      col = '255,245,210';
-      a = 0.05;
+      // 07:30 ~ 11:30: 상쾌한 아침 햇살
+      sunCol = 'rgba(255, 240, 205, 0.18)';
     } else if (m >= 11.5 * 60 && m < 16 * 60) {
-      // 11:30 ~ 16:00: Crisp bright midday (no dark tint)
-      col = null; a = 0;
+      // 11:30 ~ 16:00: 포근한 정오 황금빛
+      sunCol = 'rgba(255, 235, 195, 0.15)';
     } else if (m >= 16 * 60 && m < 18 * 60) {
-      // 16:00 ~ 18:00: Golden hour / late afternoon amber glow
-      col = '255,175,70';
-      const k = (m - 960) / 120;
-      a = 0.08 + k * 0.16;
+      // 16:00 ~ 18:00: 골든 아워 앰버 글로우
+      sunCol = 'rgba(255, 185, 95, 0.28)';
     } else if (m >= 18 * 60 && m < 20.5 * 60) {
-      // 18:00 ~ 20:30: Rich dusk twilight & sunset
-      col = '175,75,115';
-      const k = (m - 1080) / 150;
-      a = 0.22 + k * 0.14;
+      // 18:00 ~ 20:30: 붉은 노을 & 황혼
+      sunCol = 'rgba(215, 120, 140, 0.28)';
     } else {
-      // 20:30 ~ 05:00: Deep moonlight night / starry sky
-      isNight = true;
-      col = '16,24,68';
-      a = ph === 'closed' ? 0.42 : 0.36;
+      // 20:30 ~ 05:00: 깊은 달빛 밤하늘
+      sunCol = 'rgba(40, 65, 145, 0.35)';
+    }
+    c.fillStyle = sunCol;
+    c.fillRect(0, 0, vw, vh);
+
+    // Step 4.4: 텍스처 노이즈 오버레이 (물리적인 흙/나무/종이 질감)
+    const pat = getNoisePattern();
+    if (pat) {
+      c.globalCompositeOperation = 'soft-light';
+      c.globalAlpha = 0.055;
+      c.fillStyle = pat;
+      c.fillRect(0, 0, vw, vh);
+      c.globalAlpha = 1.0;
     }
 
-    if (col && a > 0) {
-      c.save();
-      c.setTransform(dpr, 0, 0, dpr, 0, 0);
-      c.fillStyle = `rgba(${col},${a})`;
-      c.fillRect(0, 0, vw, vh);
+    // Step 3: 비네트 (화면 가장자리를 부드럽게 어둡게 하여 마을 중앙에 시선 집중)
+    const maxDim = Math.hypot(vw, vh) * 0.52;
+    const vg = c.createRadialGradient(vw / 2, vh / 2, maxDim * 0.42, vw / 2, vh / 2, maxDim * 1.05);
+    vg.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vg.addColorStop(0.55, 'rgba(20, 14, 28, 0.06)');
+    vg.addColorStop(1, isNight ? 'rgba(10, 8, 24, 0.46)' : 'rgba(15, 10, 20, 0.32)');
+    c.globalCompositeOperation = 'multiply';
+    c.fillStyle = vg;
+    c.fillRect(0, 0, vw, vh);
 
-      // Night sky twinkling stars!
-      if (isNight || ph === 'closed') {
-        const starSeed = Math.floor((S.clock.day || 1) * 31);
-        for (let i = 0; i < 28; i++) {
-          const sx = ((starSeed + i * 97) % 1000) / 1000 * vw;
-          const sy = ((starSeed + i * 53) % 1000) / 1000 * (vh * 0.55);
-          const twinkle = Math.abs(Math.sin(T * 2.2 + i * 1.7));
-          if (twinkle > 0.25) {
-            c.fillStyle = '#ffffff';
-            c.globalAlpha = (a * 1.5) * (0.35 + twinkle * 0.65);
-            c.beginPath();
-            c.arc(sx, sy, 1.2 + (i % 3 === 0 ? 0.8 : 0), 0, Math.PI * 2);
-            c.fill();
-          }
+    // 밤하늘 별빛 반짝임
+    if (isNight) {
+      c.globalCompositeOperation = 'source-over';
+      const starSeed = Math.floor((S.clock.day || 1) * 31);
+      for (let i = 0; i < 32; i++) {
+        const sx = ((starSeed + i * 97) % 1000) / 1000 * vw;
+        const sy = ((starSeed + i * 53) % 1000) / 1000 * (vh * 0.55);
+        const twinkle = Math.abs(Math.sin(T * 2.2 + i * 1.7));
+        if (twinkle > 0.25) {
+          c.fillStyle = '#ffffff';
+          c.globalAlpha = 0.45 * (0.35 + twinkle * 0.65);
+          c.beginPath();
+          c.arc(sx, sy, 1.2 + (i % 3 === 0 ? 0.8 : 0), 0, Math.PI * 2);
+          c.fill();
         }
       }
-      c.restore();
     }
 
-    // Warm ambient lanterns and light glows during evening/night
+    c.restore();
+
+    // 저녁/밤 따뜻한 가로등 및 조명 글로우 (가산 혼합 lighter)
     if (ph === 'closed' || m > 17 * 60 || m < 7 * 60) {
-      c.save(); c.globalCompositeOperation = 'lighter';
-      const glow = (gx, gy, z, r, k, cl) => { const x = ISO.wx(gx, gy), y = ISO.wy(gx, gy) - z; const g = c.createRadialGradient(x, y, 2, x, y, r); g.addColorStop(0, `rgba(${cl || '255,210,120'},${k})`); g.addColorStop(1, `rgba(${cl || '255,210,120'},0)`); c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2); };
+      c.save();
+      c.globalCompositeOperation = 'lighter';
+      const glow = (gx, gy, z, r, k, cl) => {
+        const x = ISO.wx(gx, gy), y = ISO.wy(gx, gy) - z;
+        const g = c.createRadialGradient(x, y, 2, x, y, r);
+        g.addColorStop(0, `rgba(${cl || '255,210,120'},${k})`);
+        g.addColorStop(1, `rgba(${cl || '255,210,120'},0)`);
+        c.fillStyle = g;
+        c.fillRect(x - r, y - r, r * 2, r * 2);
+      };
       for (let y = -2; y < H() + 3; y += 4) glow(W() + 1.1, y, 58, 70, ph === 'closed' ? .35 : .18);
       const nL = S.items.filter(it => FURN.LIGHT[it.k]).length, nk = (ph === 'closed' ? 1 : .8) * Math.min(1, 2.2 / Math.sqrt(Math.max(1, nL)));
-      for (const it of S.items) { const L = FURN.LIGHT[it.k]; if (!L) continue; const d = FURN.fp(it); const big = L.length > 1; const g0 = L[big ? 1 : 0]; glow(it.x + d.w / 2, it.y + d.d / 2, g0[2], g0[3] * (big ? 1.5 : 1), g0[4] * nk, g0[5]); }
+      for (const it of S.items) {
+        const L = FURN.LIGHT[it.k]; if (!L) continue;
+        const d = FURN.fp(it); const big = L.length > 1; const g0 = L[big ? 1 : 0];
+        glow(it.x + d.w / 2, it.y + d.d / 2, g0[2], g0[3] * (big ? 1.5 : 1), g0[4] * nk, g0[5]);
+      }
       glow(W() / 2, H() / 2, 90, 160, ph === 'closed' ? .12 : .06);
       c.restore();
     }
+  }
+
+  function tint() {
+    lightingPass();
   }
   function drawGrid() {
     c.save(); c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 1;
@@ -2861,6 +2929,16 @@ return true;
     const vs = VILLAGE_S_MAX() + 7;
     const X0 = VILLAGE_X0 - 5, Y0 = VILLAGE_Y0 - 5, XE = w + VILLAGE_XE + 5;
     poly([q(X0, Y0), q(XE, Y0), q(XE, vs), q(X0, vs)], '#86c860');
+
+    // 대기 원근법 (Atmospheric Perspective): 먼 북쪽 배경으로 갈수록 부드러운 대기 안개
+    const pFarTop = q(X0, Y0);
+    const pFarBot = q(XE, vs);
+    const haze = c.createLinearGradient(0, pFarTop[1] - 40, 0, pFarBot[1]);
+    haze.addColorStop(0, 'rgba(180, 215, 240, 0.20)');
+    haze.addColorStop(0.35, 'rgba(180, 215, 240, 0.06)');
+    haze.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    c.fillStyle = haze;
+    poly([q(X0, Y0), q(XE, Y0), q(XE, vs), q(X0, vs)]);
     // grass texture outside the baked bg canvas: only when zoomed in (tufts/flowers when close, skip when zoomed out)
     if (cam.z >= .35) {
       const cs = [toGrid(0, 0), toGrid(vw, 0), toGrid(0, vh), toGrid(vw, vh)];

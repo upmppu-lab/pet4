@@ -2174,15 +2174,18 @@ const P2 = {
     // 그림자로 찍는다. 미리보기 화면(shadowYOff 있음)은 기존 타원 방식을 그대로 유지.
     if (DRAW_SIL_DEPTH === 0 && !shadowYOff) {
       const key = 'hum:' + JSON.stringify(o) + ':' + realDir + ':' + (faceBack ? 1 : 0) + ':' + (moving ? 1 : 0) + ':' + mood + ':' + (isSit ? 1 : 0) + ':' + k.toFixed(2) + ':' + bw.toFixed(2);
+      // Contact Ambient Occlusion (AO) under feet
+      ART.ell(c, 0, 7.5, 12 * k * bw, 4.5 * k, 'rgba(20,12,6,.32)');
+      ART.ell(c, 0, 7.5, 6 * k * bw, 2.4 * k, 'rgba(10,5,2,.45)');
       ART.castShadow(c, key, 360, 360, 180, 260, g => {
         DRAW_SIL_DEPTH++;
         try { draw(g, o, dir, 0, moving, mood, diag, faceBack, 0); } finally { DRAW_SIL_DEPTH--; }
-      }, { squash: .3, alpha: .26 });
+      }, { squash: .3, alpha: .32, offX: 7, offY: 4 });
     } else {
       const sy0 = (shadowYOff || 0);
-      ART.ell(c, 0, sy0 + 8, 22 * k * bw, 7.5 * k, 'rgba(15,20,30,.10)');
-      ART.ell(c, 0, sy0 + 7.5, 16 * k * bw, 5.5 * k, 'rgba(15,20,30,.20)');
-      ART.ell(c, 0, sy0 + 7, 9 * k * bw, 3.2 * k, 'rgba(15,20,30,.42)');
+      ART.ell(c, 5, sy0 + 10.5, 24 * k * bw, 8 * k, 'rgba(15,20,30,.12)');
+      ART.ell(c, 2.5, sy0 + 9, 18 * k * bw, 6 * k, 'rgba(15,20,30,.22)');
+      ART.ell(c, 0, sy0 + 7, 10 * k * bw, 3.6 * k, 'rgba(15,20,30,.45)');
     }
 
     c.save();
