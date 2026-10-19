@@ -4151,6 +4151,7 @@ function getFlowerSprite(kind) {
   // ---------------- saplings, trees & flowers (grow over the days) ----------------
   function drawTree(c, o, T, ghost) {
     const st = ghost ? 2 : stageOf(S, o), k = o.k, q = Q(o.x + .5, o.y + .5), sw = Math.sin(T * 1.4 + o.x * .7 + o.y) * 1.5;
+    const isFlw = D[k] && D[k].flower;
     // Ambient Occlusion core & directional ground drop shadow
     const rBase = isFlw ? (st === 2 ? 14 : 9) : (st === 2 ? 30 : 18);
     const rBaseY = isFlw ? (st === 2 ? 6 : 4) : (st === 2 ? 11 : 7);
